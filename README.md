@@ -55,7 +55,7 @@ Dựa trên phân hệ Khách hàng và quản lý hệ thống:
 - Node.js (phiên bản 14 trở lên)
 - [MySQL/SQL Server] đã được cài đặt và chạy.
 
-### 2. Cài đặt
+### 2. Cài đặt.
 
 **Bước 1: Clone dự án**
 ```bash
