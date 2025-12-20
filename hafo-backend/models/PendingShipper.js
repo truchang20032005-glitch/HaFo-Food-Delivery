@@ -3,35 +3,34 @@ const mongoose = require('mongoose');
 const PendingShipperSchema = new mongoose.Schema({
     userId: { type: String, required: true },
 
-    // Thông tin cá nhân
+    // Cá nhân
     fullName: String,
     phone: String,
     email: String,
     dob: String,
     address: String,
-    cccdFront: String,
-    cccdBack: String,
-    selfie: String,
+    city: String,
+    district: String,
 
-    // Xe & Giấy tờ
-    vehicleType: String, // xe máy | xe đạp
+    // Xe cộ
+    vehicleType: String, // Xe máy/Xe điện
     licensePlate: String,
-    driverLicense: String, // Số GPLX
-    licenseImage: String,
-    vehicleRegImage: String,
+
+    // Giấy tờ
+    driverLicense: String, // Số bằng lái
 
     // Ngân hàng
     bankName: String,
     bankAccount: String,
     bankOwner: String,
+    bankBranch: String,
 
-    // Khu vực & Thời gian
-    city: String,
-    district: String,
-    shifts: [String], // Các ca làm việc đăng ký
+    // Hoạt động
+    area: String,
+    workTime: String,
 
     status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('PendingShipper', PendingShipperSchema);
+module.exports = mongoose.models.PendingShipper || mongoose.model('PendingShipper', PendingShipperSchema);

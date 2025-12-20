@@ -42,65 +42,60 @@ router.get('/all', async (req, res) => {
 // API DUYỆT HỒ SƠ (ĐÃ FIX KỸ LOGIC TẠO QUÁN)
 router.put('/approve/:type/:id', async (req, res) => {
     const { type, id } = req.params;
-
     try {
         if (type === 'merchant') {
-            const pending = await PendingRestaurant.findById(id);
-            if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
+            const p = await PendingRestaurant.findById(id);
+            if (!p) return res.status(404).json({ message: 'Lỗi' });
 
-            // 1. Tạo Quán ngay lập tức
-            const newRestaurant = new Restaurant({
-                owner: pending.userId, // Quan trọng: ID của user chủ quán
-                name: pending.name,
-                address: pending.address,
-                phone: pending.phone,
-                // Các thông tin khác
-                city: pending.city,
-                openTime: pending.openTime || '07:00',
-                closeTime: pending.closeTime || '22:00',
-                isOpen: true,
-                rating: 5.0
+            // COPY FULL DỮ LIỆU
+            const newRest = new Restaurant({
+                owner: p.userId,
+                name: p.name,
+                address: p.address,
+                phone: p.phone,
+                image: p.avatar,
+                city: p.city,
+                district: p.district,
+                cuisine: p.cuisine,
+                openTime: p.openTime,
+                closeTime: p.closeTime,
+                priceRange: p.priceRange,
+                bankName: p.bankName,
+                bankAccount: p.bankAccount,
+                bankOwner: p.bankOwner,
+                bankBranch: p.bankBranch,
+                isOpen: true
             });
+            await newRest.save();
 
-            const savedRest = await newRestaurant.save();
-            console.log("-> Đã tạo quán:", savedRest._id);
+            await User.findByIdAndUpdate(p.userId, { role: 'merchant' });
+            p.status = 'approved';
+            await p.save();
+        }
+        else if (type === 'shipper') {
+            const p = await PendingShipper.findById(id);
+            if (!p) return res.status(404).json({ message: 'Lỗi' });
 
-            // 2. Nâng cấp User
-            await User.findByIdAndUpdate(pending.userId, { role: 'merchant' });
-
-            // 3. Xong đơn
-            pending.status = 'approved';
-            await pending.save();
-
-        } else if (type === 'shipper') {
-            const pending = await PendingShipper.findById(id);
-            if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
-
-            // 1. Tạo Shipper
-            const newShipper = new Shipper({
-                user: pending.userId,
-                vehicleType: pending.vehicleType,
-                licensePlate: pending.licensePlate,
-                currentLocation: pending.city,
+            const newShip = new Shipper({
+                user: p.userId,
+                vehicleType: p.vehicleType,
+                licensePlate: p.licensePlate,
+                currentLocation: p.area,
+                bankName: p.bankName,
+                bankAccount: p.bankAccount,
+                bankOwner: p.bankOwner,
                 income: 0
             });
-            await newShipper.save();
+            await newShip.save();
 
-            // 2. Cập nhật User
-            await User.findByIdAndUpdate(pending.userId, {
-                role: 'shipper',
-                fullName: pending.fullName,
-                phone: pending.phone
+            await User.findByIdAndUpdate(p.userId, {
+                role: 'shipper', fullName: p.fullName, phone: p.phone
             });
-
-            pending.status = 'approved';
-            await pending.save();
+            p.status = 'approved';
+            await p.save();
         }
-
-        res.json({ message: 'Đã duyệt và tạo dữ liệu thành công!' });
-
+        res.json({ message: 'Đã duyệt và đồng bộ dữ liệu!' });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ error: err.message });
     }
 });

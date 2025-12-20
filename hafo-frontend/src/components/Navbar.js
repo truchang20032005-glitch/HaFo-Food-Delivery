@@ -30,7 +30,17 @@ function Navbar({ onOpenLogin }) {
                 <div className="ben-trai">
                     <div className="nut-menu"><span>☰</span></div>
                     <Link className="thuong-hieu" to={user ? "/home" : "/"} style={{ textDecoration: 'none' }}>
-                        <img src="/images/logo.png" alt="HaFo" style={{ width: '32px', height: '32px', marginRight: '8px', verticalAlign: 'middle' }} />
+                        <img
+                            src="/images/logo.png"
+                            alt="HaFo"
+                            style={{
+                                width: '32px',
+                                height: '32px',
+                                marginRight: '8px',
+                                verticalAlign: 'middle',
+                                objectFit: 'contain'  // Đảm bảo logo không bị cắt hoặc vỡ
+                            }}
+                        />
 
                     </Link>
                 </div>
