@@ -1,0 +1,12 @@
+# Bỏ qua thư mục thư viện nặng
+node_modules/
+/hafo-frontend/node_modules/
+/hafo-backend/node_modules/
+
+# Bỏ qua file môi trường (chứa mật khẩu)
+.env
+.DS_Store
+
+# Bỏ qua file build
+build/
+dist/

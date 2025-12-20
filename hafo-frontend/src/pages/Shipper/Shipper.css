@@ -1,0 +1,322 @@
+/* --- CẤU HÌNH CHUNG --- */
+.shipper-app {
+    --cam: #F97350;
+    --vang: #FAD06C;
+    --kem: #F7F2E5;
+    --chu: #3A2E2E;
+    --trang: #fff;
+    --xam: #B7AC9A;
+    --xanh: #22C55E;
+    --line: #e9e4d8;
+
+    font-family: 'Inter', sans-serif;
+    color: var(--chu);
+    background-color: var(--kem);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    /* Chừa chỗ cho menu dưới */
+}
+
+/* --- MẶC ĐỊNH (MOBILE FIRST) --- */
+/* Trên điện thoại thật, nó sẽ dùng cái này: Full màn hình, không viền */
+.shipper-app {
+    width: 100%;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.ship-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--trang);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 0;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+    /* Hỗ trợ iPhone tai thỏ */
+}
+
+/* --- CHỈ KHI Ở TRÊN MÁY TÍNH (Màn hình > 768px) --- */
+/* Thì mới ép lại thành khung giả lập điện thoại */
+@media (min-width: 768px) {
+    .shipper-app {
+        max-width: 480px;
+        /* Giới hạn chiều rộng */
+        margin: 20px auto;
+        /* Canh giữa và cách top một chút */
+        border: 1px solid #ddd;
+        /* Tạo viền giả */
+        border-radius: 20px;
+        /* Bo góc cho giống điện thoại */
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        /* Đổ bóng xịn */
+        overflow: hidden;
+        /* Bo góc cả nội dung bên trong */
+        min-height: calc(100vh - 40px);
+        /* Chiều cao vừa vặn */
+    }
+
+    /* Chỉnh lại menu dưới cho khớp với khung 480px */
+    .bottom-nav {
+        max-width: 480px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
+        bottom: 20px;
+        /* Cách đáy màn hình máy tính 1 chút */
+    }
+
+    /* Chỉnh lại header cho khớp */
+    .ship-header {
+        width: 100%;
+    }
+}
+
+/* --- CÁC CSS KHÁC GIỮ NGUYÊN --- */
+.ship-logo {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-weight: 800;
+    color: var(--cam);
+    font-size: 18px;
+    text-decoration: none;
+}
+
+.ship-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--vang);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.ship-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.nav-item {
+    text-align: center;
+    text-decoration: none;
+    color: #999;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.nav-item.active {
+    color: var(--cam);
+}
+
+.nav-item i {
+    font-size: 20px;
+}
+
+.nav-item span {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.ship-filter {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 10px 14px;
+    background: var(--trang);
+    border-bottom: 1px solid var(--line);
+    scrollbar-width: none;
+}
+
+.ship-filter::-webkit-scrollbar {
+    display: none;
+}
+
+.ship-filter button {
+    flex: 0 0 auto;
+    background: var(--kem);
+    border: 1px solid var(--xam);
+    border-radius: 99px;
+    padding: 6px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #555;
+    cursor: pointer;
+}
+
+.ship-filter button.active {
+    background: var(--cam);
+    border-color: var(--cam);
+    color: #fff;
+}
+
+.ship-card {
+    background: #fff;
+    border: 1px solid #eee3d6;
+    border-radius: 14px;
+    margin: 12px 14px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    transition: transform 0.1s;
+}
+
+.ship-card:active {
+    transform: scale(0.98);
+}
+
+.ship-card h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--cam);
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ship-meta {
+    font-size: 13px;
+    color: #6e655d;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ship-money {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 0;
+    border-top: 1px dashed #eee;
+    border-bottom: 1px dashed #eee;
+    margin-bottom: 12px;
+    margin-top: 8px;
+}
+
+.income-tag {
+    color: var(--xanh);
+    font-weight: 900;
+    background: #eafbf1;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.ship-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity 0.2s;
+}
+
+.ship-btn:hover {
+    opacity: 0.9;
+}
+
+.ship-btn.primary {
+    background: var(--cam);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(249, 115, 80, 0.3);
+}
+
+.ship-btn.soft {
+    background: #FFFCF5;
+    color: #333;
+    border: 1px solid #eadfcd;
+}
+
+.profile-panel {
+    margin: 14px;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #eee3d6;
+    overflow: hidden;
+}
+
+.profile-head {
+    padding: 14px;
+    background: #FFFCF5;
+    border-bottom: 1px solid #f0e8d9;
+    font-weight: 800;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.profile-body {
+    padding: 16px;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.kpi-box {
+    border: 1px solid #eee3d6;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+}
+
+.kpi-val {
+    font-size: 24px;
+    font-weight: 900;
+    color: #333;
+}
+
+.kpi-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 14px;
+}
+
+.info-label {
+    color: #888;
+}
+
+.info-val {
+    font-weight: 600;
+    text-align: right;
+}
