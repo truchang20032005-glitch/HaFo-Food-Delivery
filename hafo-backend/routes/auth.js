@@ -2,13 +2,13 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Gọi model User
+const User = require('../models/User');
 
-// Lấy secret key từ biến môi trường (hoặc dùng tạm chuỗi cứng nếu chưa set .env)
 const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_nay_phai_giau';
 
-// --- 1. API ĐĂNG KÝ (Register) ---
-// Method: POST /api/auth/register
+// ========================================
+// 1. API ĐĂNG KÝ (Register) - ĐÃ SỬA
+// ========================================
 router.post('/register', async (req, res) => {
     const { username, password, fullName, role } = req.body;
 
@@ -17,35 +17,57 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin!' });
     }
 
+    // ✅ 2. THÊM: Validate role hợp lệ
+    const validRoles = ['customer', 'pending_merchant', 'pending_shipper'];
+    if (role && !validRoles.includes(role)) {
+        return res.status(400).json({ message: 'Vai trò không hợp lệ!' });
+    }
+
     try {
-        // 2. Kiểm tra user tồn tại
+        // 3. Kiểm tra user tồn tại
         const existingUser = await User.findOne({ username });
         if (existingUser) {
             return res.status(400).json({ message: 'Tài khoản này đã tồn tại!' });
         }
 
-        // 3. Mã hóa mật khẩu
+        // 4. Mã hóa mật khẩu
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Tạo user mới
+        // ✅ 5. THÊM: Xác định approvalStatus dựa trên role
+        let approvalStatus = 'none';
+        if (role === 'pending_merchant' || role === 'pending_shipper') {
+            approvalStatus = 'pending'; // Đánh dấu đang chờ duyệt
+        }
+
+        // 6. Tạo user mới
         const newUser = new User({
             username,
             password: hashedPassword,
             fullName,
-            role: role || 'customer' // Mặc định là khách hàng
+            role: role || 'customer',        // ✅ Nhận role từ frontend
+            approvalStatus: approvalStatus   // ✅ Set trạng thái
         });
 
         await newUser.save();
 
-        res.status(201).json({ message: 'Đăng ký thành công!' });
+        // ✅ 7. THÊM: Trả về thêm role và approvalStatus
+        res.status(201).json({
+            message: 'Đăng ký thành công!',
+            userId: newUser._id,
+            role: newUser.role,              // ✅ Để frontend biết role
+            approvalStatus: newUser.approvalStatus // ✅ Để frontend biết trạng thái
+        });
+
     } catch (error) {
+        console.error('❌ Lỗi đăng ký:', error);
         res.status(500).json({ message: 'Lỗi server: ' + error.message });
     }
 });
 
-// --- 2. API ĐĂNG NHẬP (Login) ---
-// Method: POST /api/auth/login
+// ========================================
+// 2. API ĐĂNG NHẬP (Login) - ĐÃ SỬA
+// ========================================
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -71,10 +93,10 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { userId: user._id, role: user.role },
             JWT_SECRET,
-            { expiresIn: '1d' } // Token sống trong 1 ngày
+            { expiresIn: '1d' }
         );
 
-        // 5. Trả về kết quả
+        // ✅ 5. THÊM: Trả về thêm approvalStatus để frontend điều hướng
         res.json({
             message: 'Đăng nhập thành công',
             token,
@@ -82,11 +104,30 @@ router.post('/login', async (req, res) => {
                 id: user._id,
                 username: user.username,
                 role: user.role,
-                fullName: user.fullName
+                fullName: user.fullName,
+                approvalStatus: user.approvalStatus // ✅ QUAN TRỌNG: Frontend cần để điều hướng
             }
         });
 
     } catch (error) {
+        console.error('❌ Lỗi đăng nhập:', error);
+        res.status(500).json({ message: 'Lỗi server: ' + error.message });
+    }
+});
+
+// ========================================
+// 3. API LẤY THÔNG TIN USER - THÊM MỚI (OPTIONAL)
+// ========================================
+// Dùng để frontend check lại thông tin user sau khi đăng nhập
+router.get('/me/:userId', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+        }
+        res.json(user);
+    } catch (error) {
+        console.error('❌ Lỗi lấy thông tin user:', error);
         res.status(500).json({ message: 'Lỗi server: ' + error.message });
     }
 });
