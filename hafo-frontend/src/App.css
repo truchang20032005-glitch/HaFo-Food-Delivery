@@ -126,10 +126,12 @@ body {
   background: var(--mau-cam);
   color: #fff;
   font-weight: 700;
-  padding: 14px 22px;
+  border: none;
   border-radius: 8px;
+  padding: 14px 22px;
   text-decoration: none;
-  margin-top: 20px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .15);
+  transition: .2s;
 }
 
 .the-doi-tac {
@@ -1167,4 +1169,267 @@ textarea.cmt:focus {
   font-weight: 700;
   color: #666;
   width: 40%;
+}
+
+/* --- WIZARD STYLES (ĐĂNG KÝ ĐỐI TÁC) --- */
+.wizard-container {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 0 15px;
+}
+
+/* Thanh tiến trình ngang */
+.steps-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.steps-header::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e5dfd2;
+  z-index: 0;
+}
+
+.step-node {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  background: #F7F2E5;
+  padding: 0 10px;
+}
+
+.step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #999;
+  margin: 0 auto 5px;
+  transition: .3s;
+}
+
+.step-name {
+  font-size: 12px;
+  color: #999;
+  font-weight: 600;
+}
+
+.step-node.active .step-num {
+  border-color: #F97350;
+  background: #F97350;
+  color: #fff;
+}
+
+.step-node.active .step-name {
+  color: #F97350;
+}
+
+.step-node.done .step-num {
+  border-color: #22C55E;
+  background: #22C55E;
+  color: #fff;
+}
+
+/* Form Card */
+.form-card {
+  background: #fff;
+  border: 1px solid #eadfcd;
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.form-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
+
+/* Grid layout */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media(max-width:600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Input field đẹp */
+.f-group {
+  margin-bottom: 20px;
+}
+
+.f-label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+.f-input,
+.f-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e5dfd2;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: .2s;
+}
+
+.f-input:focus {
+  border-color: #F97350;
+  outline: none;
+}
+
+/* Checkbox card (Chọn loại hình) */
+.check-card {
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: .2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.check-card:hover {
+  border-color: #FAD06C;
+  background: #fffcf5;
+}
+
+.check-card.checked {
+  border-color: #F97350;
+  background: #fff5f2;
+}
+
+.check-card input {
+  accent-color: #F97350;
+  width: 18px;
+  height: 18px;
+}
+
+/* Upload Box giả lập */
+.upload-box {
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  color: #888;
+}
+
+.upload-box:hover {
+  border-color: #F97350;
+  color: #F97350;
+}
+
+/* Footer Actions */
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+/* CSS cho Modal Chọn Vai trò */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+}
+
+.role-modal {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  width: 80%;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.role-modal h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #F97350;
+  font-weight: 700;
+}
+
+.role-modal p {
+  margin-bottom: 30px;
+  color: #666;
+}
+
+.role-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: #F97350;
+  color: #fff;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.role-btn i {
+  margin-right: 15px;
+  font-size: 24px;
+}
+
+.role-btn:hover {
+  background-color: #e97f40;
+}
+
+.role-btn div {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.role-btn div div {
+  font-size: 12px;
+  font-weight: normal;
+  color: #ccc;
+}
+
+.role-title {
+  color: #fffffffa;
+  font-weight: 700;
 }
