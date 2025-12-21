@@ -26,14 +26,18 @@ const PendingRestaurantSchema = new mongoose.Schema({
     // --- BƯỚC 4: PHÁP LÝ ---
     ownerName: String,
     idCard: String,
-    idCardFront: String,
-    idCardBack: String,
+    idCardFront: String, // Mặt trước CMND
+    idCardBack: String,  // Mặt sau CMND
 
     // --- BƯỚC 5: NGÂN HÀNG ---
     bankName: String,
     bankAccount: String,
     bankOwner: String,
     bankBranch: String,
+
+    // --- ẢNH CÁC THÔNG TIN QUÁN ---
+    logo: { type: String },      // Đường dẫn ảnh logo quán
+    coverImage: { type: String }, // Đường dẫn ảnh mặt tiền quán
 
     status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now }

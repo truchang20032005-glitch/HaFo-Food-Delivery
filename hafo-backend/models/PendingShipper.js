@@ -18,6 +18,9 @@ const PendingShipperSchema = new mongoose.Schema({
 
     // Giấy tờ
     driverLicense: String, // Số bằng lái
+    cccdFront: { type: String }, // Mặt trước CMND
+    cccdBack: { type: String },  // Mặt sau CMND
+    profileImage: { type: String }, // Ảnh chân dung (Selfie)
 
     // Ngân hàng
     bankName: String,

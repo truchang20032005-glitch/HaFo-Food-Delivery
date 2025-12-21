@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
@@ -6,6 +6,7 @@ import Navbar from '../../components/Navbar';
 function MerchantRegister() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const [data, setData] = useState({
         serviceType: 'food',
@@ -13,10 +14,20 @@ function MerchantRegister() {
         cuisine: [], signatureDish: '',
         openTime: '07:00', closeTime: '22:00', priceRange: '20.000đ - 50.000đ', parkingFee: 'Miễn phí',
         ownerName: '', idCard: '',
-        bankName: '', bankAccount: '', bankOwner: '', bankBranch: ''
+        bankName: '', bankAccount: '', bankOwner: '', bankBranch: '',
+        // FILE ẢNH (Khởi tạo là null)
+        avatar: null, idCardFront: null, idCardBack: null, GPKD: null
     });
 
+    const [cities, setCities] = useState([]);
+
+    // Xử lý nhập text
     const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
+
+    // Xử lý chọn file ảnh (MỚI)
+    const handleFileChange = (e) => {
+        setData({ ...data, [e.target.name]: e.target.files[0] });
+    };
 
     // Xử lý chọn nhiều loại ẩm thực
     const handleCuisine = (val) => {
@@ -26,19 +37,50 @@ function MerchantRegister() {
         setData({ ...data, cuisine: current });
     };
 
+    // Lấy dữ liệu thành phố và quận/huyện từ API
+    useEffect(() => {
+        axios.get('http://localhost:5000/api/cities')
+            .then(response => setCities(response.data))
+            .catch(error => console.error('Error fetching cities:', error));
+    }, []);
+
+    const handleCityChange = (e) => {
+        const selectedCity = e.target.value;
+        const cityData = cities.find(city => city.name === selectedCity);
+        setData({ ...data, city: selectedCity, district: cityData ? cityData.districts[0] : '' });
+    };
+
+    const handleDistrictChange = (e) => setData({ ...data, district: e.target.value });
+
+    // Gửi form
     const handleSubmit = async () => {
         try {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return alert("Vui lòng đăng nhập!");
 
-            await axios.post('http://localhost:5000/api/pending/merchant', {
-                ...data,
-                userId: user.id
+            // Tạo FormData để gửi file
+            const formData = new FormData();
+            formData.append('userId', user.id);
+
+            // Duyệt qua state data để append vào formData
+            Object.keys(data).forEach(key => {
+                if (key === 'cuisine') {
+                    // Mảng cần append từng phần tử
+                    data.cuisine.forEach(c => formData.append('cuisine', c));
+                } else if (data[key] !== null) {
+                    formData.append(key, data[key]);
+                }
             });
-            alert("Gửi hồ sơ thành công! Vui lòng chờ duyệt.");
-            navigate('/');
+
+            // Gửi API
+            await axios.post('http://localhost:5000/api/pending/merchant', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            setIsSuccess(true);
+            window.scrollTo(0, 0);
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alert("Lỗi: " + (err.response?.data?.error || err.message));
         }
     };
 
@@ -100,15 +142,19 @@ function MerchantRegister() {
                             <div className="form-grid">
                                 <div className="f-group">
                                     <label className="f-label">Thành phố</label>
-                                    <select className="f-select" name="city" value={data.city} onChange={handleChange}>
-                                        <option>TP. Hồ Chí Minh</option>
-                                        <option>Hà Nội</option>
-                                        <option>Đà Nẵng</option>
+                                    <select className="f-select" name="city" value={data.city} onChange={handleCityChange}>
+                                        {cities.map(city => (
+                                            <option key={city.name} value={city.name}>{city.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="f-group">
                                     <label className="f-label">Quận/Huyện</label>
-                                    <input className="f-input" name="district" value={data.district} onChange={handleChange} />
+                                    <select className="f-select" name="district" value={data.district} onChange={handleDistrictChange}>
+                                        {cities.find(city => city.name === data.city)?.districts.map(district => (
+                                            <option key={district} value={district}>{district}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                             <div className="f-group">
@@ -152,16 +198,17 @@ function MerchantRegister() {
                                     <input className="f-input" name="parkingFee" value={data.parkingFee} onChange={handleChange} />
                                 </div>
                             </div>
-                            <div className="upload-box">
+                            <div className="upload-box" style={{ position: 'relative' }}>
+                                <input type="file" name="avatar" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
                                 <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 24, marginBottom: 10 }}></i>
-                                <div>Tải lên ảnh mặt tiền quán</div>
+                                <div>{data.avatar ? data.avatar.name : "Tải lên ảnh mặt tiền quán"}</div>
                             </div>
                         </div>
                     )}
 
                     {step === 4 && (
                         <div>
-                            <div className="form-title">Bước 4: Thông tin pháp lý (Chủ sở hữu)</div>
+                            <div className="form-title">Bước 3: Thông tin pháp lý (Chủ sở hữu)</div>
                             <div className="f-group">
                                 <label className="f-label">Họ tên chủ quán (trên CCCD)</label>
                                 <input className="f-input" name="ownerName" value={data.ownerName} onChange={handleChange} />
@@ -171,10 +218,19 @@ function MerchantRegister() {
                                 <input className="f-input" name="idCard" value={data.idCard} onChange={handleChange} />
                             </div>
                             <div className="form-grid">
-                                <div className="upload-box">Mặt trước CCCD</div>
-                                <div className="upload-box">Mặt sau CCCD</div>
+                                <div className="upload-box" style={{ position: 'relative' }}>
+                                    <input type="file" name="idCardFront" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                    <div>{data.idCardFront ? data.idCardFront.name : "Mặt trước CCCD"}</div>
+                                </div>
+                                <div className="upload-box" style={{ position: 'relative' }}>
+                                    <input type="file" name="idCardBack" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                    <div>{data.idCardBack ? data.idCardBack.name : "Mặt sau CCCD"}</div>
+                                </div>
                             </div>
-                            <div className="upload-box" style={{ marginTop: 20 }}>Giấy phép kinh doanh (nếu có)</div>
+                            <div className="upload-box" style={{ position: 'relative', marginTop: 20 }}>
+                                <input type="file" name="GPKD" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                <div>{data.GPKD ? data.GPKD.name : "Giấy phép kinh doanh"}</div>
+                            </div>
                         </div>
                     )}
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); // <-- THÊM: Để mã hóa mật khẩu admin
 require('dotenv').config();
@@ -15,6 +16,7 @@ const analyticsRoutes = require('./routes/analytics');
 const restaurantRoutes = require('./routes/restaurant');
 const shipperRoutes = require('./routes/shipper');
 const pendingRoutes = require('./routes/pending'); // <-- NẾU CHƯA CÓ
+const citiesRoute = require('./routes/cities');
 
 const app = express();
 const PORT = 5000;
@@ -62,6 +64,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/shippers', shipperRoutes);
 app.use('/api/pending', pendingRoutes);
+app.use('/api', citiesRoute);
 
 app.get('/', (req, res) => res.send('Server HaFo đang chạy ngon lành!'));
 

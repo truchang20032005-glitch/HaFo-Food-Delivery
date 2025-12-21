@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
@@ -11,10 +11,33 @@ function ShipperRegister() {
         fullName: '', phone: '', email: '', dob: '', city: 'TP. Hồ Chí Minh', district: '', address: '',
         vehicleType: 'Xe máy', licensePlate: '', driverLicense: '',
         bankName: '', bankAccount: '', bankOwner: '', bankBranch: '',
-        area: '', workTime: 'Toàn thời gian'
+        area: '', workTime: 'Toàn thời gian',
+        // File ảnh
+        cavetxe: null, idCardFront: null, idCardBack: null, avarta: null, banglaixe: null
     });
+    const [cities, setCities] = useState([]);
 
     const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
+
+    // Lấy dữ liệu thành phố và quận/huyện từ API
+    useEffect(() => {
+        axios.get('http://localhost:5000/api/cities')
+            .then(response => setCities(response.data))
+            .catch(error => console.error('Error fetching cities:', error));
+    }, []);
+
+    const handleCityChange = (e) => {
+        const selectedCity = e.target.value;
+        const cityData = cities.find(city => city.name === selectedCity);
+        setData({ ...data, city: selectedCity, district: cityData ? cityData.districts[0] : '' });
+    };
+
+    const handleDistrictChange = (e) => setData({ ...data, district: e.target.value });
+
+    // Xử lý chọn file ảnh (MỚI)
+    const handleFileChange = (e) => {
+        setData({ ...data, [e.target.name]: e.target.files[0] });
+    };
 
     const handleSubmit = async () => {
         try {
@@ -62,8 +85,22 @@ function ShipperRegister() {
                             </div>
                             <div className="f-group"><label className="f-label">Địa chỉ thường trú</label><input className="f-input" name="address" value={data.address} onChange={handleChange} /></div>
                             <div className="form-grid">
-                                <div className="f-group"><label className="f-label">Tỉnh/Thành phố</label><input className="f-input" name="city" value={data.city} onChange={handleChange} /></div>
-                                <div className="f-group"><label className="f-label">Quận/Huyện</label><input className="f-input" name="district" value={data.district} onChange={handleChange} /></div>
+                                <div className="f-group">
+                                    <label className="f-label">Thành phố</label>
+                                    <select className="f-select" name="city" value={data.city} onChange={handleCityChange}>
+                                        {cities.map(city => (
+                                            <option key={city.name} value={city.name}>{city.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="f-group">
+                                    <label className="f-label">Quận/Huyện</label>
+                                    <select className="f-select" name="district" value={data.district} onChange={handleDistrictChange}>
+                                        {cities.find(city => city.name === data.city)?.districts.map(district => (
+                                            <option key={district} value={district}>{district}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -82,7 +119,11 @@ function ShipperRegister() {
                                 </div>
                             </div>
                             <div className="f-group"><label className="f-label">Biển số xe</label><input className="f-input" name="licensePlate" value={data.licensePlate} onChange={handleChange} placeholder="VD: 59-X1 123.45" /></div>
-                            <div className="upload-box">Chụp ảnh Cà vẹt xe</div>
+                            <div className="upload-box" style={{ position: 'relative' }}>
+                                <input type="file" name="cavetxe" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 24, marginBottom: 10 }}></i>
+                                <div>{data.cavetxe ? data.cavetxe.name : "Ảnh cà vẹt xe"}</div>
+                            </div>
                         </div>
                     )}
 
@@ -95,11 +136,25 @@ function ShipperRegister() {
                                 <div className="f-group"><label className="f-label">Số Giấy phép lái xe</label><input className="f-input" name="driverLicense" value={data.driverLicense} onChange={handleChange} /></div>
                             </div>
                             <div className="form-grid">
-                                <div className="upload-box">Mặt trước CCCD</div>
-                                <div className="upload-box">Mặt sau CCCD</div>
+                                <div className="upload-box" style={{ position: 'relative' }}>
+                                    <input type="file" name="idCardFront" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                    <div>{data.idCardFront ? data.idCardFront.name : "Mặt trước CCCD"}</div>
+                                </div>
+                                <div className="upload-box" style={{ position: 'relative' }}>
+                                    <input type="file" name="idCardBack" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                    <div>{data.idCardBack ? data.idCardBack.name : "Mặt sau CCCD"}</div>
+                                </div>
                             </div>
-                            <div className="upload-box" style={{ marginTop: 15 }}>Ảnh bằng lái xe (Mặt trước)</div>
-                            <div className="upload-box" style={{ marginTop: 15 }}>Ảnh chân dung (Selfie)</div>
+                            <div className="upload-box" style={{ position: 'relative', marginTop: 15 }}>
+                                <input type="file" name="banglaixe" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 24, marginBottom: 10 }}></i>
+                                <div>{data.banglaixe ? data.banglaixe.name : "Ảnh bằng lái xe"}</div>
+                            </div>
+                            <div className="upload-box" style={{ position: 'relative', marginTop: 15 }}>
+                                <input type="file" name="avatar" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 24, marginBottom: 10 }}></i>
+                                <div>{data.avatar ? data.avatar.name : "Ảnh chân dung"}</div>
+                            </div>
                         </div>
                     )}
 
