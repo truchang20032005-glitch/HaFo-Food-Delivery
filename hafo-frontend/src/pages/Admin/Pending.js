@@ -61,10 +61,13 @@ function Pending() {
         }
 
         try {
-            // Gọi API từ chối (Bạn có thể sửa backend để lưu thêm lý do nếu cần)
-            // Hiện tại API chỉ cần ID
-            await axios.put(`http://localhost:5000/api/pending/reject/${selectedReq.type}/${selectedReq._id}`);
-            alert("Đã từ chối hồ sơ.");
+            // Gửi reason trong body (tham số thứ 2 của axios.put)
+            await axios.put(
+                `http://localhost:5000/api/pending/reject/${selectedReq.type}/${selectedReq._id}`,
+                { reason: rejectReason } // <--- QUAN TRỌNG: Gửi lý do xuống đây
+            );
+
+            alert("Đã từ chối hồ sơ và gửi email thông báo.");
             fetchPending();
             closeDetail();
         } catch (err) {

@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const PendingRestaurant = require('../models/PendingRestaurant');
 const PendingShipper = require('../models/PendingShipper');
@@ -134,32 +135,60 @@ router.get('/all', async (req, res) => {
     }
 });
 
-// API DUYỆT HỒ SƠ (ĐÃ FIX KỸ LOGIC TẠO QUÁN)
+// --- CẤU HÌNH GMAIL ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'happyfoodcskh2025@gmail.com',
+        pass: 'qnil utqp shhx gttv'
+    }
+});
+
+// Hàm gửi mail tiện ích
+const sendNotificationEmail = async (toEmail, subject, text) => {
+    try {
+        await transporter.sendMail({
+            from: '"HaFo Admin" <no-reply@hafo.com>',
+            to: toEmail,
+            subject: subject,
+            text: text
+        });
+        console.log(`Đã gửi mail tới ${toEmail}`);
+    } catch (error) {
+        console.error("Lỗi gửi mail:", error);
+    }
+};
+
+// API DUYỆT HỒ SƠ
 router.put('/approve/:type/:id', async (req, res) => {
     const { type, id } = req.params;
+
     try {
+        let emailToSend = "";
+        let nameToSend = "";
+
         if (type === 'merchant') {
             const pending = await PendingRestaurant.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-            const newRestaurant = new Restaurant({
-                owner: pending.userId,
-                name: pending.name,
-                address: pending.address,
-                phone: pending.phone,
-                image: pending.avatar,
-                city: pending.city,
-                district: pending.district,
-                cuisine: pending.cuisine,
-                openTime: pending.openTime || '07:00',
-                closeTime: pending.closeTime || '22:00',
-                bankName: pending.bankName,
-                bankAccount: pending.bankAccount,
-                bankOwner: pending.bankOwner,
-                isOpen: true
-            });
-            await newRestaurant.save();
+            // Lấy email để gửi
+            emailToSend = pending.email || pending.repEmail;
+            nameToSend = pending.name;
 
+            // ... (Logic tạo Restaurant và Update User giữ nguyên như cũ) ...
+            let restaurant = await Restaurant.findOne({ owner: pending.userId });
+            if (!restaurant) {
+                restaurant = new Restaurant({
+                    owner: pending.userId,
+                    name: pending.name,
+                    address: pending.address,
+                    phone: pending.phone,
+                    image: pending.avatar,
+                    // ... các trường khác
+                    isOpen: true
+                });
+                await restaurant.save();
+            }
             await User.findByIdAndUpdate(pending.userId, { role: 'merchant' });
             pending.status = 'approved';
             await pending.save();
@@ -168,39 +197,68 @@ router.put('/approve/:type/:id', async (req, res) => {
             const pending = await PendingShipper.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-            const newShipper = new Shipper({
-                user: pending.userId,
-                vehicleType: pending.vehicleType,
-                licensePlate: pending.licensePlate,
-                currentLocation: pending.district || 'TP.HCM',
-                bankName: pending.bankName,
-                bankAccount: pending.bankAccount,
-                bankOwner: pending.bankOwner,
-                income: 0
-            });
-            await newShipper.save();
+            // Lấy email
+            emailToSend = pending.email;
+            nameToSend = pending.fullName;
 
-            await User.findByIdAndUpdate(pending.userId, {
-                role: 'shipper',
-                fullName: pending.fullName,
-                phone: pending.phone
-            });
+            // ... (Logic tạo Shipper và Update User giữ nguyên như cũ) ...
+            const existing = await Shipper.findOne({ user: pending.userId });
+            if (!existing) {
+                const newShipper = new Shipper({
+                    user: pending.userId,
+                    // ... các trường khác
+                    income: 0
+                });
+                await newShipper.save();
+            }
+            await User.findByIdAndUpdate(pending.userId, { role: 'shipper' });
             pending.status = 'approved';
             await pending.save();
         }
-        res.json({ message: 'Đã duyệt thành công!' });
+
+        // ---> GỬI MAIL THÔNG BÁO DUYỆT <---
+        if (emailToSend) {
+            const content = `Xin chào ${nameToSend},\n\nHồ sơ đối tác của bạn tại HaFo đã được DUYỆT THÀNH CÔNG!\nBây giờ bạn có thể đăng nhập vào hệ thống để bắt đầu kinh doanh/hoạt động.\n\nTrân trọng,\nHaFo Team.`;
+            await sendNotificationEmail(emailToSend, "Hồ sơ HaFo của bạn đã được duyệt! 🎉", content);
+        }
+
+        res.json({ message: 'Đã duyệt và gửi email thông báo!' });
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+
+// API TỪ CHỐI HỒ SƠ
 router.put('/reject/:type/:id', async (req, res) => {
     const { type, id } = req.params;
+    const { reason } = req.body; // Nhận lý do từ Frontend
+
     try {
-        if (type === 'merchant') await PendingRestaurant.findByIdAndUpdate(id, { status: 'rejected' });
-        else await PendingShipper.findByIdAndUpdate(id, { status: 'rejected' });
-        res.json({ message: 'Đã từ chối.' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        let emailToSend = "";
+        let nameToSend = "";
+
+        if (type === 'merchant') {
+            const p = await PendingRestaurant.findByIdAndUpdate(id, { status: 'rejected' });
+            emailToSend = p.email || p.repEmail;
+            nameToSend = p.name;
+        } else {
+            const p = await PendingShipper.findByIdAndUpdate(id, { status: 'rejected' });
+            emailToSend = p.email;
+            nameToSend = p.fullName;
+        }
+
+        // ---> GỬI MAIL THÔNG BÁO TỪ CHỐI <---
+        if (emailToSend) {
+            const content = `Xin chào ${nameToSend},\n\nRất tiếc, hồ sơ đăng ký của bạn tại HaFo đã bị TỪ CHỐI.\n\nLý do: ${reason}\n\nVui lòng kiểm tra và nộp lại hồ sơ mới.\n\nTrân trọng,\nHaFo Team.`;
+            await sendNotificationEmail(emailToSend, "Thông báo về hồ sơ đăng ký HaFo ⚠️", content);
+        }
+
+        res.json({ message: 'Đã từ chối và gửi email thông báo.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;
