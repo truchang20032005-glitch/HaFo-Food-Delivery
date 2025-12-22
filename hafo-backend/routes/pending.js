@@ -10,45 +10,60 @@ const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const User = require('../models/User');
 
-// --- CẤU HÌNH MULTER ---
-
-// 1. Đảm bảo thư mục uploads tồn tại
+// --- 1. CẤU HÌNH MULTER ---
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
-// 2. Cấu hình nơi lưu và tên file
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
-        // Đặt tên file: timestamp-tengoc (xử lý ký tự đặc biệt)
+        // Xử lý tên file an toàn
         const cleanFileName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "_");
         cb(null, Date.now() + '-' + cleanFileName);
     }
 });
 
-// 3. Bộ lọc file (Chỉ cho phép Ảnh và PDF)
 const fileFilter = (req, file, cb) => {
+    // Chấp nhận ảnh và PDF
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-
     if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true); // Chấp nhận
+        cb(null, true);
     } else {
-        cb(new Error('Sai định dạng! Chỉ chấp nhận file ảnh (JPEG, PNG) hoặc PDF.'), false); // Từ chối
+        // Lỗi này sẽ được bắt ở middleware bên dưới
+        cb(new Error('Sai định dạng! Chỉ chấp nhận file ảnh (JPEG, PNG) hoặc PDF.'), false);
     }
 };
 
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // Giới hạn 5MB mỗi file
+    limits: { fileSize: 5 * 1024 * 1024 } // Giới hạn 5MB
 });
 
-// 2. API ĐĂNG KÝ NHÀ HÀNG (CÓ UPLOAD ẢNH)
-router.post('/merchant', upload.fields([
+// --- 2. MIDDLEWARE XỬ LÝ LỖI UPLOAD (QUAN TRỌNG ĐỂ FIX LỖI 500) ---
+const handleUpload = (fields) => {
+    return (req, res, next) => {
+        const uploadFn = upload.fields(fields);
+        uploadFn(req, res, (err) => {
+            if (err instanceof multer.MulterError) {
+                // Lỗi do Multer (VD: File quá lớn, sai tên trường...)
+                return res.status(400).json({ message: "Lỗi upload file: " + err.message });
+            } else if (err) {
+                // Lỗi do fileFilter (Sai định dạng)
+                return res.status(400).json({ message: err.message });
+            }
+            // Không lỗi -> Đi tiếp vào logic lưu DB
+            next();
+        });
+    };
+};
+
+// --- 3. API ĐĂNG KÝ NHÀ HÀNG ---
+router.post('/merchant', handleUpload([
     { name: 'avatar', maxCount: 1 },
     { name: 'idCardFront', maxCount: 1 },
     { name: 'idCardBack', maxCount: 1 },
@@ -57,6 +72,10 @@ router.post('/merchant', upload.fields([
     try {
         const files = req.files || {};
 
+        // Log để debug xem dữ liệu nhận được là gì
+        console.log("Body:", req.body);
+        console.log("Files:", req.files ? Object.keys(req.files) : "No files");
+
         const newReq = new PendingRestaurant({
             ...req.body,
             avatar: files.avatar ? files.avatar[0].path.replace(/\\/g, "/") : '',
@@ -64,19 +83,20 @@ router.post('/merchant', upload.fields([
             idCardBack: files.idCardBack ? files.idCardBack[0].path.replace(/\\/g, "/") : '',
             businessLicense: files.businessLicense ? files.businessLicense[0].path.replace(/\\/g, "/") : '',
 
+            // Xử lý mảng cuisine an toàn
             cuisine: req.body.cuisine ? (Array.isArray(req.body.cuisine) ? req.body.cuisine : [req.body.cuisine]) : []
         });
 
         await newReq.save();
         res.status(201).json({ message: "Gửi hồ sơ nhà hàng thành công!", code: newReq._id });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        console.error("Lỗi lưu DB Merchant:", err); // Log lỗi ra terminal để dễ sửa
+        res.status(500).json({ error: "Lỗi server: " + err.message });
     }
 });
 
-// 3. API ĐĂNG KÝ SHIPPER (CÓ UPLOAD ẢNH)
-router.post('/shipper', upload.fields([
+// --- 4. API ĐĂNG KÝ SHIPPER ---
+router.post('/shipper', handleUpload([
     { name: 'cccdFront', maxCount: 1 },
     { name: 'cccdBack', maxCount: 1 },
     { name: 'licenseImage', maxCount: 1 },
@@ -98,8 +118,8 @@ router.post('/shipper', upload.fields([
         await newReq.save();
         res.status(201).json({ message: "Gửi hồ sơ Shipper thành công!", code: newReq._id });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        console.error("Lỗi lưu DB Shipper:", err);
+        res.status(500).json({ error: "Lỗi server: " + err.message });
     }
 });
 
