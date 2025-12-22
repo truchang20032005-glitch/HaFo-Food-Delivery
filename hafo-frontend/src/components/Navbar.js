@@ -93,7 +93,7 @@ function Navbar({ onOpenLogin }) {
                         <div className="ben-phai">
                             {/* Profile Dropdown */}
                             <div className="profile" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setShowProfileMenu(!showProfileMenu)}>
-                                <div className="avatar" style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#ddd', border: '2px solid var(--vang)', backgroundImage: 'url(/images/avt.jpg)', backgroundSize: 'cover' }}></div>
+                                <div className="avatar" style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#ddd', border: '2px solid var(--vang)', backgroundImage: 'url(/images/user.png)', backgroundSize: 'cover' }}></div>
                                 <span style={{ fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     {user.fullName || user.username} ▾
                                 </span>
