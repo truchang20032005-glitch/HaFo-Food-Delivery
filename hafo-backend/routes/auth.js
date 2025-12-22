@@ -77,8 +77,11 @@ router.post('/login', async (req, res) => {
     }
 
     try {
+        
         // 2. Tìm user trong DB
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ username })
+            .populate('restaurant') 
+            .populate('shipper');    
         if (!user) {
             return res.status(400).json({ message: 'Sai tài khoản hoặc mật khẩu' });
         }
@@ -105,7 +108,9 @@ router.post('/login', async (req, res) => {
                 username: user.username,
                 role: user.role,
                 fullName: user.fullName,
-                approvalStatus: user.approvalStatus // ✅ QUAN TRỌNG: Frontend cần để điều hướng
+                approvalStatus: user.approvalStatus, // ✅ QUAN TRỌNG: Frontend cần để điều hướng
+                restaurant: user.restaurant || null,  // ← THÊM
+                shipper: user.shipper || null         // ← THÊM
             }
         });
 

@@ -135,6 +135,7 @@ router.get('/all', async (req, res) => {
 });
 
 // API DUYỆT HỒ SƠ (ĐÃ FIX KỸ LOGIC TẠO QUÁN)
+// API DUYỆT HỒ SƠ (ĐÃ FIX KỸ LOGIC TẠO QUÁN)
 router.put('/approve/:type/:id', async (req, res) => {
     const { type, id } = req.params;
     try {
@@ -142,25 +143,35 @@ router.put('/approve/:type/:id', async (req, res) => {
             const pending = await PendingRestaurant.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
+            // ✅ Tạo Restaurant mới
             const newRestaurant = new Restaurant({
                 owner: pending.userId,
                 name: pending.name,
                 address: pending.address,
                 phone: pending.phone,
-                image: pending.avatar,
+                image: pending.avatar || pending.coverImage, // Dùng avatar hoặc coverImage
                 city: pending.city,
                 district: pending.district,
                 cuisine: pending.cuisine,
                 openTime: pending.openTime || '07:00',
                 closeTime: pending.closeTime || '22:00',
+                priceRange: pending.priceRange,
                 bankName: pending.bankName,
                 bankAccount: pending.bankAccount,
                 bankOwner: pending.bankOwner,
+                bankBranch: pending.bankBranch,
                 isOpen: true
             });
             await newRestaurant.save();
 
-            await User.findByIdAndUpdate(pending.userId, { role: 'merchant' });
+            // ✅ CẬP NHẬT USER - GÁN restaurant ID
+            await User.findByIdAndUpdate(pending.userId, { 
+                role: 'merchant',
+                restaurant: newRestaurant._id,    // ← QUAN TRỌNG!
+                approvalStatus: 'approved'
+            });
+            
+            // ✅ Đánh dấu pending đã duyệt
             pending.status = 'approved';
             await pending.save();
 
@@ -168,6 +179,7 @@ router.put('/approve/:type/:id', async (req, res) => {
             const pending = await PendingShipper.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
+            // ✅ Tạo Shipper mới
             const newShipper = new Shipper({
                 user: pending.userId,
                 vehicleType: pending.vehicleType,
@@ -180,16 +192,21 @@ router.put('/approve/:type/:id', async (req, res) => {
             });
             await newShipper.save();
 
+            // ✅ CẬP NHẬT USER - GÁN shipper ID
             await User.findByIdAndUpdate(pending.userId, {
                 role: 'shipper',
+                shipper: newShipper._id,          // ← QUAN TRỌNG!
                 fullName: pending.fullName,
-                phone: pending.phone
+                phone: pending.phone,
+                approvalStatus: 'approved'
             });
+            
             pending.status = 'approved';
             await pending.save();
         }
         res.json({ message: 'Đã duyệt thành công!' });
     } catch (err) {
+        console.error('Lỗi approve:', err);
         res.status(500).json({ error: err.message });
     }
 });

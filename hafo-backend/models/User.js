@@ -43,6 +43,9 @@ const UserSchema = new mongoose.Schema({
         }
     ],
 
+    restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
+    shipper: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipper' },
+
     avatar: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
 });
