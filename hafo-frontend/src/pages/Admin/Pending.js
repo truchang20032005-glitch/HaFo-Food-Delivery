@@ -75,17 +75,30 @@ function Pending() {
         }
     };
 
-    // Helper hiển thị ảnh
+    // --- HELPER HIỂN THỊ ẢNH (ĐÃ FIX LỖI) ---
     const renderImageRow = (label, path) => {
         if (!path) return null;
-        const fullPath = `http://localhost:5000/${path}`;
+
+        // 1. Chuẩn hóa đường dẫn (thay \ thành /)
+        const cleanPath = path.replace(/\\/g, "/");
+        // 2. Tạo URL đầy đủ
+        const fullPath = `http://localhost:5000/${cleanPath}`;
+
         return (
             <tr>
                 <th>{label}</th>
                 <td>
                     <a href={fullPath} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#F97350', fontWeight: 'bold' }}>
-                        <img src={fullPath} alt={label} style={{ width: '80px', height: '50px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <span><i className="fa-solid fa-up-right-from-square"></i> Xem ảnh lớn</span>
+                        <img
+                            src={fullPath}
+                            alt={label}
+                            style={{ width: '80px', height: '50px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }}
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = `${process.env.PUBLIC_URL}/image/errorimage.png`; // Ảnh thay thế khi lỗi
+                            }}
+                        />
+                        <span><i className="fa-solid fa-up-right-from-square"></i> Xem ảnh </span>
                     </a>
                 </td>
             </tr>

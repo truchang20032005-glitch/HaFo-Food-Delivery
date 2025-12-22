@@ -49,6 +49,9 @@ const createDefaultAdmin = async () => {
     }
 };
 
+// Dòng này cho phép truy cập link http://localhost:5000/uploads/ten_file.jpg
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 mongoose.connect(MONGO_URI)
     .then(() => {
         console.log('✅ Đã kết nối MongoDB thành công!');

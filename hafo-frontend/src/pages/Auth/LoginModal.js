@@ -36,12 +36,15 @@ function LoginModal({ isOpen, onClose, targetRole }) {
 
         try {
             const endpoint = isRegister ? '/register' : '/login';
+            // Nếu là Đăng ký: Gửi kèm targetRole (nếu có)
+            const payload = isRegister ? { ...formData, targetRole } : formData;
             const url = `http://localhost:5000/api/auth${endpoint}`;
             const response = await axios.post(url, formData);
 
             if (isRegister) {
                 alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
                 setIsRegister(false);
+                setFormData({ ...formData, password: '', confirmPassword: '' });
             } else {
                 alert('Đăng nhập thành công!');
                 const userData = response.data.user; // Lấy thông tin user từ response
@@ -52,30 +55,26 @@ function LoginModal({ isOpen, onClose, targetRole }) {
 
                 onClose();
 
-                // --- LOGIC ĐIỀU HƯỚNG QUAN TRỌNG ---
-                if (targetRole === 'merchant') {
-                    navigate('/register/merchant'); // Chuyển sang form Nhà hàng
-                } else if (targetRole === 'shipper') {
-                    navigate('/register/shipper'); // Chuyển sang form Shipper
-                } else {
-                    window.location.reload(); // Khách thường thì reload
-                }
+                // --- LOGIC ĐIỀU HƯỚNG THÔNG MINH ---
 
-                // 2. Nếu đăng nhập bình thường -> Chuyển theo Role của User
-                switch (userData.role) {
-                    case 'merchant':
-                        navigate('/merchant/dashboard'); // Chuyển sang trang Quản lý quán
-                        break;
-                    case 'shipper':
-                        navigate('/shipper/dashboard'); // Chuyển sang trang Tài xế
-                        break;
-                    case 'admin':
-                        navigate('/admin/dashboard'); // Chuyển sang trang Admin
-                        break;
-                    default:
-                        navigate('/'); // Khách hàng về trang chủ
-                        window.location.reload(); // Reload để cập nhật Navbar
-                        break;
+                // 1. Nếu tài khoản đã là Merchant/Shipper/Admin chính thức -> Vào Dashboard
+                if (userData.role === 'merchant') { navigate('/merchant/dashboard'); return; }
+                if (userData.role === 'shipper') { navigate('/shipper/dashboard'); return; }
+                if (userData.role === 'admin') { navigate('/admin/dashboard'); return; }
+
+                // 2. Nếu vẫn là Customer, kiểm tra xem có "nguyện vọng" chưa hoàn thành không?
+                // Ưu tiên targetRole hiện tại (vừa bấm nút) hoặc targetRole đã lưu trong DB
+                const intendedRole = targetRole || userData.targetRole;
+
+                if (intendedRole === 'merchant') {
+                    // Nếu muốn làm Merchant mà chưa xong -> Chuyển vào form đăng ký Merchant
+                    navigate('/register/merchant');
+                } else if (intendedRole === 'shipper') {
+                    // Nếu muốn làm Shipper mà chưa xong -> Chuyển vào form đăng ký Shipper
+                    navigate('/register/shipper');
+                } else {
+                    // Khách hàng bình thường
+                    window.location.reload();
                 }
             }
         } catch (error) {

@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_nay_phai_giau';
 // 1. API ĐĂNG KÝ (Register) - ĐÃ SỬA
 // ========================================
 router.post('/register', async (req, res) => {
-    const { username, password, fullName, role } = req.body;
+    const { username, password, fullName, role, targetRole } = req.body;
 
     // 1. Validate đầu vào cơ bản
     if (!username || !password || !fullName) {
@@ -46,7 +46,8 @@ router.post('/register', async (req, res) => {
             password: hashedPassword,
             fullName,
             role: role || 'customer',        // ✅ Nhận role từ frontend
-            approvalStatus: approvalStatus   // ✅ Set trạng thái
+            approvalStatus: approvalStatus,   // ✅ Set trạng thái
+            targetRole: targetRole || '' // <-- LƯU Ý ĐỊNH VÀO DB
         });
 
         await newUser.save();
@@ -105,7 +106,8 @@ router.post('/login', async (req, res) => {
                 username: user.username,
                 role: user.role,
                 fullName: user.fullName,
-                approvalStatus: user.approvalStatus // ✅ QUAN TRỌNG: Frontend cần để điều hướng
+                approvalStatus: user.approvalStatus, // ✅ QUAN TRỌNG: Frontend cần để điều hướng
+                targetRole: user.targetRole
             }
         });
 
