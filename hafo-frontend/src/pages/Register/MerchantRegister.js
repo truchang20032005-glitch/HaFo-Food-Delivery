@@ -32,7 +32,28 @@ function MerchantRegister() {
 
     // Xử lý chọn file ảnh (ĐÃ SỬA LỖI GHI ĐÈ)
     const handleFileChange = (e) => {
-        setData(prevData => ({ ...prevData, [e.target.name]: e.target.files[0] }));
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        // 1. Kiểm tra định dạng (Chỉ cho ảnh và PDF)
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            alert("❌ Định dạng sai! Chỉ chấp nhận file ảnh (JPG, PNG) hoặc PDF.");
+            e.target.value = ''; // Reset ô input
+            return;
+        }
+
+        // 2. Kiểm tra dung lượng (Ví dụ: Tối đa 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert("❌ File quá lớn! Vui lòng chọn file dưới 5MB.");
+            e.target.value = ''; // Reset ô input
+            return;
+        }
+
+        // Nếu OK thì lưu vào state
+        setData(prevData => ({ ...prevData, [e.target.name]: file }));
     };
 
     // Xử lý chọn nhiều loại ẩm thực
@@ -57,6 +78,62 @@ function MerchantRegister() {
     };
 
     const handleDistrictChange = (e) => setData({ ...data, district: e.target.value });
+
+    // Danh sách ngân hàng
+    const banks = [
+        "Vietcombank", "VietinBank", "MB Bank", "BIDV", "Sacombank", "Techcombank",
+        "ACB", "Eximbank", "SHB", "OceanBank", "TPBank", "VPBank", "HDBank", "SeABank"
+    ];
+
+    // --- HÀM KIỂM TRA DỮ LIỆU TRƯỚC KHI NEXT (MỚI) ---
+    const handleNext = () => {
+        // Bước 1: Loại hình
+        if (step === 1) {
+            if (!data.serviceType) return alert("Vui lòng chọn loại hình kinh doanh!");
+        }
+
+        // Bước 2: Thông tin cơ bản
+        if (step === 2) {
+            if (!data.name.trim()) return alert("Vui lòng nhập tên quán!");
+
+            // Validate SDT
+            if (!data.phone.trim()) return alert("Vui lòng nhập số điện thoại!");
+            const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
+            if (!phoneRegex.test(data.phone)) return alert("Số điện thoại không hợp lệ (Phải có 10 số, bắt đầu bằng 0)!");
+
+            // Validate Email
+            if (!data.email.trim()) return alert("Vui lòng nhập Email!");
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(data.email)) return alert("Địa chỉ Email không hợp lệ!");
+
+            if (!data.address.trim()) return alert("Vui lòng nhập địa chỉ!");
+            if (!data.city || !data.district) return alert("Vui lòng chọn Tỉnh/Thành và Quận/Huyện!");
+        }
+
+        // Bước 3: Vận hành
+        if (step === 3) {
+            if (data.cuisine.length === 0) return alert("Vui lòng chọn ít nhất 1 loại hình ẩm thực!");
+            if (!data.openTime || !data.closeTime) return alert("Vui lòng nhập giờ mở/đóng cửa!");
+            if (!data.avatar) return alert("Vui lòng tải lên ảnh mặt tiền quán!");
+        }
+
+        // Bước 4: Pháp lý
+        if (step === 4) {
+            if (!data.ownerName.trim()) return alert("Vui lòng nhập họ tên chủ quán!");
+            if (!data.idCard.trim()) return alert("Vui lòng nhập số CCCD/CMND!");
+            if (!data.idCardFront || !data.idCardBack) return alert("Vui lòng tải lên ảnh 2 mặt CCCD!");
+        }
+
+        // Bước 5: Ngân hàng
+        if (step === 5) {
+            if (!data.bankName.trim()) return alert("Vui lòng nhập tên ngân hàng!");
+            if (!data.bankAccount.trim()) return alert("Vui lòng nhập số tài khoản!");
+            if (!data.bankOwner.trim()) return alert("Vui lòng nhập tên chủ tài khoản!");
+        }
+
+        // Nếu qua hết các bài kiểm tra thì cho Next
+        setStep(step + 1);
+    };
 
     // Gửi form
     const handleSubmit = async () => {
@@ -91,6 +168,18 @@ function MerchantRegister() {
     };
 
     const steps = ["Loại hình", "Thông tin", "Vận hành", "Pháp lý", "Ngân hàng", "Gửi"];
+
+    // Helper hiển thị ảnh preview
+    const renderPreview = (file, label) => (
+        <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{label}</div>
+            {file ? (
+                <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 80, borderRadius: 8, border: '1px solid #ddd' }} />
+            ) : (
+                <div style={{ fontSize: 12, color: 'red', fontStyle: 'italic' }}>Chưa tải lên</div>
+            )}
+        </div>
+    );
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh', paddingBottom: 50 }}>
@@ -253,7 +342,14 @@ function MerchantRegister() {
                         {step === 5 && (
                             <div>
                                 <div className="form-title">Bước 5: Tài khoản ngân hàng (Nhận doanh thu)</div>
-                                <div className="f-group"><label className="f-label">Tên Ngân hàng</label><input className="f-input" name="bankName" value={data.bankName} onChange={handleChange} placeholder="VD: MB Bank, Vietcombank" /></div>
+                                <div className="f-group"><label className="f-label">Tên Ngân hàng</label>
+                                    <select className="f-select" name="bankName" value={data.bankName} onChange={handleChange}>
+                                        <option value="">Chọn ngân hàng</option>
+                                        {banks.map(bank => (
+                                            <option key={bank} value={bank}>{bank}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div className="f-group"><label className="f-label">Chi nhánh</label><input className="f-input" name="bankBranch" value={data.bankBranch} onChange={handleChange} /></div>
                                 <div className="form-grid">
                                     <div className="f-group"><label className="f-label">Số tài khoản</label><input className="f-input" name="bankAccount" value={data.bankAccount} onChange={handleChange} /></div>
@@ -263,17 +359,52 @@ function MerchantRegister() {
                         )}
 
                         {step === 6 && (
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 60, color: '#22C55E', marginBottom: 20 }}><i className="fa-solid fa-file-contract"></i></div>
-                                <h3>Xác nhận thông tin</h3>
-                                <p style={{ marginBottom: 30, color: '#666' }}>Vui lòng kiểm tra kỹ các thông tin trước khi gửi. Hồ sơ sẽ được duyệt trong 1-3 ngày làm việc.</p>
+                            <div>
+                                <div className="form-title" style={{ borderBottom: 'none', textAlign: 'center', color: '#22C55E' }}>
+                                    <i className="fa-solid fa-clipboard-list" style={{ fontSize: 40, marginBottom: 10 }}></i><br />
+                                    Xác nhận thông tin hồ sơ
+                                </div>
 
-                                <div style={{ textAlign: 'left', background: '#f9f9f9', padding: 20, borderRadius: 12, border: '1px dashed #ccc' }}>
-                                    <div style={{ marginBottom: 8 }}><b>Tên quán:</b> {data.name}</div>
-                                    <div style={{ marginBottom: 8 }}><b>Địa chỉ:</b> {data.address}, {data.district}, {data.city}</div>
-                                    <div style={{ marginBottom: 8 }}><b>SĐT:</b> {data.phone}</div>
-                                    <div style={{ marginBottom: 8 }}><b>Chủ quán:</b> {data.ownerName} ({data.idCard})</div>
-                                    <div><b>Ngân hàng:</b> {data.bankName} - {data.bankAccount}</div>
+                                <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: 12, border: '1px solid #eee', fontSize: 14 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>1. Thông tin quán</h4>
+                                            <p><b>Tên quán:</b> {data.name}</p>
+                                            <p><b>SĐT:</b> {data.phone}</p>
+                                            <p><b>Email:</b> {data.email}</p>
+                                            <p><b>Địa chỉ:</b> {data.address}, {data.district}, {data.city}</p>
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>2. Vận hành</h4>
+                                            <p><b>Loại hình:</b> {data.cuisine.join(', ')}</p>
+                                            <p><b>Giờ hoạt động:</b> {data.openTime} - {data.closeTime}</p>
+                                            <p><b>Mức giá:</b> {data.priceRange}</p>
+                                            <p><b>Món Signature:</b> {data.signatureDish}</p>
+                                        </div>
+                                    </div>
+                                    <div style={{ height: 1, background: '#ddd', margin: '15px 0' }}></div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>3. Chủ sở hữu</h4>
+                                            <p><b>Họ tên:</b> {data.ownerName}</p>
+                                            <p><b>CCCD:</b> {data.idCard}</p>
+                                            <p><b>Ngân hàng:</b> {data.bankName}</p>
+                                            <p><b>STK:</b> {data.bankAccount} ({data.bankOwner})</p>
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>4. Hồ sơ ảnh</h4>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                                                {renderPreview(data.avatar, "Mặt tiền")}
+                                                {renderPreview(data.idCardFront, "CCCD Trước")}
+                                                {renderPreview(data.idCardBack, "CCCD Sau")}
+                                                {renderPreview(data.businessLicense, "GPKD")}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ textAlign: 'center', margin: '20px 0', fontSize: 13, color: '#666' }}>
+                                    Bằng việc nhấn "Gửi hồ sơ", bạn cam kết các thông tin trên là chính xác.
                                 </div>
                             </div>
                         )}
@@ -282,7 +413,7 @@ function MerchantRegister() {
                         <div className="form-actions">
                             {step > 1 && <button className="btn soft" onClick={() => setStep(step - 1)}>Quay lại</button>}
                             <div style={{ marginLeft: 'auto' }}>
-                                {step < 6 && <button className="btn primary" onClick={() => setStep(step + 1)}>Tiếp tục</button>}
+                                {step < 6 && <button className="btn primary" onClick={handleNext}>Tiếp tục</button>}
                                 {step === 6 && <button className="btn primary" onClick={handleSubmit}>Gửi hồ sơ đăng ký</button>}
                             </div>
                         </div>

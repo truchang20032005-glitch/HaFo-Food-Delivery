@@ -41,7 +41,57 @@ function ShipperRegister() {
 
     // Xử lý chọn file ảnh (MỚI)
     const handleFileChange = (e) => {
-        setData({ ...data, [e.target.name]: e.target.files[0] });
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        // 1. Kiểm tra định dạng (Chỉ cho ảnh và PDF)
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            alert("❌ Định dạng sai! Chỉ chấp nhận file ảnh (JPG, PNG) hoặc PDF.");
+            e.target.value = ''; // Reset ô input
+            return;
+        }
+
+        // 2. Kiểm tra dung lượng (Ví dụ: Tối đa 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert("❌ File quá lớn! Vui lòng chọn file dưới 5MB.");
+            e.target.value = ''; // Reset ô input
+            return;
+        }
+
+        // Nếu OK thì lưu vào state
+        setData(prevData => ({ ...prevData, [e.target.name]: file }));
+    };
+
+    // --- HÀM KIỂM TRA DỮ LIỆU ---
+    const handleNext = () => {
+        if (step === 1) { // Cá nhân
+            if (!data.fullName || !data.phone || !data.dob || !data.address) return alert("Vui lòng điền đủ thông tin cá nhân!");
+            // Validate SDT
+            const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
+            if (!phoneRegex.test(data.phone)) return alert("Số điện thoại không hợp lệ (Phải có 10 số, bắt đầu bằng 0)!");
+            // Validate Email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(data.email)) return alert("Địa chỉ Email không hợp lệ!");
+
+            if (!data.avatar) return alert("Vui lòng tải ảnh chân dung!");
+        }
+        if (step === 2) { // Phương tiện
+            if (!data.licensePlate) return alert("Vui lòng nhập biển số xe!");
+            if (!data.vehicleRegImage) return alert("Vui lòng tải ảnh Cà vẹt xe!");
+        }
+        if (step === 3) { // Giấy tờ
+            if (!data.driverLicense) return alert("Vui lòng nhập số bằng lái!");
+            if (!data.licenseImage) return alert("Vui lòng tải ảnh bằng lái!");
+            if (!data.idCardFront || !data.idCardBack) return alert("Vui lòng tải đủ 2 mặt CCCD!");
+        }
+        if (step === 4) { // Ngân hàng
+            if (!data.bankName || !data.bankAccount || !data.bankOwner) return alert("Vui lòng nhập thông tin ngân hàng!");
+        }
+
+        setStep(step + 1);
     };
 
     const handleSubmit = async () => {
@@ -61,6 +111,19 @@ function ShipperRegister() {
     };
 
     const steps = ["Cá nhân", "Phương tiện", "Giấy tờ", "Ngân hàng", "Hoạt động", "Gửi"];
+
+    // Danh sách ngân hàng
+    const banks = [
+        "Vietcombank", "VietinBank", "MB Bank", "BIDV", "Sacombank", "Techcombank",
+        "ACB", "Eximbank", "SHB", "OceanBank", "TPBank", "VPBank", "HDBank", "SeABank"
+    ];
+
+    const renderPreview = (file, label) => (
+        <div style={{ marginBottom: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{label}</div>
+            {file ? <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 70, borderRadius: 6, border: '1px solid #ddd' }} /> : <div style={{ fontSize: 11, color: '#d00' }}>Thiếu</div>}
+        </div>
+    );
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>
@@ -175,7 +238,14 @@ function ShipperRegister() {
                         {step === 4 && (
                             <div>
                                 <div className="form-title">Bước 4: Tài khoản nhận thu nhập</div>
-                                <div className="f-group"><label className="f-label">Ngân hàng</label><input className="f-input" name="bankName" value={data.bankName} onChange={handleChange} /></div>
+                                <div className="f-group"><label className="f-label">Ngân hàng</label>
+                                    <select className="f-select" name="bankName" value={data.bankName} onChange={handleChange}>
+                                        <option value="">Chọn ngân hàng</option>
+                                        {banks.map(bank => (
+                                            <option key={bank} value={bank}>{bank}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div className="f-group"><label className="f-label">Chi nhánh</label><input className="f-input" name="bankBranch" value={data.bankBranch} onChange={handleChange} /></div>
                                 <div className="form-grid">
                                     <div className="f-group"><label className="f-label">Số tài khoản</label><input className="f-input" name="bankAccount" value={data.bankAccount} onChange={handleChange} /></div>
@@ -206,24 +276,52 @@ function ShipperRegister() {
 
                         {/* BƯỚC 6: GỬI */}
                         {step === 6 && (
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 60, color: '#22C55E', marginBottom: 20 }}><i className="fa-solid fa-file-shield"></i></div>
-                                <h3>Cam kết & Gửi hồ sơ</h3>
-                                <p style={{ marginBottom: 20 }}>Tôi cam kết các thông tin trên là sự thật và chịu trách nhiệm trước pháp luật.</p>
+                            <div>
+                                <div className="form-title" style={{ borderBottom: 'none', textAlign: 'center', color: '#22C55E' }}>
+                                    <i className="fa-solid fa-id-card-clip" style={{ fontSize: 40, marginBottom: 10 }}></i><br />
+                                    Kiểm tra hồ sơ Shipper
+                                </div>
 
-                                <div style={{ textAlign: 'left', background: '#f9f9f9', padding: 20, borderRadius: 12, border: '1px dashed #ccc' }}>
-                                    <div><b>Tài xế:</b> {data.fullName}</div>
-                                    <div><b>SĐT:</b> {data.phone}</div>
-                                    <div><b>Xe:</b> {data.vehicleType} - {data.licensePlate}</div>
-                                    <div><b>Khu vực:</b> {data.area}</div>
-                                    <div><b>Ngân hàng:</b> {data.bankName} - {data.bankAccount}</div>
+                                <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: 12, border: '1px solid #eee', fontSize: 14 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>1. Cá nhân</h4>
+                                            <p><b>Họ tên:</b> {data.fullName}</p>
+                                            <p><b>SĐT:</b> {data.phone}</p>
+                                            <p><b>Email:</b> {data.email}</p>
+                                            <p><b>Địa chỉ:</b> {data.address}</p>
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>2. Phương tiện</h4>
+                                            <p><b>Loại xe:</b> {data.vehicleType}</p>
+                                            <p><b>Biển số:</b> {data.licensePlate}</p>
+                                            <p><b>Bằng lái:</b> {data.driverLicense}</p>
+                                            <p><b>Ngân hàng:</b> {data.bankName} - {data.bankAccount}</p>
+                                        </div>
+                                    </div>
+                                    <div style={{ height: 1, background: '#ddd', margin: '15px 0' }}></div>
+                                    <div>
+                                        <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>3. Hồ sơ ảnh</h4>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                                            {renderPreview(data.avatar, "Chân dung")}
+                                            {renderPreview(data.vehicleRegImage, "Cà vẹt")}
+                                            {renderPreview(data.licenseImage, "Bằng lái")}
+                                            {renderPreview(data.cccdFront, "CCCD Trước")}
+                                            {renderPreview(data.cccdBack, "CCCD Sau")}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ textAlign: 'center', margin: '20px 0' }}>
+                                    <button className="btn primary" onClick={handleSubmit} style={{ padding: '12px 30px', fontSize: 16 }}>Xác nhận & Gửi</button>
                                 </div>
                             </div>
                         )}
+
                         <div className="form-actions">
                             {step > 1 && <button className="btn soft" onClick={() => setStep(step - 1)}>Quay lại</button>}
                             <div style={{ marginLeft: 'auto' }}>
-                                {step < 6 && <button className="btn primary" onClick={() => setStep(step + 1)}>Tiếp tục</button>}
+                                {step < 6 && <button className="btn primary" onClick={handleNext}>Tiếp tục</button>}
                                 {step === 6 && <button className="btn primary" onClick={handleSubmit}>Gửi hồ sơ</button>}
                             </div>
                         </div>
