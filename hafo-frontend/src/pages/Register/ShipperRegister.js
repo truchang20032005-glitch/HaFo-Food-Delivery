@@ -7,29 +7,48 @@ function ShipperRegister() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [isSuccess, setIsSuccess] = useState(false);
-
-    const [data, setData] = useState({
-        fullName: '', phone: '', email: '', dob: '', address: '',
-        vehicleType: 'Xe máy', licensePlate: '', driverLicense: '',
-        bankName: '', bankAccount: '', bankOwner: '',
-
-        // SỬA TÊN BIẾN CHO KHỚP
-        avatar: null,
-        vehicleRegImage: null,
-        licenseImage: null,
-        cccdFront: null,
-        cccdBack: null
-    });
     const [cities, setCities] = useState([]);
 
-    const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
+    const [data, setData] = useState(() => {
+        const savedData = localStorage.getItem('shipper_draft');
+        return savedData ? JSON.parse(savedData) : {
+            fullName: '', phone: '', email: '', dob: '', address: '',
+            vehicleType: 'Xe máy', licensePlate: '', driverLicense: '',
+            bankName: '', bankAccount: '', bankOwner: '',
 
-    // Lấy dữ liệu thành phố và quận/huyện từ API
+            // SỬA TÊN BIẾN CHO KHỚP
+            avatar: null,
+            vehicleRegImage: null,
+            licenseImage: null,
+            cccdFront: null,
+            cccdBack: null
+        }
+    });
+
+    // Tự động lưu nháp mỗi khi nhập liệu (trừ file ảnh)
     useEffect(() => {
-        axios.get('http://localhost:5000/api/cities')
-            .then(response => setCities(response.data))
-            .catch(error => console.error('Error fetching cities:', error));
-    }, []);
+        const dataToSave = { ...data, avatar: null, idCardFront: null, idCardBack: null, businessLicense: null };
+        localStorage.setItem('merchant_draft', JSON.stringify(dataToSave));
+    }, [data]);
+
+    // Kiểm tra User & Trạng thái duyệt khi vào trang
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            alert("Vui lòng đăng nhập!");
+            navigate('/');
+            return;
+        }
+        // Nếu đã nộp đơn rồi (pending) -> Chuyển sang trang thông báo
+        if (user.approvalStatus === 'pending') {
+            navigate('/pending-approval');
+        }
+
+        // Lấy cities
+        axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+    }, [navigate]);
+
+    const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
 
     const handleCityChange = (e) => {
         const selectedCity = e.target.value;
@@ -103,6 +122,13 @@ function ShipperRegister() {
                 ...data,
                 userId: user.id
             });
+            // Xóa bản nháp sau khi gửi thành công
+            localStorage.removeItem('merchant_draft');
+
+            // Cập nhật trạng thái user ở localStorage để chuyển trang
+            const updatedUser = { ...user, approvalStatus: 'pending' };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
             alert("Gửi hồ sơ Shipper thành công! Vui lòng chờ duyệt.");
             navigate('/');
         } catch (err) {

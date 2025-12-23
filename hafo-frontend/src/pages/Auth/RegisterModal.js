@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
  */
 function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
     const navigate = useNavigate();
-    
+
     const [formData, setFormData] = useState({
         username: '',
         password: '',
@@ -146,10 +146,10 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
                                     // TODO: Mở LoginModal
                                     onOpenLogin?.();
                                 }}
-                                style={{ 
-                                    color: '#F97350', 
-                                    fontWeight: 'bold', 
-                                    cursor: 'pointer' 
+                                style={{
+                                    color: '#F97350',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
                                 }}
                             >
                                 Đăng nhập

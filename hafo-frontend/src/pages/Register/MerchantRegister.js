@@ -7,30 +7,49 @@ function MerchantRegister() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [isSuccess, setIsSuccess] = useState(false);
-
-    // State dữ liệu
-    const [data, setData] = useState({
-        serviceType: 'food',
-        name: '', phone: '', email: '', city: 'TP. Hồ Chí Minh', district: '', address: '',
-        cuisine: [], signatureDish: '',
-        openTime: '07:00', closeTime: '22:00', priceRange: '20.000đ - 50.000đ', parkingFee: 'Miễn phí',
-
-        ownerName: '', idCard: '',
-        bankName: '', bankAccount: '', bankOwner: '', bankBranch: '',
-
-        // FILE ẢNH (Khởi tạo null) - Tên biến khớp với Backend
-        avatar: null,
-        idCardFront: null,
-        idCardBack: null,
-        businessLicense: null
-    });
-
     const [cities, setCities] = useState([]);
+
+    // Khởi tạo state từ localStorage (nếu có)
+    const [data, setData] = useState(() => {
+        const savedData = localStorage.getItem('merchant_draft');
+        return savedData ? JSON.parse(savedData) : {
+            serviceType: 'food',
+            name: '', phone: '', email: '', city: 'TP. Hồ Chí Minh', district: '', address: '',
+            cuisine: [], signatureDish: '',
+            openTime: '07:00', closeTime: '22:00', priceRange: '20.000đ - 50.000đ', parkingFee: 'Miễn phí',
+            ownerName: '', idCard: '',
+            bankName: '', bankAccount: '', bankOwner: '', bankBranch: '',
+            // File ảnh không lưu được vào localStorage dạng text, nên phải chọn lại
+            avatar: null, idCardFront: null, idCardBack: null, businessLicense: null
+        };
+    });
+    // Tự động lưu nháp mỗi khi nhập liệu (trừ file ảnh)
+    useEffect(() => {
+        const dataToSave = { ...data, avatar: null, idCardFront: null, idCardBack: null, businessLicense: null };
+        localStorage.setItem('merchant_draft', JSON.stringify(dataToSave));
+    }, [data]);
+
+    // Kiểm tra User & Trạng thái duyệt khi vào trang
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            alert("Vui lòng đăng nhập!");
+            navigate('/');
+            return;
+        }
+        // Nếu đã nộp đơn rồi (pending) -> Chuyển sang trang thông báo
+        if (user.approvalStatus === 'pending') {
+            navigate('/pending-approval');
+        }
+
+        // Lấy cities
+        axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+    }, [navigate]);
 
     // Xử lý nhập text
     const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
 
-    // Xử lý chọn file ảnh (ĐÃ SỬA LỖI GHI ĐÈ)
+    // Xử lý chọn file ảnh
     const handleFileChange = (e) => {
         const file = e.target.files[0];
 
@@ -63,13 +82,6 @@ function MerchantRegister() {
             : [...data.cuisine, val];
         setData({ ...data, cuisine: current });
     };
-
-    // Lấy dữ liệu thành phố và quận/huyện từ API
-    useEffect(() => {
-        axios.get('http://localhost:5000/api/cities')
-            .then(response => setCities(response.data))
-            .catch(error => console.error('Error fetching cities:', error));
-    }, []);
 
     const handleCityChange = (e) => {
         const selectedCity = e.target.value;
@@ -159,6 +171,13 @@ function MerchantRegister() {
             await axios.post('http://localhost:5000/api/pending/merchant', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
+
+            // Xóa bản nháp sau khi gửi thành công
+            localStorage.removeItem('merchant_draft');
+
+            // Cập nhật trạng thái user ở localStorage để chuyển trang
+            const updatedUser = { ...user, approvalStatus: 'pending' };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
 
             setIsSuccess(true);
             window.scrollTo(0, 0);

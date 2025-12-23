@@ -14,6 +14,7 @@ import History from './pages/Customer/History';
 import Profile from './pages/Customer/Profile';
 import MerchantRegister from './pages/Register/MerchantRegister';
 import ShipperRegister from './pages/Register/ShipperRegister';
+import PendingApproval from './pages/Auth/PendingApproval';
 
 // Import Merchant
 import MerchantLayout from './pages/Merchant/MerchantLayout';
@@ -83,6 +84,7 @@ function App() {
 
           <Route path="/register/merchant" element={<MerchantRegister />} />
           <Route path="/register/shipper" element={<ShipperRegister />} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
 
           {/* Merchant Routes */}
           <Route path="/merchant" element={user?.role === 'merchant' ? <MerchantLayout /> : <Navigate to="/" />}>
