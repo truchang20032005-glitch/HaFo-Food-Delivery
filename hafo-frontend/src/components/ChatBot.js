@@ -55,14 +55,32 @@ function ChatBot() {
                 className={`chat-toggle ${isOpen ? 'open' : ''}`}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                {isOpen ? <i className="fa-solid fa-xmark"></i> : <i className="fa-solid fa-comment-dots"></i>}
+                {isOpen ? (
+                    <img
+                        src="/images/robot.png"  // Đường dẫn ảnh khi đóng chat
+                        alt="Close Chat"
+                        style={{ width: '30px', height: '30px' }}  // Điều chỉnh kích thước ảnh nếu cần
+                    />
+                ) : (
+                    <img
+                        src="/images/robot.png"  // Đường dẫn ảnh khi mở chat
+                        alt="Open Chat"
+                        style={{ width: '30px', height: '30px' }}  // Điều chỉnh kích thước ảnh nếu cần
+                    />
+                )}
             </button>
 
             {/* Cửa sổ Chat */}
             {isOpen && (
                 <div className="chat-window">
                     <div className="chat-header">
-                        <div style={{ fontSize: '20px' }}>🤖</div>
+                        <div>
+                            <img
+                                src="/images/robot.png"
+                                alt="Chatbot Icon"
+                                style={{ width: '30px', height: '30px' }}
+                            />
+                        </div>
                         <div>
                             <div>Trợ lý HaFo AI</div>
                             <div style={{ fontSize: '10px', opacity: 0.8, fontWeight: 'normal' }}>Luôn sẵn sàng hỗ trợ</div>
@@ -92,7 +110,11 @@ function ChatBot() {
                             placeholder="Hỏi HaFo món ngon..."
                         />
                         <button className="chat-send" onClick={handleSend} disabled={isLoading}>
-                            <i className="fa-solid fa-paper-plane"></i>
+                            <img
+                                src="/images/send.png"  // Đường dẫn đến ảnh bạn muốn sử dụng
+                                alt="Send"
+                                style={{ width: '24px', height: '24px' }}  // Điều chỉnh kích thước ảnh nếu cần
+                            />
                         </button>
                     </div>
                 </div>

@@ -27,8 +27,6 @@ app.use(express.json());
 
 app.use('/uploads', express.static('uploads'))
 
-const MONGO_URI = 'mongodb+srv://truchang20032005:truchang20032005@cluster0.6dkuxpp.mongodb.net/hafo_db?appName=Cluster0';
-
 // --- HÀM TẠO ADMIN MẶC ĐỊNH ---
 const createDefaultAdmin = async () => {
     try {
@@ -54,6 +52,8 @@ const createDefaultAdmin = async () => {
 
 // Dòng này cho phép truy cập link http://localhost:5000/uploads/ten_file.jpg
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(MONGO_URI)
     .then(() => {

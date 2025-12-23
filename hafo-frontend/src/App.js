@@ -47,25 +47,29 @@ import Pending from './pages/Admin/Pending';
 import Settings from './pages/Admin/Settings';
 
 function App() {
-  const { user } = useAuth(); // <-- Lấy user từ Context (Tự động cập nhật)
+  const { user, loading } = useAuth(); // Lấy thêm loading từ Context
+
+  if (loading) return null; // Hoặc một cái spinner loading nào đó
 
   // Hàm quyết định trang chủ
   const getMainPage = () => {
+    // Nếu chưa đăng nhập -> Về trang chào mừng
     if (!user) return <LandingPage />;
 
-    // Logic ưu tiên: Nếu là pending -> Vào trang đăng ký
-    if (user.role === 'pending_merchant') return <Navigate to="/register/merchant" />;
-    if (user.role === 'pending_shipper') return <Navigate to="/register/shipper" />;
+    // Nếu có user, kiểm tra role
+    // Dùng optional chaining ?. để an toàn tuyệt đối
+    if (user?.role === 'pending_merchant') return <Navigate to="/register/merchant" />;
+    if (user?.role === 'pending_shipper') return <Navigate to="/register/shipper" />;
 
-    // Logic Role chính
-    switch (user.role) {
+    switch (user?.role) {
       case 'merchant': return <Navigate to="/merchant/dashboard" />;
       case 'shipper': return <Navigate to="/shipper/dashboard" />;
       case 'admin': return <Navigate to="/admin/dashboard" />;
       default: return <Home />; // Customer
     }
   };
-  const showChatBot = user.role === 'customer';
+
+  const showChatBot = user?.role === 'customer';
 
   return (
     <Router>
@@ -75,7 +79,7 @@ function App() {
 
           <Route path="/home" element={<Home />} />
 
-          {/* ... (Các route con giữ nguyên như cũ) ... */}
+          {/* Customer Routes */}
           <Route path="/restaurant/:id" element={<RestaurantDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
@@ -88,9 +92,7 @@ function App() {
           <Route path="/register/shipper" element={<ShipperRegister />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
 
-
-
-          {/* Merchant Routes */}
+          {/* Merchant Routes - Bảo vệ bằng user?.role */}
           <Route path="/merchant" element={user?.role === 'merchant' ? <MerchantLayout /> : <Navigate to="/" />}>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -125,6 +127,8 @@ function App() {
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
+
+        {/* Chatbot */}
         {showChatBot && <ChatBot />}
       </div>
     </Router>
