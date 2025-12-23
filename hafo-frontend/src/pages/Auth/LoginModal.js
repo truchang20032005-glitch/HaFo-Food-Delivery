@@ -70,9 +70,7 @@ function LoginModal({ isOpen, onClose, targetRole }) {
 
                 // 2. Nếu đang CHỜ DUYỆT (Đã nộp đơn rồi)
                 if (user.approvalStatus === 'pending') {
-                    alert("Hồ sơ của bạn đang được xét duyệt. Vui lòng quay lại sau!");
-                    // Có thể chuyển đến trang thông báo chờ (nếu có)
-                    navigate('/');
+                    navigate('/pending-approval');
                     return;
                 }
 

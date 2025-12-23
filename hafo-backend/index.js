@@ -17,6 +17,7 @@ const restaurantRoutes = require('./routes/restaurant');
 const shipperRoutes = require('./routes/shipper');
 const pendingRoutes = require('./routes/pending'); // <-- NẾU CHƯA CÓ
 const citiesRoute = require('./routes/cities');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = 5000;
@@ -70,6 +71,7 @@ app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/shippers', shipperRoutes);
 app.use('/api/pending', pendingRoutes);
 app.use('/api', citiesRoute);
+app.use('/api/chat', chatRoutes);
 
 app.get('/', (req, res) => res.send('Server HaFo đang chạy ngon lành!'));
 

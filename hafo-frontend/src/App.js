@@ -15,6 +15,7 @@ import Profile from './pages/Customer/Profile';
 import MerchantRegister from './pages/Register/MerchantRegister';
 import ShipperRegister from './pages/Register/ShipperRegister';
 import PendingApproval from './pages/Auth/PendingApproval';
+import ChatBot from './components/ChatBot';
 
 // Import Merchant
 import MerchantLayout from './pages/Merchant/MerchantLayout';
@@ -64,6 +65,7 @@ function App() {
       default: return <Home />; // Customer
     }
   };
+  const showChatBot = user.role === 'customer';
 
   return (
     <Router>
@@ -85,6 +87,8 @@ function App() {
           <Route path="/register/merchant" element={<MerchantRegister />} />
           <Route path="/register/shipper" element={<ShipperRegister />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
+
+
 
           {/* Merchant Routes */}
           <Route path="/merchant" element={user?.role === 'merchant' ? <MerchantLayout /> : <Navigate to="/" />}>
@@ -121,6 +125,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
+        {showChatBot && <ChatBot />}
       </div>
     </Router>
   );
