@@ -24,6 +24,8 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+app.use('/uploads', express.static('uploads'))
+
 const MONGO_URI = 'mongodb+srv://truchang20032005:truchang20032005@cluster0.6dkuxpp.mongodb.net/hafo_db?appName=Cluster0';
 
 // --- HÀM TẠO ADMIN MẶC ĐỊNH ---

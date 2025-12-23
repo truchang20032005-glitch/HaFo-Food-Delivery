@@ -43,9 +43,14 @@ const UserSchema = new mongoose.Schema({
         }
     ],
 
+<<<<<<< HEAD
     // --- THÊM TRƯỜNG NÀY: VAI TRÒ MONG MUỐN ---
     // Lưu 'merchant' hoặc 'shipper' nếu họ đăng ký từ nút "Trở thành đối tác"
     targetRole: { type: String, default: '' },
+=======
+    restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
+    shipper: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipper' },
+>>>>>>> AnTonny
 
     avatar: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
