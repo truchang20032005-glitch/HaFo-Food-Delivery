@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+
 // Import Customer
 import LandingPage from './pages/Customer/LandingPage';
 import Home from './pages/Customer/Home';
@@ -10,7 +12,6 @@ import OrderTracking from './pages/Customer/OrderTracking';
 import ReviewOrder from './pages/Customer/ReviewOrder';
 import History from './pages/Customer/History';
 import Profile from './pages/Customer/Profile';
-// Đăng kí đối tác
 import MerchantRegister from './pages/Register/MerchantRegister';
 import ShipperRegister from './pages/Register/ShipperRegister';
 
@@ -19,10 +20,10 @@ import MerchantLayout from './pages/Merchant/MerchantLayout';
 import Menu from './pages/Merchant/Menu';
 import Dashboard from './pages/Merchant/Dashboard';
 import Orders from './pages/Merchant/Orders';
-import Reviews from './pages/Merchant/Reviews';
-import Storefront from './pages/Merchant/Storefront';
 import MerchantWallet from './pages/Merchant/MerchantWallet';
 import MerchantPromos from './pages/Merchant/MerchantPromos';
+import Reviews from './pages/Merchant/Reviews';
+import Storefront from './pages/Merchant/Storefront';
 
 // Import Shipper
 import ShipperProfile from './pages/Shipper/ShipperProfile';
@@ -37,31 +38,24 @@ import AdminLayout from './pages/Admin/AdminLayout';
 import AdminDashboard from './pages/Admin/Dashboard';
 import Users from './pages/Admin/Users';
 import Shops from './pages/Admin/Shops';
-import Pending from './pages/Admin/Pending';
 import AdminShippers from './pages/Admin/Shippers';
 import AdminOrders from './pages/Admin/AdminOrders';
 import Complaints from './pages/Admin/Complaints';
+import Pending from './pages/Admin/Pending';
 import Settings from './pages/Admin/Settings';
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth(); // <-- Lấy user từ Context (Tự động cập nhật)
 
-  // Kiểm tra đăng nhập mỗi khi load trang
-  useEffect(() => {
-    const loggedInUser = localStorage.getItem('user');
-    if (loggedInUser) {
-      setUser(JSON.parse(loggedInUser));
-    }
-    setLoading(false);
-  }, []);
-
-  if (loading) return null; // Hoặc hiện loading spinner
-
-  // Hàm quyết định trang chủ dựa trên Role
+  // Hàm quyết định trang chủ
   const getMainPage = () => {
     if (!user) return <LandingPage />;
 
+    // Logic ưu tiên: Nếu là pending -> Vào trang đăng ký
+    if (user.role === 'pending_merchant') return <Navigate to="/register/merchant" />;
+    if (user.role === 'pending_shipper') return <Navigate to="/register/shipper" />;
+
+    // Logic Role chính
     switch (user.role) {
       case 'merchant': return <Navigate to="/merchant/dashboard" />;
       case 'shipper': return <Navigate to="/shipper/dashboard" />;
@@ -74,13 +68,11 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          {/* LOGIC ĐIỀU HƯỚNG TRANG CHỦ THÔNG MINH */}
           <Route path="/" element={getMainPage()} />
 
-          {/* Đường dẫn rõ ràng cho Khách hàng (để Merchant cũng có thể xem giao diện khách nếu muốn) */}
           <Route path="/home" element={<Home />} />
 
-          {/* ... (Các route khác giữ nguyên) ... */}
+          {/* ... (Các route con giữ nguyên như cũ) ... */}
           <Route path="/restaurant/:id" element={<RestaurantDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
@@ -88,10 +80,11 @@ function App() {
           <Route path="/review/:id" element={<ReviewOrder />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
+
           <Route path="/register/merchant" element={<MerchantRegister />} />
           <Route path="/register/shipper" element={<ShipperRegister />} />
 
-          {/* Merchant */}
+          {/* Merchant Routes */}
           <Route path="/merchant" element={user?.role === 'merchant' ? <MerchantLayout /> : <Navigate to="/" />}>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -103,7 +96,7 @@ function App() {
             <Route path="storefront" element={<Storefront />} />
           </Route>
 
-          {/* Shipper */}
+          {/* Shipper Routes */}
           <Route path="/shipper" element={user?.role === 'shipper' ? <ShipperLayout /> : <Navigate to="/" />}>
             <Route index element={<ShipperDashboard />} />
             <Route path="dashboard" element={<ShipperDashboard />} />
@@ -113,7 +106,7 @@ function App() {
             <Route path="profile" element={<ShipperProfile />} />
           </Route>
 
-          {/* Admin */}
+          {/* Admin Routes */}
           <Route path="/admin" element={user?.role === 'admin' ? <AdminLayout /> : <Navigate to="/" />}>
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />

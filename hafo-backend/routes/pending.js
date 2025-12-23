@@ -11,7 +11,7 @@ const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const User = require('../models/User');
 
-// --- 1. CẤU HÌNH MULTER ---
+// CẤU HÌNH MULTER ---
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
@@ -45,7 +45,7 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // Giới hạn 5MB
 });
 
-// --- 2. MIDDLEWARE XỬ LÝ LỖI UPLOAD (QUAN TRỌNG ĐỂ FIX LỖI 500) ---
+// MIDDLEWARE XỬ LÝ LỖI UPLOAD (QUAN TRỌNG ĐỂ FIX LỖI 500) ---
 const handleUpload = (fields) => {
     return (req, res, next) => {
         const uploadFn = upload.fields(fields);
@@ -63,7 +63,7 @@ const handleUpload = (fields) => {
     };
 };
 
-// --- 3. API ĐĂNG KÝ NHÀ HÀNG ---
+// API ĐĂNG KÝ NHÀ HÀNG ---
 router.post('/merchant', handleUpload([
     { name: 'avatar', maxCount: 1 },
     { name: 'idCardFront', maxCount: 1 },
@@ -87,8 +87,12 @@ router.post('/merchant', handleUpload([
             // Xử lý mảng cuisine an toàn
             cuisine: req.body.cuisine ? (Array.isArray(req.body.cuisine) ? req.body.cuisine : [req.body.cuisine]) : []
         });
-
         await newReq.save();
+
+        await User.findByIdAndUpdate(req.body.userId, {
+            approvalStatus: 'pending'
+        });
+
         res.status(201).json({ message: "Gửi hồ sơ nhà hàng thành công!", code: newReq._id });
     } catch (err) {
         console.error("Lỗi lưu DB Merchant:", err); // Log lỗi ra terminal để dễ sửa
@@ -96,7 +100,7 @@ router.post('/merchant', handleUpload([
     }
 });
 
-// --- 4. API ĐĂNG KÝ SHIPPER ---
+// API ĐĂNG KÝ SHIPPER ---
 router.post('/shipper', handleUpload([
     { name: 'cccdFront', maxCount: 1 },
     { name: 'cccdBack', maxCount: 1 },
@@ -117,6 +121,11 @@ router.post('/shipper', handleUpload([
         });
 
         await newReq.save();
+
+        await User.findByIdAndUpdate(req.body.userId, {
+            approvalStatus: 'pending'
+        });
+
         res.status(201).json({ message: "Gửi hồ sơ Shipper thành công!", code: newReq._id });
     } catch (err) {
         console.error("Lỗi lưu DB Shipper:", err);
@@ -124,7 +133,7 @@ router.post('/shipper', handleUpload([
     }
 });
 
-// 2. ADMIN LẤY DANH SÁCH CHỜ (Chỉnh lại để lấy real data)
+// ADMIN LẤY DANH SÁCH CHỜ (Chỉnh lại để lấy real data)
 router.get('/all', async (req, res) => {
     try {
         const merchants = await PendingRestaurant.find({ status: 'pending' });
