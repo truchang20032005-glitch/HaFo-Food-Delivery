@@ -135,7 +135,6 @@ router.get('/all', async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
 // --- CẤU HÌNH GMAIL ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -161,10 +160,6 @@ const sendNotificationEmail = async (toEmail, subject, text) => {
 };
 
 // API DUYỆT HỒ SƠ
-=======
-// API DUYỆT HỒ SƠ (ĐÃ FIX KỸ LOGIC TẠO QUÁN)
-// API DUYỆT HỒ SƠ (ĐÃ FIX KỸ LOGIC TẠO QUÁN)
->>>>>>> AnTonny
 router.put('/approve/:type/:id', async (req, res) => {
     const { type, id } = req.params;
 
@@ -176,7 +171,6 @@ router.put('/approve/:type/:id', async (req, res) => {
             const pending = await PendingRestaurant.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-<<<<<<< HEAD
             // Lấy email để gửi
             emailToSend = pending.email || pending.repEmail;
             nameToSend = pending.name;
@@ -196,7 +190,6 @@ router.put('/approve/:type/:id', async (req, res) => {
                 await restaurant.save();
             }
             await User.findByIdAndUpdate(pending.userId, { role: 'merchant' });
-=======
             // ✅ Tạo Restaurant mới
             const newRestaurant = new Restaurant({
                 owner: pending.userId,
@@ -219,14 +212,13 @@ router.put('/approve/:type/:id', async (req, res) => {
             await newRestaurant.save();
 
             // ✅ CẬP NHẬT USER - GÁN restaurant ID
-            await User.findByIdAndUpdate(pending.userId, { 
+            await User.findByIdAndUpdate(pending.userId, {
                 role: 'merchant',
                 restaurant: newRestaurant._id,    // ← QUAN TRỌNG!
                 approvalStatus: 'approved'
             });
-            
+
             // ✅ Đánh dấu pending đã duyệt
->>>>>>> AnTonny
             pending.status = 'approved';
             await pending.save();
 
@@ -234,7 +226,6 @@ router.put('/approve/:type/:id', async (req, res) => {
             const pending = await PendingShipper.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-<<<<<<< HEAD
             // Lấy email
             emailToSend = pending.email;
             nameToSend = pending.fullName;
@@ -250,7 +241,6 @@ router.put('/approve/:type/:id', async (req, res) => {
                 await newShipper.save();
             }
             await User.findByIdAndUpdate(pending.userId, { role: 'shipper' });
-=======
             // ✅ Tạo Shipper mới
             const newShipper = new Shipper({
                 user: pending.userId,
@@ -272,8 +262,7 @@ router.put('/approve/:type/:id', async (req, res) => {
                 phone: pending.phone,
                 approvalStatus: 'approved'
             });
-            
->>>>>>> AnTonny
+
             pending.status = 'approved';
             await pending.save();
         }
