@@ -49,7 +49,7 @@ function MerchantPromos() {
     const fetchPromos = async (rId) => {
         try {
             //const res = await axios.get(`http://localhost:5000/api/promos/${rId}`);
-            const res = api.get(`/promos/${rId}`);
+            const res = await api.get(`/promos/${rId}`);
             setPromos(res.data);
         } catch (err) {
             console.error(err);
