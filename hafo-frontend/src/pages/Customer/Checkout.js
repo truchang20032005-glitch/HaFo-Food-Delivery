@@ -10,10 +10,11 @@ function Checkout() {
     const { cartItems, totalAmount, clearCart } = useCart();
     const navigate = useNavigate();
 
+    // 1. Khởi tạo state rỗng, chờ dữ liệu từ API
     const [formData, setFormData] = useState({
-        name: 'Nguyễn Văn B',
-        phone: '0909123456',
-        address: '19/13 Khu phố Thắng Lợi 1, Dĩ An',
+        name: '',
+        phone: '',
+        address: '',
         note: ''
     });
 
@@ -29,13 +30,52 @@ function Checkout() {
     // Tính tổng tiền cuối cùng (không âm)
     const FINAL_TOTAL = Math.max(0, totalAmount + SHIP_FEE + APP_FEE - discountAmount);
 
-    // 1. Lấy danh sách Voucher của quán
+    // --- EFFECT 1: LẤY THÔNG TIN USER TỰ ĐỘNG ---
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                const userObj = JSON.parse(userStr);
+
+                // Cách 1: Lấy nhanh từ localStorage (nếu lúc login đã lưu đủ)
+                setFormData(prev => ({
+                    ...prev,
+                    name: userObj.fullName || '',
+                    // Nếu localStorage không có phone/address thì chờ API bên dưới
+                }));
+
+                // Cách 2: Gọi API để lấy thông tin mới nhất và chi tiết (địa chỉ, sđt)
+                try {
+                    const res = await api.get(`/auth/me/${userObj.id}`);
+                    const userData = res.data;
+
+                    // Logic lấy địa chỉ đầu tiên trong danh sách (nếu có)
+                    let defaultAddress = '';
+                    if (userData.addresses && userData.addresses.length > 0) {
+                        defaultAddress = userData.addresses[0].value;
+                    }
+
+                    setFormData(prev => ({
+                        ...prev,
+                        name: userData.fullName || prev.name,
+                        phone: userData.phone || '',
+                        address: defaultAddress,
+                    }));
+                } catch (err) {
+                    console.error("Không lấy được thông tin chi tiết user:", err);
+                }
+            }
+        };
+
+        fetchUserInfo();
+    }, []);
+
+    // --- EFFECT 2: Lấy danh sách Voucher của quán ---
     useEffect(() => {
         if (cartItems.length > 0) {
             // Lấy restaurantId từ món đầu tiên (Giả sử 1 đơn 1 quán)
             const restaurantId = cartItems[0].restaurant || cartItems[0].restaurantId;
             if (restaurantId) {
-                //axios.get(`http://localhost:5000/api/promos/${restaurantId}`)
                 api.get(`/promos/${restaurantId}`)
                     .then(res => {
                         // Chỉ lấy mã đang hoạt động
@@ -47,7 +87,7 @@ function Checkout() {
         }
     }, [cartItems]);
 
-    // 2. Xử lý khi chọn Voucher
+    // Xử lý khi chọn Voucher
     const handleSelectVoucher = (voucher) => {
         // Nếu đang chọn cái cũ thì bỏ chọn
         if (selectedVoucher && selectedVoucher._id === voucher._id) {
@@ -67,7 +107,6 @@ function Checkout() {
         // Tính tiền giảm
         if (voucher.type === 'percent') {
             const amount = (totalAmount * voucher.value) / 100;
-            // Có thể thêm logic giới hạn mức giảm tối đa ở đây nếu muốn
             setDiscountAmount(amount);
         } else {
             setDiscountAmount(voucher.value);
@@ -110,12 +149,10 @@ function Checkout() {
             customer: customerString,
             items: itemsData,
             total: FINAL_TOTAL,
-            // Lưu mã voucher vào note hoặc trường riêng (nếu backend hỗ trợ)
             note: formData.note + (selectedVoucher ? ` [Voucher: ${selectedVoucher.code}]` : "")
         };
 
         try {
-            //const res = await axios.post('http://localhost:5000/api/orders', orderData);
             const res = await api.post('/orders', orderData);
             alert("Đặt hàng thành công! Mã đơn: " + res.data._id);
             clearCart();
@@ -155,32 +192,52 @@ function Checkout() {
 
             <main className="hop" style={{ margin: '20px auto', display: 'grid', gridTemplateColumns: '1fr 380px', gap: '20px' }}>
 
-                {/* CỘT TRÁI */}
+                {/* CỘT TRÁI - FORM NHẬP LIỆU (Đã có sẵn dữ liệu từ API nếu login) */}
                 <section>
                     <div className="card ship-info">
                         <div className="head"><i className="fa-solid fa-location-dot"></i> Giao đến</div>
                         <div className="body">
                             <div className="field-group">
-                                <label>Địa chỉ nhận hàng</label>
-                                <input name="address" value={formData.address} onChange={handleChange} />
-                            </div>
-                            <div className="field-group">
                                 <label>Tên người nhận</label>
-                                <input name="name" value={formData.name} onChange={handleChange} />
+                                <input
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    placeholder="Nhập tên người nhận"
+                                />
                             </div>
                             <div className="field-group">
                                 <label>Số điện thoại</label>
-                                <input name="phone" value={formData.phone} onChange={handleChange} />
+                                <input
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    placeholder="Nhập số điện thoại"
+                                />
+                            </div>
+                            <div className="field-group">
+                                <label>Địa chỉ nhận hàng</label>
+                                <input
+                                    name="address"
+                                    value={formData.address}
+                                    onChange={handleChange}
+                                    placeholder="Nhập địa chỉ giao hàng"
+                                />
                             </div>
                             <div className="field-group">
                                 <label>Ghi chú</label>
-                                <input name="note" value={formData.note} onChange={handleChange} placeholder="Ví dụ: Gọi trước khi tới..." />
+                                <input
+                                    name="note"
+                                    value={formData.note}
+                                    onChange={handleChange}
+                                    placeholder="Ví dụ: Gọi trước khi tới, không cay..."
+                                />
                             </div>
                         </div>
                     </div>
                 </section>
 
-                {/* CỘT PHẢI */}
+                {/* CỘT PHẢI - THANH TOÁN */}
                 <aside>
                     <div className="card">
                         <div className="head">Chi tiết thanh toán</div>
@@ -196,7 +253,6 @@ function Checkout() {
                                         {vouchers.map(v => (
                                             <div
                                                 key={v._id}
-                                                // Style đổi màu nếu được chọn
                                                 style={{
                                                     minWidth: 140, padding: 10, border: selectedVoucher?._id === v._id ? '2px solid #F97350' : '1px solid #ddd',
                                                     borderRadius: 8, cursor: 'pointer', background: selectedVoucher?._id === v._id ? '#fff5f2' : '#fff'
