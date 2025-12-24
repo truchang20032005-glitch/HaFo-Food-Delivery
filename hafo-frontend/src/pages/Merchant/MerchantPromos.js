@@ -294,11 +294,40 @@ function MerchantPromos() {
                                     </td>
 
                                     <td style={{ textAlign: 'right', padding: 12 }}>
-                                        <button className="btn small soft" onClick={() => openEditModal(p)} style={{ marginRight: 5 }}>
-                                            <i className="fa-solid fa-pen"></i>
+                                        <button
+                                            className="btn small soft"
+                                            onClick={() => openEditModal(p)}
+                                            style={{
+                                                border: 'none',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                background: 'transparent',
+                                                padding: 0,
+                                            }}
+                                        >
+                                            <img
+                                                src="/images/edit.png"
+                                                alt="Sửa"
+                                                style={{ width: 18, height: 18 }}
+                                            />
                                         </button>
-                                        <button className="btn small danger" onClick={() => handleDelete(p._id)} style={{ background: '#fee2e2', color: 'red', border: 'none' }}>
-                                            <i className="fa-solid fa-trash"></i>
+
+                                        <button
+                                            className="btn small danger"
+                                            onClick={() => handleDelete(p._id)}
+                                            style={{
+                                                //background: '#fee2e2',
+                                                border: 'none',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <img
+                                                src="/images/delete.png"
+                                                alt="Xóa"
+                                                style={{ width: 18, height: 18 }}
+                                            />
                                         </button>
                                     </td>
                                 </tr>

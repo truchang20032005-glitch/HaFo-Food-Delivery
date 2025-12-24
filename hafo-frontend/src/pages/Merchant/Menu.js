@@ -111,8 +111,15 @@ function Menu() {
                                         <button
                                             className="btn small soft"
                                             onClick={() => handleEdit(food)}
+                                            style={{
+                                                border: 'none',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                background: 'transparent',
+                                                padding: 0,
+                                            }}
                                         >
-                                            <i className="fa-solid fa-pen"></i>Sửa
+                                            <img src="/images/edit.png" alt="Sửa" style={{ width: 26, height: 26 }} />
                                         </button>
 
                                         <button
