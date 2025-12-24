@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useRef } from 'react';
 
 const CartContext = createContext();
 
@@ -16,25 +16,48 @@ export const CartProvider = ({ children }) => {
         }
     });
 
+    // Toast state
+    const [toast, setToast] = useState({ show: false, text: '' });
+    const toastTimerRef = useRef(null);
+
     // Lưu giỏ hàng vào localStorage mỗi khi có thay đổi
     useEffect(() => {
         localStorage.setItem('hafo_cart', JSON.stringify(cartItems));
     }, [cartItems]);
 
+    useEffect(() => {
+        return () => {
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        };
+    }, []);
+
+    const showToast = (text) => {
+        setToast({ show: true, text });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+            setToast({ show: false, text: '' });
+        }, 2200);
+    };
+
     // Hàm thêm món vào giỏ hàng
-    const addToCart = (product) => {
-        setCartItems((prevItems) => {
-            // Logic đơn giản: luôn thêm mới để tránh lỗi merge option phức tạp
-            // Trong thực tế bạn có thể check trùng ID + Option để tăng số lượng
-            return [...prevItems, product];
+    const addToCart = (newItem) => {
+        setCartItems((prev) => {
+            // mỗi lần thêm từ Modal sẽ là một item riêng biệt (không gộp dòng)
+            return [...prev, newItem];
         });
-        // Thông báo đơn giản (có thể thay bằng Toast)
-        alert(`Đã thêm "${product.name}" vào giỏ!`);
+
+        // Toast thay vì alert
+        showToast(`Đã thêm ${newItem.quantity} phần "${newItem.name}" vào giỏ`);
+
+        // Bật hiệu ứng "bump" ở icon giỏ hàng (Navbar sẽ lắng nghe event này)
+        window.dispatchEvent(new Event('hafo_cart_added'));
     };
 
     // Hàm xóa món khỏi giỏ hàng
     const removeFromCart = (uniqueId) => {
-        setCartItems((prevItems) => prevItems.filter((item) => item.uniqueId !== uniqueId));
+        if (window.confirm("Bạn muốn xóa món này?")) {
+            setCartItems((prev) => prev.filter((item) => item.uniqueId !== uniqueId));
+        }
     };
 
     // Hàm cập nhật số lượng món
@@ -62,18 +85,13 @@ export const CartProvider = ({ children }) => {
     const totalAmount = cartItems.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
 
     return (
-        <CartContext.Provider
-            value={{
-                cartItems,
-                addToCart,
-                removeFromCart,
-                updateQuantity,
-                clearCart,
-                totalCount,
-                totalAmount
-            }}
-        >
+        <CartContext.Provider value={{ cartItems, addToCart, updateQuantity, removeFromCart, clearCart, totalAmount, totalCount, showToast }}>
             {children}
+
+            {/* Toast UI */}
+            <div className={`hafo-toast ${toast.show ? 'show' : ''}`}>
+                {toast.text}
+            </div>
         </CartContext.Provider>
     );
 };

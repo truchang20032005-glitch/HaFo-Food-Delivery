@@ -5,6 +5,10 @@
   --mau-xam: #B7AC9A;
   --mau-chu: #3A2E2E;
   --mau-trang: #fff;
+  --bg-why: #fffdf7;
+  /* sáng – nhẹ */
+  --bg-doitac: #f7f2e5;
+  /* ấm – khác biệt */
 }
 
 button,
@@ -830,8 +834,8 @@ textarea.cmt:focus {
   height: 50px;
   border-radius: 50%;
   display: flex;
-  alignItems: center;
-  justifyContent: center;
+  align-items: center;
+  justify-content: center;
   background: #fff;
   border: 2px solid #dff6ea;
   color: #22C55E;
@@ -1571,4 +1575,659 @@ input:checked+.slider:before {
   -webkit-transform: translateX(20px);
   -ms-transform: translateX(20px);
   transform: translateX(20px);
+}
+
+/* ===== HaFo Toast (Add to cart) ===== */
+.hafo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+
+  background: rgba(25, 25, 25, 0.92);
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+
+  transition: opacity 180ms ease, transform 180ms ease;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hafo-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ===== Cart badge bump animation ===== */
+.cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+.cart-count.bump {
+  animation: hafo-bump 360ms cubic-bezier(.2, .9, .2, 1);
+}
+
+@keyframes hafo-bump {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.25);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* =====================================
+   LANDING PAGE (TRANG CHỦ)
+   ===================================== */
+
+.landing-page {
+  padding: 0;
+}
+
+/* SECTION CHUNG */
+.landing-section {
+  max-width: 1100px;
+  margin: 0 auto 80px;
+  padding: 0 20px;
+}
+
+/* TIÊU ĐỀ SECTION */
+.landing-section h2 {
+  text-align: center;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--mau-chu);
+  margin-bottom: 14px;
+}
+
+.landing-section .sub {
+  text-align: center;
+  font-size: 18px;
+  color: #6e655d;
+  max-width: 720px;
+  margin: 0 auto 48px;
+  line-height: 1.8;
+}
+
+
+
+.commit-box li span {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #eafbf1;
+  color: #22C55E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+
+
+
+.section-wave {
+  display: block;
+  width: 100%;
+  height: 100px;
+  margin-top: -1px;
+}
+
+
+:root {
+  --primary-orange: #F97350;
+  --bg-cream: #FDF9F3;
+  /* Màu nền Beige trong ảnh */
+}
+
+.landing-page {
+  background-color: var(--bg-cream);
+}
+
+/* Section bọc ngoài có bo góc lớn ở đầu */
+.glass-container {
+  background: white;
+  border-radius: 40px 40px 0 0;
+  padding: 60px 20px;
+  margin-top: -40px;
+  position: relative;
+  z-index: 5;
+}
+
+/* Card trắng bo tròn */
+.feature-card {
+  background: white;
+  border-radius: 24px;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  transition: 0.3s;
+}
+
+.feature-card:hover {
+  transform: translateY(-10px);
+}
+
+/* Khung bọc màu Beige bo góc */
+.glass-wrapper {
+  background: #FDF9F3;
+  border-radius: 60px 60px 0 0;
+  padding: 80px 0;
+  margin-top: 50px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Giới hạn độ rộng nội dung (Sửa lỗi bị trải dài) */
+.max-width-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Dàn hàng ngang cho Hero & Quick Features */
+.hero-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 100px 20px;
+  color: white;
+}
+
+.quick-features {
+  display: flex;
+  gap: 15px;
+}
+
+.feature-card-small {
+  background: white;
+  color: #333;
+  padding: 20px;
+  border-radius: 20px;
+  text-align: center;
+  width: 140px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Dàn hàng ngang cho Danh mục */
+.category-grid {
+  display: flex;
+  justify-content: center;
+  gap: 50px;
+  margin-bottom: 80px;
+}
+
+.cat-circle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+
+  /* CHỈNH VIỀN Ở ĐÂY: dày 5px, nét liền, màu cam HaFo */
+  border: 6px double #F97350;
+
+  /* Đổ bóng để ảnh trông nổi lên khỏi mặt đất */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+
+  margin: 0 auto 15px;
+  transition: all 0.3s ease;
+}
+
+.cat-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* CHỈNH MÀU CHO CHỮ TÊN MÓN */
+.cat-item h4 {
+  color: var(--mau-cam);
+  /* Màu đen xám hiện đại */
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 10px;
+  transition: color 0.3s ease;
+}
+
+/* Khi di chuột vào món ăn, chữ cũng đổi sang màu cam */
+.cat-item:hover h4 {
+  color: #247d3c;
+}
+
+/* Dàn 3 cột cuối trang */
+.bottom-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 20px;
+}
+
+.info-box {
+  background: white;
+  padding: 30px;
+  border-radius: 30px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.03);
+}
+
+.app-mockup {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.app-img {
+  width: 200px;
+}
+
+.floating-partner-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #F97350;
+  color: white;
+  padding: 15px 30px;
+  border-radius: 40px;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(249, 115, 80, 0.4);
+}
+
+/* Container chứa 3 card để căn giữa */
+.overlap-features-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 10;
+  /* Đảm bảo nổi lên trên banner và phần beige */
+}
+
+.quick-features {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  /* KỸ THUẬT QUAN TRỌNG: Kéo card lên trên banner khoảng một nửa */
+  margin-top: -80px;
+}
+
+.feature-card-small {
+  background: #bdeac4ff;
+  color: #333;
+  padding: 40px 20px;
+  border-radius: 25px;
+  /* Bo góc tròn như ảnh mẫu */
+  text-align: center;
+  flex: 1;
+  /* Để 3 card rộng bằng nhau */
+  max-width: 400px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  /* Đổ bóng sâu tạo cảm giác nổi */
+  transition: transform 0.3s ease;
+}
+
+.feature-card-small:hover {
+  transform: translateY(-10px);
+  /* Hiệu ứng bay nhẹ khi di chuột */
+}
+
+.feature-card-small .icon {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 15px;
+}
+
+.feature-card-small h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Phần Beige bên dưới cũng cần lùi lên một chút để lấp khe hở */
+.glass-wrapper {
+  background: #FDF9F3;
+  border-radius: 60px 60px 0 0;
+  padding: 120px 0 80px 0;
+  /* Tăng padding top để không bị card đè mất tiêu đề bên dưới */
+  margin-top: -60px;
+  /* Đè lên banner */
+  position: relative;
+  z-index: 1;
+}
+
+/* Căn giữa và đổi màu cho tiêu đề */
+.section-title-center {
+  text-align: center;
+  /* Đưa chữ ra giữa */
+  color: #F97350;
+  /* Đổi sang màu Cam đặc trưng của HaFo */
+  font-size: 36px;
+  /* Tăng kích thước chữ cho nổi bật */
+  font-weight: 800;
+  margin-bottom: 50px;
+  /* Tạo khoảng cách với các vòng tròn bên dưới */
+  text-transform: uppercase;
+  /* Viết hoa để trông chuyên nghiệp hơn (tùy chọn) */
+}
+
+/* Sửa lỗi các vòng tròn bị trải dài hàng dọc */
+.category-grid {
+  display: flex;
+  /* Dàn hàng ngang */
+  justify-content: center;
+  /* Căn giữa các vòng tròn */
+  gap: 60px;
+  /* Khoảng cách giữa các món */
+  margin-bottom: 80px;
+}
+
+.cat-item {
+  text-align: center;
+}
+
+.cat-circle {
+  width: 150px;
+  /* Chỉnh kích thước vòng tròn chuẩn */
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 5px solid white;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  margin: 0 auto 15px;
+  /* Căn giữa vòng tròn so với chữ bên dưới */
+}
+
+.cat-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Giúp ảnh không bị méo */
+}
+
+/* Khối card chứa nhận xét */
+.testimonial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Căn giữa tất cả nội dung bên trong card */
+  text-align: center;
+  /* Căn giữa các dòng chữ */
+}
+
+/* Khối bọc avatar và text */
+.user-quote {
+  display: flex;
+  flex-direction: column;
+  /* Chuyển từ hàng ngang sang hàng dọc */
+  align-items: center;
+  /* Căn giữa ảnh */
+  gap: 10px;
+}
+
+.user-quote img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  /* margin: 0 auto; -> Cách này dùng nếu không có flexbox */
+}
+
+/* Trust Section Container */
+.trust-section {
+  padding: 100px 0;
+  background: #0b6c3a;
+  position: relative;
+  overflow: hidden;
+}
+
+.trust-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.trust-title-center {
+  text-align: center;
+  /* Đưa chữ ra giữa */
+  color: #247d3c;
+  /* Đổi sang màu Cam đặc trưng của HaFo */
+  font-size: 36px;
+  /* Tăng kích thước chữ cho nổi bật */
+  font-weight: 800;
+  margin-bottom: 50px;
+  /* Tạo khoảng cách với các vòng tròn bên dưới */
+  text-transform: uppercase;
+  /* Thêm bóng cho chữ để dễ nhìn hơn */
+}
+
+.section-subtitle {
+  color: #F97350;
+  font-size: 18px;
+  margin-top: -30px;
+  margin-bottom: 40px;
+}
+
+/* Trust Grid Layout */
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+/* Trust Card Design */
+.trust-card {
+  background: #ffffff;
+  padding: 50px 35px;
+  border-radius: 40px;
+  position: relative;
+  border: 1px solid rgba(249, 115, 80, 0.1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 1;
+  overflow: hidden;
+  text-align: center;
+}
+
+/* Biểu tượng mờ nằm ẩn dưới nền card tạo độ sâu */
+.card-bg-icon {
+  position: absolute;
+  right: -20px;
+  bottom: -20px;
+  font-size: 120px;
+  opacity: 0.05;
+  z-index: -1;
+  transform: rotate(-15deg);
+}
+
+.trust-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: rgba(249, 115, 80, 0.1);
+  color: #F97350;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  margin: 0 auto 25px;
+  transition: 0.3s;
+}
+
+.trust-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #2d2d2d;
+  margin-bottom: 15px;
+}
+
+.trust-card p {
+  color: #666;
+  line-height: 1.7;
+  font-size: 15px;
+  margin-bottom: 25px;
+}
+
+.card-status {
+  display: inline-block;
+  padding: 6px 15px;
+  background: #f1f1f1;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Hover Effects */
+.trust-card:hover {
+  transform: translateY(-15px);
+  box-shadow: 0 25px 50px rgba(249, 115, 80, 0.15);
+  background: #fff;
+}
+
+.trust-card:hover .trust-icon-wrapper {
+  background: #F97350;
+  color: white;
+  transform: scale(1.1) rotate(10deg);
+}
+
+/* Card Active (Thẻ ở giữa nổi bật hơn) */
+.trust-card.active {
+  border: 2px solid #F97350;
+  box-shadow: 0 20px 40px rgba(249, 115, 80, 0.1);
+}
+
+.trust-card.active .card-status {
+  background: rgba(249, 115, 80, 0.1);
+  color: #F97350;
+}
+
+
+/* Loại bỏ nền màu Beige và thay bằng hiệu ứng kính mờ */
+.glass-wrapper {
+  background-color: rgba(253, 249, 243, 0.72);
+  -webkit-backdrop-filter: blur(15px);
+  /* ✅ đặt trước */
+  backdrop-filter: blur(15px);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 60px 60px 0 0;
+  padding: 80px 0;
+  margin-top: -60px;
+  position: relative;
+  z-index: 5;
+  color: white;
+}
+
+/* Các thẻ Card (Cam kết, Review) cũng nên làm mờ nhẹ */
+.info-box,
+.trust-card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  /* Trắng đục để dễ đọc chữ */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #333;
+  /* Chữ bên trong Card vẫn để màu tối cho dễ đọc */
+}
+
+/* Định nghĩa chuyển động quay tròn */
+@keyframes spinVertical {
+  from {
+    transform: rotateY(0deg);
+  }
+
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Áp dụng cho class spin-slow */
+.spin-slow {
+  /* Gọi đúng tên animation mới */
+  animation: spinVertical 5s linear infinite;
+  display: inline-block;
+  /* Thêm perspective để tạo hiệu ứng 3D rõ hơn */
+  perspective: 1000px;
+  backface-visibility: visible;
+}
+
+/* Class để áp dụng hiệu ứng quay khi di chuột vào (Hover) */
+.spin-on-hover:hover .cat-circle img {
+  animation: spin 8s linear infinite;
+  /* Quay nhanh hơn khi hover */
+}
+
+/*Hiệu ứng*/
+/* Container bọc 3 card */
+.bottom-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  padding: 40px 0;
+}
+
+/* Hiệu ứng cho từng tấm Card */
+.info-box {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 24px;
+  /* Bo góc hiện đại */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+  /* Đổ bóng nhẹ */
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* Hiệu ứng đàn hồi */
+  border: 1px solid rgba(249, 115, 80, 0.1);
+  /* Viền cam cực nhạt */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Khi di chuột vào Card: Bay lên và đổ bóng đậm hơn */
+.info-box:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 20px 40px rgba(249, 115, 80, 0.15);
+  /* Đổ bóng màu cam nhạt */
+  border-color: #F97350;
+  /* Hiện viền cam rõ hơn */
+}
+
+/* Hiệu ứng cho ảnh avatar */
+.user-quote img {
+  border: 4px solid #fff;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.5s ease;
+}
+
+/* Ảnh quay dọc nhẹ khi hover vào card */
+.info-box:hover img {
+  transform: rotateY(360deg);
+}
+
+.info-box h3 {
+  color: #F97350;
+  margin-bottom: 20px;
+  font-size: 1.2rem;
 }

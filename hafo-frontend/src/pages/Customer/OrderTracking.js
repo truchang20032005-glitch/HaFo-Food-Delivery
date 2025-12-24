@@ -9,6 +9,7 @@ const toClock = (d) => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit'
 function OrderTracking() {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
+    const [shipper, setShipper] = useState(null);
     const [showModal, setShowModal] = useState(false); // Modal xác nhận
 
     const fetchOrder = async () => {
@@ -16,8 +17,21 @@ function OrderTracking() {
             //const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
             const res = await api.get(`/orders/${id}`);
             setOrder(res.data);
+            if (res.data.shipperId) {
+                fetchShipperInfo(res.data.shipperId);
+            }
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const fetchShipperInfo = async (shipperId) => {
+        try {
+            //const res = await axios.get(`http://localhost:5000/api/shippers/profile/${shipperId}`);
+            const res = await api.get(`/shippers/profile/${shipperId}`);
+            setShipper(res.data);
+        } catch (err) {
+            console.error("Chưa tìm thấy thông tin tài xế");
         }
     };
 
@@ -55,10 +69,10 @@ function OrderTracking() {
     if (order.status === 'done') currentStepIndex = 5;
 
     const steps = [
-        { title: 'Đã nhận đơn', icon: 'fa-check', note: 'Hệ thống ghi nhận đơn hàng' },
-        { title: 'Nhà hàng xác nhận', icon: 'fa-store', note: 'Nhà hàng đã nhận đơn' },
-        { title: 'Đang chuẩn bị món', icon: 'fa-fire-burner', note: 'Bếp đang chế biến' },
-        { title: 'Tài xế đã nhận món', icon: 'fa-box', note: 'Rời nhà hàng' },
+        { title: 'Đã nhận đơn', icon: 'fa-check', note: 'Chờ nhà hàng xác nhận' },
+        { title: 'Nhà hàng xác nhận', icon: 'fa-store', note: 'Đang chuẩn bị món' },
+        { title: 'Đang chuẩn bị', icon: 'fa-fire-burner', note: 'Bếp đang nấu' },
+        { title: 'Tìm tài xế', icon: 'fa-user-clock', note: 'Đang tìm tài xế gần bạn' },
         { title: 'Đang giao hàng', icon: 'fa-motorcycle', note: 'Tài xế đang đến' },
         { title: 'Giao thành công', icon: 'fa-flag-checkered', note: 'Bạn đã nhận món' }
     ];
@@ -148,22 +162,33 @@ function OrderTracking() {
                 {/* CỘT PHẢI */}
                 <aside>
                     {/* Tài xế */}
+                    {/* --- THÔNG TIN TÀI XẾ (Chỉ hiện khi có shipperId) --- */}
                     <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd', marginBottom: '15px' }}>
                         <h4 style={{ marginTop: 0 }}><i className="fa-solid fa-motorcycle"></i> Tài xế</h4>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '10px' }}>
-                            <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#ddd', backgroundImage: 'url(/images/shipper.jpg)', backgroundSize: 'cover' }}></div>
-                            <div>
-                                <div style={{ fontWeight: '800' }}>Nguyễn Minh Tài</div>
-                                <div style={{ fontSize: '12px', color: '#666' }}>59X3-123.45 · Xe máy</div>
+
+                        {order.shipperId && shipper ? (
+                            <>
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '10px' }}>
+                                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#ddd', backgroundImage: `url(${shipper.avatar || '/images/shipper.jpg'})`, backgroundSize: 'cover' }}></div>
+                                    <div>
+                                        <div style={{ fontWeight: '800' }}>{shipper.user?.fullName || 'Tài xế HaFo'}</div>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>{shipper.licensePlate} · {shipper.vehicleType}</div>
+                                    </div>
+                                </div>
+                                <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                                    <button className="btn soft" style={{ flex: 1 }}>Gọi điện</button>
+                                    <button className="btn soft" style={{ flex: 1 }}>Nhắn tin</button>
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '20px 0', color: '#666', fontSize: '13px' }}>
+                                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px', color: '#F97350' }}></i>
+                                <div>Đang tìm tài xế gần bạn...</div>
                             </div>
-                        </div>
-                        <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                            <button className="btn soft" style={{ flex: 1 }}>Gọi điện</button>
-                            <button className="btn soft" style={{ flex: 1 }}>Nhắn tin</button>
-                        </div>
+                        )}
                     </div>
 
-                    {/* NÚT NHẬN HÀNG (ĐIỂM NHẤN MỚI) */}
+                    {/* NÚT NHẬN HÀNG */}
                     <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd', marginBottom: '15px' }}>
                         <h4 style={{ marginTop: 0 }}><i className="fa-solid fa-bolt"></i> Trạng thái</h4>
 
