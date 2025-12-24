@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
 function ShipperRegister() {
@@ -45,7 +45,9 @@ function ShipperRegister() {
         }
 
         // Lấy cities
-        axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+        //axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+        api.get('/cities')
+            .then(res => setCities(res.data)).catch(() => { });
     }, [navigate]);
 
     const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
@@ -118,7 +120,11 @@ function ShipperRegister() {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return alert("Vui lòng đăng nhập!");
 
-            await axios.post('http://localhost:5000/api/pending/shipper', {
+            /*await axios.post('http://localhost:5000/api/pending/shipper', {
+                ...data,
+                userId: user.id
+            });*/
+            await api.post('/pending/shipper', {
                 ...data,
                 userId: user.id
             });

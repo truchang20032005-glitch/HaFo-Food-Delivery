@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 import AddDishModal from './AddDishModal';
 
 function Menu() {
@@ -16,7 +16,8 @@ function Menu() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             try {
-                const res = await axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`);
+                //const res = await axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`);
+                const res = await api.get(`/restaurants/my-shop/${user.id}`);
                 if (res.data) {
                     setMyShop(res.data);
                     fetchMenu(res.data._id);
@@ -35,7 +36,8 @@ function Menu() {
 
     const fetchMenu = async (restaurantId) => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/restaurants/${restaurantId}/menu`);
+            //const res = await axios.get(`http://localhost:5000/api/restaurants/${restaurantId}/menu`);
+            const res = await api.get(`/restaurants/${restaurantId}/menu`);
             setFoods(res.data);
         } catch (err) { console.error(err); }
     };
@@ -56,7 +58,8 @@ function Menu() {
     const handleDelete = async (id) => {
         if (window.confirm("Bạn chắc chắn muốn xóa món này?")) {
             try {
-                await axios.delete(`http://localhost:5000/api/foods/${id}`);
+                //await axios.delete(`http://localhost:5000/api/foods/${id}`);
+                await api.delete(`/foods/${id}`);
                 fetchMenu(myShop._id);
             } catch (err) { alert("Lỗi xóa: " + err.message); }
         }

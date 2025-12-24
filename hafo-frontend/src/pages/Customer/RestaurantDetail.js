@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import FoodModal from '../../components/FoodModal';
@@ -17,12 +17,14 @@ function RestaurantDetail() {
 
     useEffect(() => {
         // 1. Lấy thông tin quán
-        axios.get(`http://localhost:5000/api/restaurants/${id}`)
+        //axios.get(`http://localhost:5000/api/restaurants/${id}`)
+        api.get(`/restaurants/${id}`)
             .then(res => setRestaurant(res.data))
             .catch(err => console.error("Lỗi lấy quán:", err));
 
         // 2. Lấy Menu của quán
-        axios.get(`http://localhost:5000/api/restaurants/${id}/menu`)
+        //axios.get(`http://localhost:5000/api/restaurants/${id}/menu`)
+        api.get(`/restaurants/${id}/menu`)
             .then(res => setFoods(res.data))
             .catch(err => console.error("Lỗi lấy menu:", err));
     }, [id]);

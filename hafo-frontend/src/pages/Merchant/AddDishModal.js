@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 // Thêm prop 'editFood' để nhận dữ liệu món cần sửa
 function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
@@ -166,7 +166,10 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
 
             if (editFood) {
                 // --- GỌI API SỬA (PUT) ---
-                await axios.put(`http://localhost:5000/api/foods/${editFood._id}`, data, {
+                /*await axios.put(`http://localhost:5000/api/foods/${editFood._id}`, data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });*/
+                await api.put(`/foods/${editFood._id}`, data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 alert("Cập nhật món thành công!");
@@ -175,7 +178,10 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
                 if (!restaurantId) return alert("Lỗi ID quán!");
                 data.append('restaurantId', restaurantId);
 
-                await axios.post('http://localhost:5000/api/foods', data, {
+                /*await axios.post('http://localhost:5000/api/foods', data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });*/
+                await api.post('api/foods', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 alert("Thêm món thành công!");

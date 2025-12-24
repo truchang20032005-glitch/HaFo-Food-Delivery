@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
 function MerchantRegister() {
@@ -43,7 +43,9 @@ function MerchantRegister() {
         }
 
         // Lấy cities
-        axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+        //axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+        api.get('/cities')
+            .then(res => setCities(res.data)).catch(() => { });
     }, [navigate]);
 
     // Xử lý nhập text
@@ -168,7 +170,10 @@ function MerchantRegister() {
             });
 
             // Gửi API
-            await axios.post('http://localhost:5000/api/pending/merchant', formData, {
+            /*await axios.post('http://localhost:5000/api/pending/merchant', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });*/
+            await api.post('/pending/merchant', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

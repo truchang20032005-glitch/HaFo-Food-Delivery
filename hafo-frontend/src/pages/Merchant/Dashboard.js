@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 import { Link } from 'react-router-dom';
 
 function Dashboard() {
@@ -21,7 +21,8 @@ function Dashboard() {
     const fetchOrdersAndCalculate = async (restaurantId) => {
         try {
             // QUAN TRỌNG: Gọi API có lọc theo restaurantId để không lấy nhầm của quán khác
-            const res = await axios.get(`http://localhost:5000/api/orders?restaurantId=${restaurantId}`);
+            //const res = await axios.get(`http://localhost:5000/api/orders?restaurantId=${restaurantId}`);
+            const res = await api.get(`/orders?restaurantId=${restaurantId}`);
             const myOrders = res.data;
 
             // --- TÍNH TOÁN SỐ LIỆU TỪ DỮ LIỆU THẬT ---
@@ -60,7 +61,8 @@ function Dashboard() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             // 1. Tìm xem User này sở hữu quán nào
-            axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     if (res.data) {
                         // 2. Nếu có quán -> Lấy ID quán đó để tính số liệu

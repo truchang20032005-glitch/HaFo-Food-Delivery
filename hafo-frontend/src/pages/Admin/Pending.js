@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 function Pending() {
     const [requests, setRequests] = useState([]);
@@ -12,7 +12,8 @@ function Pending() {
     // 1. Hàm lấy dữ liệu thật từ Backend
     const fetchPending = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/pending/all');
+            //const res = await axios.get('http://localhost:5000/api/pending/all');
+            const res = await api.get('/pending/all');
             const merchants = res.data.merchants.map(m => ({ ...m, type: 'merchant' }));
             const shippers = res.data.shippers.map(s => ({ ...s, type: 'shipper' }));
             setRequests([...merchants, ...shippers]);
@@ -43,7 +44,8 @@ function Pending() {
         if (!selectedReq) return;
         if (window.confirm(`Xác nhận duyệt hồ sơ của ${selectedReq.name || selectedReq.fullName}?`)) {
             try {
-                await axios.put(`http://localhost:5000/api/pending/approve/${selectedReq.type}/${selectedReq._id}`);
+                //await axios.put(`http://localhost:5000/api/pending/approve/${selectedReq.type}/${selectedReq._id}`);
+                await api.put(`/pending/approve/${selectedReq.type}/${selectedReq._id}`);
                 alert("Đã duyệt thành công! Tài khoản đã được kích hoạt.");
                 fetchPending();
                 closeDetail();
@@ -62,10 +64,11 @@ function Pending() {
 
         try {
             // Gửi reason trong body (tham số thứ 2 của axios.put)
-            await axios.put(
+            /*await axios.put(
                 `http://localhost:5000/api/pending/reject/${selectedReq.type}/${selectedReq._id}`,
                 { reason: rejectReason } // <--- QUAN TRỌNG: Gửi lý do xuống đây
-            );
+            );*/
+            await api.put(`/pending/reject/${selectedReq.type}/${selectedReq._id}`, { reason: rejectReason });
 
             alert("Đã từ chối hồ sơ và gửi email thông báo.");
             fetchPending();

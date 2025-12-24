@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 
 function Profile() {
@@ -57,7 +56,7 @@ function Profile() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // --- XỬ LÝ ĐỊA CHỈ (ĐÃ SỬA ĐẸP HƠN) ---
+    // --- XỬ LÝ ĐỊA CHỈ ---
     const confirmAddAddress = () => {
         if (!newAddr.trim()) {
             setIsAdding(false);

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -11,7 +11,8 @@ function ShipperDashboard() {
 
     const fetchOrders = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/orders');
+            //const res = await axios.get('http://localhost:5000/api/orders');
+            const res = await api.get('/orders');
             // Chỉ lấy những đơn mà Nhà hàng đang chuẩn bị (prep) -> Sẵn sàng để Shipper nhận
             const availableOrders = res.data.filter(o => o.status === 'prep');
             setOrders(availableOrders);
@@ -33,9 +34,13 @@ function ShipperDashboard() {
         if (window.confirm("Bạn chắc chắn muốn nhận đơn này?")) {
             try {
                 // Cập nhật: Gửi thêm shipperId
-                await axios.put(`http://localhost:5000/api/orders/${id}`, {
+                /*await axios.put(`http://localhost:5000/api/orders/${id}`, {
                     status: 'pickup',
                     shipperId: user ? user.id : 'test_shipper_id' // <-- QUAN TRỌNG: Lưu vết tài xế
+                });*/
+                await api.put(`/orders/${id}`, {
+                    status: 'pickup',
+                    shipperId: user ? user.id : 'test_shipper_id'
                 });
 
                 alert("Đã nhận đơn! Chuyển đến màn hình giao hàng.");

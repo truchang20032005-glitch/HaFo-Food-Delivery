@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useMemo, useState } from 'react';
+import api from '../../services/api';
 
 function Reviews() {
     const [reviews, setReviews] = useState([]);
@@ -16,18 +16,20 @@ function Reviews() {
                 if (!userId) return;
 
                 // 1) Lấy shop của merchant
-                const shopRes = await axios.get(
+                /*const shopRes = await axios.get(
                     `http://localhost:5000/api/restaurants/my-shop/${userId}`
-                );
+                );*/
+                const shopRes = await api.get(`/restaurants/my-shop/${userId}`);
 
                 const shop = shopRes?.data;
                 const restaurantId = shop?._id;
                 if (!restaurantId) return;
 
                 // 2) Lấy orders theo restaurantId
-                const ordersRes = await axios.get(
+                /*const ordersRes = await axios.get(
                     `http://localhost:5000/api/orders?restaurantId=${restaurantId}`
-                );
+                );*/
+                const ordersRes = await api.get(`/orders?restaurantId=${restaurantId}`);
 
                 const orders = Array.isArray(ordersRes?.data) ? ordersRes.data : [];
 

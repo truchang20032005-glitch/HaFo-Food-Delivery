@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useMemo } from 'react';
+import api from '../../services/api';
 
 function MerchantPromos() {
     const [promos, setPromos] = useState([]);
@@ -34,7 +34,8 @@ function MerchantPromos() {
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
-            axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     if (res.data) {
                         setShopId(res.data._id);
@@ -47,7 +48,8 @@ function MerchantPromos() {
 
     const fetchPromos = async (rId) => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/promos/${rId}`);
+            //const res = await axios.get(`http://localhost:5000/api/promos/${rId}`);
+            const res = api.get(`/promos/${rId}`);
             setPromos(res.data);
         } catch (err) {
             console.error(err);
@@ -167,10 +169,15 @@ function MerchantPromos() {
             };
 
             if (isEdit) {
-                await axios.put(`http://localhost:5000/api/promos/update/${formData.id}`, payload);
+                //await axios.put(`http://localhost:5000/api/promos/update/${formData.id}`, payload);
+                await api.put(`/promos/update/${formData.id}`, payload);
                 alert('Cập nhật thành công!');
             } else {
-                await axios.post('http://localhost:5000/api/promos', {
+                /*await axios.post('http://localhost:5000/api/promos', {
+                    restaurantId: shopId,
+                    ...payload
+                });*/
+                await api.post('/promos', {
                     restaurantId: shopId,
                     ...payload
                 });
@@ -189,7 +196,8 @@ function MerchantPromos() {
     // ===== Toggle / Delete =====
     const handleToggle = async (id) => {
         try {
-            await axios.put(`http://localhost:5000/api/promos/${id}`);
+            //await axios.put(`http://localhost:5000/api/promos/${id}`);
+            await api.put(`/promos/${id}`);
             setPromos(promos.map(p => p._id === id ? { ...p, isActive: !p.isActive } : p));
         } catch (err) {
             alert('Lỗi cập nhật trạng thái');
@@ -199,7 +207,8 @@ function MerchantPromos() {
     const handleDelete = async (id) => {
         if (window.confirm('Bạn chắc chắn muốn xóa mã này?')) {
             try {
-                await axios.delete(`http://localhost:5000/api/promos/${id}`);
+                //await axios.delete(`http://localhost:5000/api/promos/${id}`);
+                await api.delete(`/promos/${id}`);
                 setPromos(promos.filter(p => p._id !== id));
             } catch (err) {
                 alert('Lỗi xóa mã');

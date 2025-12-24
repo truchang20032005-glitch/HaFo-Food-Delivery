@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -36,7 +36,13 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
 
         try {
             // 2. Đăng ký với role PENDING (chưa phải merchant/shipper thật)
-            await axios.post('http://localhost:5000/api/auth/register', {
+            /*await axios.post('http://localhost:5000/api/auth/register', {
+                username: formData.username,
+                password: formData.password,
+                fullName: formData.fullName,
+                role: role // ✅ GỬI: 'pending_merchant' hoặc 'pending_shipper'
+            });*/
+            await api.post('/auth/register', {
                 username: formData.username,
                 password: formData.password,
                 fullName: formData.fullName,
@@ -46,7 +52,11 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
             alert('Đăng ký thành công!');
 
             // 3. Tự động đăng nhập
-            const loginResponse = await axios.post('http://localhost:5000/api/auth/login', {
+            /*const loginResponse = await axios.post('http://localhost:5000/api/auth/login', {
+                username: formData.username,
+                password: formData.password
+            });*/
+            const loginResponse = await api.post('/auth/login', {
                 username: formData.username,
                 password: formData.password
             });

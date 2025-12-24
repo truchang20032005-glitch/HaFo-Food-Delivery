@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 function Orders() {
     const [orders, setOrders] = useState([]);
@@ -10,12 +10,14 @@ function Orders() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             // Lấy thông tin quán trước
-            axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     if (res.data) {
                         setMyShop(res.data);
                         // Có quán rồi thì lấy danh sách đơn của quán đó
-                        return axios.get(`http://localhost:5000/api/orders?restaurantId=${res.data._id}`);
+                        //return axios.get(`http://localhost:5000/api/orders?restaurantId=${res.data._id}`);
+                        return api.get(`/orders?restaurantId=${res.data._id}`);
                     }
                 })
                 .then(res => {
@@ -28,7 +30,8 @@ function Orders() {
     // 2. XỬ LÝ CHUYỂN TRẠNG THÁI ĐƠN
     const handleStatusChange = async (orderId, newStatus) => {
         try {
-            await axios.put(`http://localhost:5000/api/orders/${orderId}`, { status: newStatus });
+            //await axios.put(`http://localhost:5000/api/orders/${orderId}`, { status: newStatus });
+            await api.put(`/orders/${orderId}`, { status: newStatus });
 
             // Cập nhật lại giao diện ngay lập tức
             setOrders(orders.map(o =>

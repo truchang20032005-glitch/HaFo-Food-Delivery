@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
@@ -13,7 +13,8 @@ function History() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             // Gọi API lấy lịch sử của riêng user này
-            axios.get(`http://localhost:5000/api/orders?userId=${user.id}`) // Giả sử API hỗ trợ filter userId, nếu không thì lọc ở client
+            //axios.get(`http://localhost:5000/api/orders?userId=${user.id}`)
+            api.get(`/orders?userId=${user.id}`)
                 .then(res => {
                     // Nếu API trả về tất cả đơn, ta lọc lại ở client cho chắc
                     const myOrders = res.data.filter(o => o.userId === user.id || o.userId === user._id);

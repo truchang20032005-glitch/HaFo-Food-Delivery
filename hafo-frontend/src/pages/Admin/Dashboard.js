@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -26,12 +26,14 @@ function AdminDashboard() {
 
     useEffect(() => {
         // 1. Lấy số liệu tổng quan
-        axios.get('http://localhost:5000/api/analytics/admin/summary')
+        //axios.get('http://localhost:5000/api/analytics/admin/summary')
+        api.get('/analytics/admin/summary')
             .then(res => setSummary(res.data))
             .catch(err => console.error(err));
 
         // 2. Lấy dữ liệu biểu đồ
-        axios.get('http://localhost:5000/api/analytics/admin/chart')
+        //axios.get('http://localhost:5000/api/analytics/admin/chart')
+        api.get('analytics/admin/chart')
             .then(res => setChartData(res.data))
             .catch(err => console.error(err));
     }, []);

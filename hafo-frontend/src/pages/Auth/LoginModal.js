@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -46,7 +46,8 @@ function LoginModal({ isOpen, onClose, targetRole }) {
                 payload.targetRole = targetRole;
             }
 
-            const response = await axios.post(`http://localhost:5000/api/auth${endpoint}`, payload);
+            //const response = await axios.post(`http://localhost:5000/api/auth${endpoint}`, payload);
+            const response = await api.post(`/auth${endpoint}`, payload);
 
             if (isRegister) {
                 alert('Đăng ký thành công! Vui lòng đăng nhập.');

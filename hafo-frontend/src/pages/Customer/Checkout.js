@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
 
@@ -79,7 +79,8 @@ function Checkout() {
 
         try {
             // Gọi API tạo đơn hàng
-            const res = await axios.post('http://localhost:5000/api/orders', orderData);
+            //const res = await axios.post('http://localhost:5000/api/orders', orderData);
+            const res = await api.post('/orders', orderData);
 
             // Thành công
             alert("Đặt hàng thành công! Mã đơn: " + res.data._id);

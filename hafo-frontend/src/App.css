@@ -1519,11 +1519,6 @@ textarea.cmt:focus {
   margin: 0;
 }
 
-.price-input {
-  -moz-appearance: textfield;
-  /* Firefox */
-}
-
 /* SWITCH TOGGLE */
 .switch {
   position: relative;

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import LoginModal from '../Auth/LoginModal';
-import RegisterModal from '../Auth/RegisterModal'; // ✅ IMPORT MỚI
+import RegisterModal from '../Auth/RegisterModal';
 
 function LandingPage() {
     // State cho Login
     const [showLogin, setShowLogin] = useState(false);
 
-    // ✅ State mới cho Register
+    // State mới cho Register
     const [showRegister, setShowRegister] = useState(false);
     const [registerRole, setRegisterRole] = useState(null);
 
@@ -19,22 +19,22 @@ function LandingPage() {
         setShowRoleModal(true);
     };
 
-    // ✅ HÀM MỚI: Khi chọn vai trò → Hiện form đăng ký NGAY
+    // Khi chọn vai trò → Hiện form đăng ký NGAY
     const handleSelectRole = (roleType) => {
         // roleType: 'merchant' hoặc 'shipper' (chỉ là tên gọi)
 
         // Chuyển đổi thành role pending
         let pendingRole;
         if (roleType === 'merchant') {
-            pendingRole = 'pending_merchant'; // ✅ Chờ duyệt Merchant
+            pendingRole = 'pending_merchant';
         } else if (roleType === 'shipper') {
-            pendingRole = 'pending_shipper'; // ✅ Chờ duyệt Shipper
+            pendingRole = 'pending_shipper';
         }
 
         // Lưu role và hiện form đăng ký
         setRegisterRole(pendingRole);
         setShowRoleModal(false);
-        setShowRegister(true); // ✅ HIỆN REGISTER, KHÔNG PHẢI LOGIN
+        setShowRegister(true);
     };
 
     return (
@@ -81,7 +81,7 @@ function LandingPage() {
                             Vui lòng chọn vai trò đối tác để tiếp tục
                         </p>
 
-                        {/* ✅ CLICK VÀO ĐÂY → HIỆN FORM ĐĂNG KÝ với role pending */}
+                        {/* CLICK VÀO ĐÂY → HIỆN FORM ĐĂNG KÝ với role pending */}
                         <button
                             className="role-btn"
                             onClick={() => handleSelectRole('merchant')}
