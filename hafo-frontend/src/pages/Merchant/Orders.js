@@ -86,20 +86,19 @@ function Orders() {
                                     </td>
 
                                     {/* --- PHẦN HIỂN THỊ ITEM ĐÃ SỬA --- */}
-                                    <td>
+                                    <td style={{ maxWidth: '250px' }}>
+                                        {/* SỬA ĐOẠN NÀY: Kiểm tra nếu items là mảng thì map ra, nếu là chuỗi thì hiện chuỗi (để tương thích ngược) */}
                                         {Array.isArray(order.items) ? (
-                                            order.items.map((item, index) => (
-                                                <div key={index} style={{ marginBottom: '4px' }}>
-                                                    <b style={{ color: '#F97350' }}>{item.quantity}x</b> {item.name}
-                                                    {item.options && (
-                                                        <div style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', marginLeft: '20px' }}>
-                                                            {item.options}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))
+                                            <ul style={{ paddingLeft: '15px', margin: 0, fontSize: '13px' }}>
+                                                {order.items.map((item, idx) => (
+                                                    <li key={idx}>
+                                                        <b>{item.quantity}x</b> {item.name}
+                                                        <span style={{ color: '#666', fontSize: '11px' }}> {item.options ? `(${item.options})` : ''}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         ) : (
-                                            <span>{order.items}</span> // Fallback cho dữ liệu cũ
+                                            order.items // Fallback cho đơn hàng cũ dạng chuỗi
                                         )}
                                     </td>
                                     {/* ---------------------------------- */}

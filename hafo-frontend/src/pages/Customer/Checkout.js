@@ -34,49 +34,60 @@ function Checkout() {
 
     // Xử lý Đặt hàng
     const handleOrder = async () => {
-        // Validate
         if (!formData.name || !formData.phone || !formData.address) {
             alert("Vui lòng điền đầy đủ thông tin giao hàng!");
             return;
         }
 
+        // Lấy user từ localStorage
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) {
-            alert("Bạn cần đăng nhập để đặt hàng!");
-            navigate('/');
+            alert("Vui lòng đăng nhập để đặt hàng!");
             return;
         }
 
-        // --- SỬA ĐỔI QUAN TRỌNG: TẠO MẢNG ITEMS ---
-        const itemsPayload = cartItems.map(item => ({
-            foodId: item._id || item.id, // Đảm bảo lấy đúng ID món
+        // Lấy restaurantId từ món đầu tiên trong giỏ (Giả sử 1 đơn chỉ đặt từ 1 quán)
+        // Trong thực tế, bạn cần check nếu giỏ hàng có nhiều quán thì tách đơn hoặc cảnh báo
+        const restaurantId = cartItems[0]?.restaurant || cartItems[0]?.restaurantId;
+
+        if (!restaurantId) {
+            alert("Lỗi dữ liệu: Không tìm thấy ID quán ăn trong giỏ hàng. Vui lòng thử lại.");
+            return;
+        }
+
+        // Chuẩn bị dữ liệu items để gửi xuống Backend (theo schema mới)
+        const itemsData = cartItems.map(item => ({
+            foodId: item._id,
             name: item.name,
-            price: item.finalPrice,      // Giá cuối (đã cộng topping)
+            price: item.finalPrice,
             quantity: item.quantity,
             image: item.image,
-            // Gom Size và Topping thành 1 chuỗi để hiển thị cho gọn ở Backend cũ nếu cần
-            options: `${item.selectedSize || ''} ${item.selectedToppings?.length > 0 ? '- ' + item.selectedToppings.map(t => t.name).join(', ') : ''}`
+            // Gom các option lại thành chuỗi để hiển thị
+            options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
         }));
-        // ------------------------------------------
 
-        // Gộp địa chỉ đầy đủ
-        const customerString = `${formData.name}|${formData.phone}|${formData.address}, ${formData.note}`;
+        // Gom thông tin khách hàng
+        const customerString = `${formData.name} | ${formData.phone} | ${formData.address} | ${paymentMethod}`;
 
         const orderData = {
             userId: user.id,
-            restaurantId: cartItems[0].restaurantId || cartItems[0].restaurant, // Lấy ID quán từ món đầu tiên
+            restaurantId: restaurantId, // <-- Gửi ID quán xuống
             customer: customerString,
-            items: itemsPayload, // Gửi mảng vừa tạo (không stringify thủ công, axios tự làm)
+            items: itemsData, // Gửi mảng items chi tiết
             total: FINAL_TOTAL
         };
 
         try {
-            await axios.post('http://localhost:5000/api/orders', orderData);
-            alert("🎉 Đặt hàng thành công! Đang chờ quán xác nhận.");
-            clearCart();
-            navigate('/history');
+            // Gọi API tạo đơn hàng
+            const res = await axios.post('http://localhost:5000/api/orders', orderData);
+
+            // Thành công
+            alert("Đặt hàng thành công! Mã đơn: " + res.data._id);
+            clearCart(); // Xóa giỏ
+            // Chuyển sang trang theo dõi đơn hàng
+            navigate(`/order-tracking/${res.data._id}`);
         } catch (error) {
-            console.error(error);
+            console.error("Lỗi đặt hàng:", error);
             alert("Lỗi đặt hàng: " + (error.response?.data?.message || error.message));
         }
     };

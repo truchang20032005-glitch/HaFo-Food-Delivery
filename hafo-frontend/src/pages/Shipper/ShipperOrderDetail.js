@@ -113,7 +113,18 @@ function ShipperOrderDetail() {
             <div className="ship-card" style={{ margin: '0 0 15px 0' }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '10px', borderBottom: '1px dashed #eee', paddingBottom: '8px' }}>Chi tiết đơn hàng</div>
                 <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#444' }}>
-                    {order.items}
+                    {Array.isArray(order.items) ? (
+                        <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                            {order.items.map((item, idx) => (
+                                <li key={idx} style={{ marginBottom: '4px' }}>
+                                    <b>{item.quantity}x</b> {item.name}
+                                    {item.options && <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>{item.options}</div>}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        order.items
+                    )}
                 </div>
                 <div className="ship-money">
                     <span>Thu tiền khách (COD):</span>

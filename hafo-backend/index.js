@@ -26,6 +26,22 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+const allowedOrigins = [
+    "http://localhost:3000", // frontend dev
+    'https://hafo-2025.vercel.app'
+];
+
+const corsOptions = {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+app.options(/.*/, cors(corsOptions));
+
 app.use('/uploads', express.static('uploads'))
 
 // Dòng này cho phép truy cập link http://localhost:5000/uploads/ten_file.jpg
