@@ -18,9 +18,6 @@ function Cart() {
                     <Link to="/home" className="btn-link" style={{ border: 0, background: 'transparent', color: '#6b625d', cursor: 'pointer', textDecoration: 'none', fontWeight: 'bold' }}>
                         ← Tiếp tục mua sắm
                     </Link>
-                    <div style={{ marginLeft: 'auto', fontSize: '14px', color: '#7a716a' }}>
-                        <i className="fa-regular fa-clock"></i> Thời gian giao: <b>20 phút</b> (Cách bạn 1,2 km)
-                    </div>
                 </div>
             </header>
 

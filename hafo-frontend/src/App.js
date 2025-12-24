@@ -10,6 +10,8 @@ import OrderTracking from './pages/Customer/OrderTracking';
 import ReviewOrder from './pages/Customer/ReviewOrder';
 import History from './pages/Customer/History';
 import Profile from './pages/Customer/Profile';
+import Support from './pages/Customer/Support';
+import BecomePartner from './pages/Customer/BecomePartner';
 // Đăng kí đối tác
 import MerchantRegister from './pages/Register/MerchantRegister';
 import ShipperRegister from './pages/Register/ShipperRegister';
@@ -74,9 +76,11 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
+          
           {/* LOGIC ĐIỀU HƯỚNG TRANG CHỦ THÔNG MINH */}
           <Route path="/" element={getMainPage()} />
-
+          <Route path="/support" element={<Support />} /> {/* Thêm dòng này */}
+          <Route path="/become-partner" element={<BecomePartner />} />
           {/* Đường dẫn rõ ràng cho Khách hàng (để Merchant cũng có thể xem giao diện khách nếu muốn) */}
           <Route path="/home" element={<Home />} />
 
