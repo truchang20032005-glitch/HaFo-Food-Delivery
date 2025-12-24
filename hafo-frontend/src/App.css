@@ -1433,3 +1433,93 @@ textarea.cmt:focus {
   color: #fffffffa;
   font-weight: 700;
 }
+
+/* ===== AddDishModal: Size/Topping UI ===== */
+.extra-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.extra-title {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.extra-add {
+  padding: 6px 12px !important;
+  border-radius: 10px !important;
+  border: 1px solid #e5e7eb !important;
+  background: #fff !important;
+}
+
+.extra-row {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 40px;
+  gap: 12px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: #fff;
+  margin-bottom: 10px;
+}
+
+.extra-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.extra-label {
+  font-size: 12px;
+  color: #777;
+}
+
+.extra-input {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+}
+
+.extra-input:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+}
+
+.extra-remove {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.extra-remove:hover {
+  filter: brightness(0.98);
+}
+
+.extra-divider {
+  border-top: 1px dashed #eee;
+  margin: 20px 0;
+}
+
+/* ===== ẨN mũi tên tăng/giảm của input type=number ===== */
+.price-input::-webkit-outer-spin-button,
+.price-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.price-input {
+  -moz-appearance: textfield;
+  /* Firefox */
+}
