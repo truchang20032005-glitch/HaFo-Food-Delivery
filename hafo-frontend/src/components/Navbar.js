@@ -127,14 +127,57 @@ function Navbar({ onOpenLogin }) {
 
                             {/* Chỉ hiện nút Giỏ hàng nếu KHÔNG PHẢI trang đăng ký */}
                             {!isRegisterPage && (
-                                <Link to="/cart" className="cart-btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #ded6c7', borderRadius: '999px', padding: '8px 12px', textDecoration: 'none', color: 'inherit', fontWeight: '700', transition: '0.15s' }}>
-                                    <i className="fa-solid fa-cart-shopping" style={{ color: '#6c635b', fontSize: '16px' }}></i>
-                                    <span
-                                        className={`cart-count ${bump ? 'bump' : ''}`}
-                                        style={{ minWidth: '18px', height: '18px', lineHeight: '18px', padding: '0 6px', fontSize: '12px', fontWeight: '800', textAlign: 'center', color: '#fff', background: 'var(--cam)', borderRadius: '999px' }}
-                                    >
-                                        {totalCount}
+                                <Link
+                                    to="/cart"
+                                    className="cart-btn"
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 10,
+                                        background: '#fff',
+                                        border: '1px solid #ded6c7',
+                                        borderRadius: 999,
+                                        padding: '8px 12px',
+                                        textDecoration: 'none',
+                                        color: 'inherit',
+                                        fontWeight: 700,
+                                        transition: '0.15s',
+                                    }}
+                                >
+                                    {/* Icon cart dạng ảnh */}
+                                    <span style={{ position: 'relative', width: 26, height: 26, display: 'inline-block' }}>
+                                        <img
+                                            src="/images/cart.png"
+                                            alt="Giỏ hàng"
+                                            style={{ width: 26, height: 26, display: 'block' }}
+                                        />
+
+                                        {/* Badge số lượng (giữ bump như cũ) */}
+                                        <span
+                                            className={`cart-count ${bump ? 'bump' : ''}`}
+                                            style={{
+                                                position: 'absolute',
+                                                top: -6,
+                                                right: -8,
+                                                minWidth: 18,
+                                                height: 18,
+                                                lineHeight: '18px',
+                                                padding: '0 6px',
+                                                fontSize: 12,
+                                                fontWeight: 800,
+                                                textAlign: 'center',
+                                                color: '#fff',
+                                                background: 'var(--cam)',
+                                                borderRadius: 999,
+                                                border: '2px solid #fff', // nhìn nổi hơn
+                                            }}
+                                        >
+                                            {totalCount}
+                                        </span>
                                     </span>
+
+                                    {/* Text optional */}
+                                    <span style={{ color: '#6c635b' }}></span>
                                 </Link>
                             )}
                         </div>
