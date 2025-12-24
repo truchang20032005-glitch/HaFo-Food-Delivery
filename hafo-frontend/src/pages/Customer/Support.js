@@ -1,30 +1,29 @@
-import React, { useState } from 'react'; // 1. Thêm useState
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../../components/Navbar'; 
+import Navbar from '../../components/Navbar';
 
 function Support() {
     const navigate = useNavigate();
-
     // 2. Trạng thái quản lý việc mở mục nào (null là đóng hết)
     const [activeIndex, setActiveIndex] = useState(null);
 
     // 3. Dữ liệu câu hỏi lồng nội dung chi tiết
     const faqData = [
-        { 
-            icon: '📦', 
-            title: 'Vấn đề đơn hàng', 
+        {
+            icon: '📦',
+            title: 'Vấn đề đơn hàng',
             desc: 'Hỗ trợ hủy đơn, đổi món hoặc sai sót món ăn',
             content: 'Để hỗ trợ về đơn hàng, bạn vui lòng cung cấp mã đơn hàng. HaFo hỗ trợ hủy đơn trong vòng 5 phút sau khi đặt nếu nhà hàng chưa bắt đầu chế biến. Đối với đơn hàng sai món hoặc thiếu món, bạn có thể gửi ảnh chụp hóa đơn và món ăn thực tế để chúng tôi hoàn tiền kịp thời.'
         },
-        { 
-            icon: '💳', 
-            title: 'Thanh toán & Hoàn tiền', 
+        {
+            icon: '💳',
+            title: 'Thanh toán & Hoàn tiền',
             desc: 'Ví điện tử, lỗi giao dịch hoặc quy trình hoàn tiền',
             content: 'HaFo hỗ trợ thanh toán qua Thẻ, Ví điện tử và Tiền mặt. Nếu giao dịch bị trừ tiền nhưng đơn hàng không thành công, hệ thống sẽ tự động hoàn tiền trong vòng 24h đối với Ví điện tử và 3-7 ngày làm việc đối với thẻ ngân hàng.'
         },
-        { 
-            icon: '🚚', 
-            title: 'Vận chuyển & Tài xế', 
+        {
+            icon: '🚚',
+            title: 'Vận chuyển & Tài xế',
             desc: 'Thời gian giao hàng, phí ship và thông tin tài xế',
             content: 'Bạn có thể theo dõi vị trí tài xế trực tiếp trên bản đồ sau khi đơn hàng được xác nhận. Phí vận chuyển được tính dựa trên khoảng cách thực tế. Nếu tài xế có thái độ không tốt, bạn vui lòng đánh giá ngay trên ứng dụng để chúng tôi xử lý.'
         }
@@ -40,19 +39,19 @@ function Support() {
 
             {/* --- HERO SECTION --- */}
             <div className="support-hero" style={heroWrapperStyle}>
-                <img 
-                    src="/images/supporter.jpg" 
-                    alt="Support Banner" 
+                <img
+                    src="/images/supporter.jpg"
+                    alt="Support Banner"
                     style={bannerImgStyle}
                 />
-                
+
                 <div style={gradientOverlayStyle}></div>
 
                 <div style={heroContentBoxStyle}>
                     <h1 style={heroTitleStyle}>
-                        Trung tâm hỗ trợ <span style={{color: '#ff7a00'}}>HaFo</span>
+                        Trung tâm hỗ trợ <span style={{ color: '#ff7a00' }}>HaFo</span>
                     </h1>
-                    
+
                     <div style={heroDividerStyle}></div>
 
                     <p style={heroTextStyle}>
@@ -63,19 +62,19 @@ function Support() {
 
             {/* --- CONTENT GRID --- */}
             <div className="support-grid" style={gridContainerStyle}>
-                
+
                 {/* Cụm 1: Câu hỏi thường gặp - CÓ ACCORDION */}
                 <div className="support-card" style={modernCardStyle}>
                     <div style={headerStyle}>
                         <span style={iconHeaderStyle}>❓</span>
                         <h3 style={{ margin: 0, color: '#333', fontSize: '22px' }}>Câu hỏi thường gặp</h3>
                     </div>
-                    
+
                     {faqData.map((item, index) => (
                         <div key={index} style={{ borderBottom: '1px solid #f9f9f9' }}>
                             {/* Phần tiêu đề bấm vào được */}
-                            <div 
-                                className="support-item" 
+                            <div
+                                className="support-item"
                                 style={modernItemStyle}
                                 onClick={() => toggleAccordion(index)}
                             >
@@ -84,8 +83,8 @@ function Support() {
                                     <strong style={{ fontSize: '16px', color: '#333' }}>{item.title}</strong>
                                     <p style={subTextStyle}>{item.desc}</p>
                                 </div>
-                                <span style={{ 
-                                    ...arrowStyle, 
+                                <span style={{
+                                    ...arrowStyle,
                                     transform: activeIndex === index ? 'rotate(90deg)' : 'rotate(0deg)',
                                     transition: 'transform 0.3s ease',
                                     display: 'inline-block'
@@ -130,26 +129,26 @@ function Support() {
                 </div>
             </div>
             {/* --- THANK YOU SECTION --- */}
-            <div className="support-footer" style={{ 
-                textAlign: 'center', 
-                padding: '80px 20px', 
+            <div className="support-footer" style={{
+                textAlign: 'center',
+                padding: '80px 20px',
                 marginTop: '40px',
                 borderTop: '1px solid #eee',
                 background: 'linear-gradient(to bottom, #a9ddc1ff, #f8dccaeb)'
             }}>
                 <div style={{ fontSize: '40px', marginBottom: '20px' }}>❤️</div>
-                <h2 style={{ 
-                    fontSize: '28px', 
-                    color: '#333', 
+                <h2 style={{
+                    fontSize: '28px',
+                    color: '#333',
                     fontWeight: '700',
-                    marginBottom: '15px' 
+                    marginBottom: '15px'
                 }}>
-                    Cảm ơn bạn đã tin tưởng chọn <span style={{color: '#ff7a00'}}>HaFo</span>!
+                    Cảm ơn bạn đã tin tưởng chọn <span style={{ color: '#ff7a00' }}>HaFo</span>!
                 </h2>
-                <p style={{ 
-                    maxWidth: '750px', 
-                    margin: '0 auto', 
-                    color: '#666', 
+                <p style={{
+                    maxWidth: '750px',
+                    margin: '0 auto',
+                    color: '#666',
                     lineHeight: '1.6',
                     fontSize: '16px',
                     whiteSpace: 'pre-line' // Giúp nhận diện xuống dòng
@@ -169,8 +168,8 @@ function Support() {
 const heroWrapperStyle = {
     position: 'relative',
     width: '100%',
-    height: '600px', 
-    display: 'flex', 
+    height: '600px',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-start',
     overflow: 'hidden',
@@ -185,7 +184,7 @@ const bannerImgStyle = {
     height: '100%',
     zIndex: 1,
     objectFit: 'cover',
-    objectPosition: 'right center', 
+    objectPosition: 'right center',
     opacity: '0.8'
 };
 
@@ -200,42 +199,42 @@ const gradientOverlayStyle = {
 };
 
 const heroContentBoxStyle = {
-    position: 'relative', 
-    zIndex: 3, 
-    marginLeft: '8%', 
+    position: 'relative',
+    zIndex: 3,
+    marginLeft: '8%',
     maxWidth: '550px',
     padding: '30px',
     color: '#fff'
 };
 
 const heroTitleStyle = {
-    fontSize: '48px', 
-    fontWeight: 'bold', 
-    marginBottom: '20px', 
+    fontSize: '48px',
+    fontWeight: 'bold',
+    marginBottom: '20px',
     lineHeight: '1.2',
     textShadow: '2px 2px 8px rgba(0,0,0,0.5)'
 };
 
 const heroDividerStyle = {
-    width: '60px', 
-    height: '5px', 
-    background: '#ff7a00', 
-    marginBottom: '25px', 
+    width: '60px',
+    height: '5px',
+    background: '#ff7a00',
+    marginBottom: '25px',
     borderRadius: '10px'
 };
 
 const heroTextStyle = {
-    fontSize: '18px', 
-    lineHeight: '1.7', 
-    color: 'rgba(255,255,255,0.9)', 
+    fontSize: '18px',
+    lineHeight: '1.7',
+    color: 'rgba(255,255,255,0.9)',
     textAlign: 'left'
 };
 
 const gridContainerStyle = {
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', 
-    gap: '30px', 
-    maxWidth: '1200px', 
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+    gap: '30px',
+    maxWidth: '1200px',
     margin: '60px auto',
     padding: '0 20px'
 };

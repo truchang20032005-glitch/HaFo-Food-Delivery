@@ -1,32 +1,16 @@
-<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-=======
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom'; // 1. Đã thêm useLocation
->>>>>>> origin/NgocBinh
 import { useCart } from '../context/CartContext';
-
 
 function Navbar({ onOpenLogin, onSearch }) {
     const [user, setUser] = useState(null);
     const { totalCount } = useCart();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
-<<<<<<< HEAD
     const [bump, setBump] = useState(false);
 
     // Sử dụng useLocation để lấy đường dẫn hiện tại
     const location = useLocation();
     const isRegisterPage = location.pathname.startsWith('/register');
-=======
-    const location = useLocation(); // 2. Khởi tạo hook để lấy URL hiện tại
-
-    const isRestaurant = user?.role === "restaurant";
-
-    // 3. Kiểm tra nếu URL hiện tại có chứa 'register' hoặc 'merchant'
-    // (Đây là các trang đăng ký kinh doanh)
-    const isRegistrationPage = location.pathname.includes('register') || location.pathname.includes('merchant');
->>>>>>> origin/NgocBinh
 
     // Kiểm tra đăng nhập khi load trang
     useEffect(() => {
@@ -54,9 +38,9 @@ function Navbar({ onOpenLogin, onSearch }) {
     };
 
     return (
-        <header className="thanh-tren" style={{ 
+        <header className="thanh-tren" style={{
             position: 'sticky', // Hoặc 'relative' tùy giao diện của bạn
-            top: 0, 
+            top: 0,
             zIndex: 9999,      // Phải có z-index cho cả cái thanh header này
             overflow: 'visible' // CỰC KỲ QUAN TRỌNG: Phải là visible để menu con "thò" ra ngoài được
         }}>
@@ -72,17 +56,10 @@ function Navbar({ onOpenLogin, onSearch }) {
                                 width: '32px',
                                 height: '32px',
                                 marginRight: '8px',
-<<<<<<< HEAD
                                 verticalAlign: 'middle'
                             }}
                         />
                         <span>HaFo</span>
-=======
-                                verticalAlign: 'middle',
-                                objectFit: 'contain'
-                            }}
-                        />
->>>>>>> origin/NgocBinh
                     </Link>
                 </div>
 
@@ -90,7 +67,6 @@ function Navbar({ onOpenLogin, onSearch }) {
                 {user ? (
                     // --- GIAO DIỆN ĐÃ ĐĂNG NHẬP ---
                     <>
-<<<<<<< HEAD
                         {/* Chỉ hiện thanh tìm kiếm nếu KHÔNG PHẢI trang đăng ký */}
                         {!isRegisterPage && (
                             <div className="search" style={{
@@ -112,39 +88,11 @@ function Navbar({ onOpenLogin, onSearch }) {
                                 <input
                                     type="text"
                                     placeholder="Tìm quán, món ăn, địa chỉ..."
-=======
-                        {/* Thanh tìm kiếm – Chỉ hiện khi: KHÔNG phải nhà hàng VÀ KHÔNG phải trang đăng ký */}
-                        {!isRestaurant && !isRegistrationPage && (
-                            <div
-                                className="search"
-                                style={{
-                                    height: '40px',
-                                    width: '100%',           // Cho phép co giãn theo khung
-                                    maxWidth: '600px',       // Giới hạn chiều rộng tối đa (chỉnh con số này để ngắn hơn nữa)
-                                    margin: '0 10px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '0 14px',
-                                    background: '#f7f4ef',
-                                    border: '1px solid #e0d9cc',
-                                    borderRadius: '20px',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                    transition: '0.2s'
-                                }}
-                            >
-                                <span style={{ marginRight: '8px', opacity: 0.6 }}>🔍</span>
-                                <input
-                                    type="text"
-                                    placeholder="Tìm quán, món ăn, địa chỉ..."
-                                    onChange={(e) => onSearch(e.target.value)}
->>>>>>> origin/NgocBinh
                                     style={{
                                         border: 'none',
                                         background: 'transparent',
                                         outline: 'none',
                                         width: '100%',
-<<<<<<< HEAD
                                         color: '#333', // Màu chữ
                                         fontSize: '16px', // Cỡ chữ lớn hơn để dễ đọc
                                         fontWeight: '500', // Chữ đậm hơn để dễ nhìn
@@ -153,17 +101,6 @@ function Navbar({ onOpenLogin, onSearch }) {
                                     }}
                                     onFocus={(e) => e.target.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.2)'} // Tạo hiệu ứng khi focus
                                     onBlur={(e) => e.target.style.boxShadow = 'none'} // Xóa hiệu ứng khi blur
-=======
-                                        color: 'var(--chu)',
-                                        fontSize: '14px'
-                                    }}
-                                    onFocus={(e) =>
-                                        e.target.parentElement.style.border = '1px solid #ff7a00'
-                                    }
-                                    onBlur={(e) =>
-                                        e.target.parentElement.style.border = '1px solid #e0d9cc'
-                                    }
->>>>>>> origin/NgocBinh
                                 />
                             </div>
                         )}
@@ -196,7 +133,7 @@ function Navbar({ onOpenLogin, onSearch }) {
                                             display: 'block'
                                         }}
                                     >
-                                        {!isRestaurant && (
+                                        {!isRegisterPage && (
                                             <>
                                                 <Link
                                                     to="/profile"
@@ -257,18 +194,12 @@ function Navbar({ onOpenLogin, onSearch }) {
                                 )}
                             </div>
 
-<<<<<<< HEAD
                             {/* Chỉ hiện nút Giỏ hàng nếu KHÔNG PHẢI trang đăng ký */}
                             {!isRegisterPage && (
-=======
-                            {/* Giỏ hàng – Chỉ hiện khi: KHÔNG phải nhà hàng VÀ KHÔNG phải trang đăng ký */}
-                            {!isRestaurant && !isRegistrationPage && (
->>>>>>> origin/NgocBinh
                                 <Link
                                     to="/cart"
                                     className="cart-btn"
                                     style={{
-<<<<<<< HEAD
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         gap: 10,
@@ -316,21 +247,6 @@ function Navbar({ onOpenLogin, onSearch }) {
 
                                     {/* Text optional */}
                                     <span style={{ color: '#6c635b' }}></span>
-=======
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        background: '#fff',
-                                        border: '1px solid #ded6c7',
-                                        borderRadius: '999px',
-                                        padding: '8px 12px',
-                                        textDecoration: 'none',
-                                        fontWeight: '700'
-                                    }}
-                                >
-                                    <i className="fa-solid fa-cart-shopping"></i>
-                                    <span className="cart-count">{totalCount}</span>
->>>>>>> origin/NgocBinh
                                 </Link>
                             )}
                         </div>
@@ -338,10 +254,10 @@ function Navbar({ onOpenLogin, onSearch }) {
                 ) : (
                     // --- GIAO DIỆN CHƯA ĐĂNG NHẬP (Landing Page) ---
                     <nav className="ben-phai" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                        
+
                         {/* 1. Trở thành đối tác: Dẫn về trang đăng ký merchant hoặc một trang trung gian nếu bạn có */}
                         <Link to="/become-partner" style={{ color: 'var(--chu)', textDecoration: 'none', fontWeight: '600', fontSize: '14px' }}>
-                             Trở thành Đối tác
+                            Trở thành Đối tác
                         </Link>
 
                         {/* 2. Trung tâm hỗ trợ: Dẫn về route /support (như đã hướng dẫn ở bước trước) */}
@@ -350,9 +266,9 @@ function Navbar({ onOpenLogin, onSearch }) {
                         </Link>
 
                         <div className="phan-cach" style={{ width: '1px', height: '18px', background: 'var(--xam)' }}></div>
-                        
+
                         <a href="#" style={{ color: 'var(--chu)', textDecoration: 'none', fontWeight: '600', fontSize: '14px' }}>Tiếng Việt ▾</a>
-                        
+
                         <button className="nut-dang-nhap" onClick={onOpenLogin}>Đăng nhập</button>
                     </nav>
                 )}

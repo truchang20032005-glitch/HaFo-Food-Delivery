@@ -45,42 +45,56 @@ function LandingPage() {
             <Navbar onOpenLogin={() => setShowLogin(true)} />
 
             {/* --- SECTION 1: HERO & QUICK FEATURES --- */}
-            <section className="hero-section">
-                <div className="hero-content">
-                    <h1>HaFo – Giao món ngon tận tay!</h1>
-                    <p>Dễ dàng đặt món ăn yêu thích từ những quán ngon quanh bạn</p>
-                    <p>– chỉ với vài chạm.</p>
-                    <button className="nut-chinh">Đặt món ngay</button>
-                </div>
-                {/* Nút Trở thành đối tác */}
-                <div
-                    className="the-doi-tac"
-                    onClick={handlePartnerClick}
-                    style={{ cursor: 'pointer', marginLeft: '70px' }}
-                >
-                    <b>Trở thành<br />Đối tác Nhà hàng / Shipper</b>
-                    <small style={{ display: 'block' }}>
-                        Đăng ký ngay để tăng thu nhập
-                    </small>
-                </div>
+            <div className="mo-dau" style={{ backgroundImage: 'url(/images/banner.jpg)' }}>
+                <div className="mo-dau__noi-dung">
+                    <div className="mo-dau__van-ban">
+                        <h1>HaFo – Giao món ngon tận tay!</h1>
+                        <p>Dễ dàng đặt món ăn yêu thích từ những quán ngon quanh bạn – chỉ với vài chạm.</p>
+                        <button className="nut-chinh" onClick={() => window.scrollTo(0, 500)}>Đặt món ngay</button>
+                    </div>
 
-            </section>
+                    {/* Nút Trở thành đối tác */}
+                    <div
+                        className="the-doi-tac"
+                        onClick={handlePartnerClick}
+                        style={{ cursor: 'pointer' }}
+                    >
+                        <b>Trở thành<br />Đối tác Nhà hàng / Shipper</b>
+                        <small style={{ display: 'block' }}>
+                            Đăng ký ngay để tăng thu nhập
+                        </small>
+                    </div>
+                </div>
+            </div>
 
             {/* --- SECTION 2: MAIN CONTENT (Phần Beige bo góc) --- */}
             <section>
                 {/* Sub-section: Danh mục món ăn */}
-                <section style={{ background: '#fef4b1ff', width: '100%', padding: '20px 0' }}>
-                    <div className="max-width-container" ></div>
-                    <h2 className="trust-title-center">Khám Phá Ẩm Thực</h2>
-                    <div className="category-grid">
-                        {['Món Á', 'Món Âu', 'Chay', 'Đồ uống'].map((cat, idx) => (
-                            <div key={idx} className="cat-item spin-on-hover">
-                                <div className="cat-circle">
-                                    <img src={`/images/cat-${idx + 1}.jpg`} alt={cat} />
+                <section
+                    style={{
+                        background: '#fef4b1ff',
+                        width: '100%',
+                        padding: '10px 0'
+                    }}
+                >
+                    <div className="max-width-container">
+                        <h2
+                            className="trust-title-center"
+                            style={{ margin: '6px 0 10px' }}
+                        >
+                            Khám Phá Ẩm Thực
+                        </h2>
+
+                        <div className="category-grid" style={{ gap: 70 }}> {/* ✅ nếu grid đang quá rộng */}
+                            {['Món Á', 'Món Âu', 'Chay', 'Đồ uống'].map((cat, idx) => (
+                                <div key={idx} className="cat-item spin-on-hover">
+                                    <div className="cat-circle">
+                                        <img src={`/images/cat-${idx + 1}.jpg`} alt={cat} />
+                                    </div>
+                                    <h4 style={{ margin: '8px 0 0' }}>{cat}</h4> {/* ✅ giảm margin h4 */}
                                 </div>
-                                <h4>{cat}</h4>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </section>
 
