@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -12,7 +12,8 @@ function ShipperHistory() {
         if (user) {
             // Gọi API lấy tất cả đơn hàng
             // (Nếu backend bạn đã hỗ trợ ?shipperId=... thì tốt, nếu chưa thì lọc ở client như dưới đây)
-            axios.get('http://localhost:5000/api/orders')
+            //axios.get('http://localhost:5000/api/orders')
+            api.get('/orders')
                 .then(res => {
                     // LỌC DỮ LIỆU THẬT:
                     // 1. Phải là đơn của shipper này (shipperId trùng user.id)

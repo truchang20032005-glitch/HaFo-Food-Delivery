@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
 function Home() {
@@ -8,7 +8,8 @@ function Home() {
 
     // GỌI API LẤY DANH SÁCH QUÁN THẬT TỪ BACKEND
     useEffect(() => {
-        axios.get('http://localhost:5000/api/restaurants')
+        //axios.get('http://localhost:5000/api/restaurants')
+        api.get('/restaurants')
             .then(res => setRestaurants(res.data))
             .catch(err => console.error("Lỗi lấy quán:", err));
     }, []);

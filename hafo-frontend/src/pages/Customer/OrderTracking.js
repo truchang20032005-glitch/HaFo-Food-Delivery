@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
@@ -13,7 +13,8 @@ function OrderTracking() {
 
     const fetchOrder = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
+            //const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
+            const res = await api.get(`/orders/${id}`);
             setOrder(res.data);
         } catch (err) {
             console.error(err);
@@ -30,7 +31,8 @@ function OrderTracking() {
     const handleReceiveOrder = async () => {
         try {
             // Gọi API cập nhật trạng thái thành 'done'
-            await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'done' });
+            //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'done' });
+            await api.put(`/orders/${id}`, { status: 'done' });
             setShowModal(false); // Tắt modal
             fetchOrder(); // Load lại dữ liệu mới
             alert("Cảm ơn bạn đã mua hàng! Đơn hàng đã hoàn tất.");

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 function MerchantWallet() {
     const [balance, setBalance] = useState(0);
@@ -11,12 +11,14 @@ function MerchantWallet() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             // 1. Lấy quán để hiển thị tên ngân hàng
-            axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     if (res.data) {
                         setShop(res.data);
                         // 2. Lấy đơn hàng CỦA QUÁN ĐÓ để tính tiền
-                        return axios.get(`http://localhost:5000/api/orders?restaurantId=${res.data._id}`);
+                        //return axios.get(`http://localhost:5000/api/orders?restaurantId=${res.data._id}`);
+                        return api.get(`/orders?restaurantId=${res.data._id}`);
                     }
                 })
                 .then(res => {

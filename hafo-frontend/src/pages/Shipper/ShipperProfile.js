@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 function ShipperProfile() {
@@ -10,7 +10,8 @@ function ShipperProfile() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             // Gọi API lấy thông tin Shipper thật
-            axios.get(`http://localhost:5000/api/shippers/profile/${user.id}`)
+            //axios.get(`http://localhost:5000/api/shippers/profile/${user.id}`)
+            api.get(`/shippers/profile/${user.id}`)
                 .then(res => setProfile(res.data))
                 .catch(err => console.error("Lỗi lấy hồ sơ:", err));
         }

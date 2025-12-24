@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 function Complaints() {
     // Mock Data (Giả lập dữ liệu từ file HTML)

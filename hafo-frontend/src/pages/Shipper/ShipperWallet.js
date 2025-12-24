@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -12,12 +12,14 @@ function ShipperWallet() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             // 1. Lấy thông tin Shipper (Số dư, Ngân hàng)
-            axios.get(`http://localhost:5000/api/shippers/profile/${user.id}`)
+            //axios.get(`http://localhost:5000/api/shippers/profile/${user.id}`)
+            api.get(`/shippers/profile/${user.id}`)
                 .then(res => {
                     setProfile(res.data);
 
                     // 2. Lấy lịch sử đơn hàng để giả lập lịch sử giao dịch
-                    return axios.get('http://localhost:5000/api/orders');
+                    //return axios.get('http://localhost:5000/api/orders');
+                    return api.get('/orders');
                 })
                 .then(res => {
                     if (res && res.data) {

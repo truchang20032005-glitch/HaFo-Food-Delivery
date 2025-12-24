@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
@@ -23,7 +23,8 @@ function ReviewOrder() {
     const [isSubmitted, setIsSubmitted] = useState(false);
 
     useEffect(() => {
-        axios.get(`http://localhost:5000/api/orders/${id}`)
+        //axios.get(`http://localhost:5000/api/orders/${id}`)
+        api.get(`/orders/${id}`)
             .then(res => setOrder(res.data))
             .catch(err => console.error(err));
     }, [id]);

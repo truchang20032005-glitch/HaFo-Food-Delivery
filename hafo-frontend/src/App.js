@@ -90,7 +90,6 @@ function App() {
 
           <Route path="/register/merchant" element={<MerchantRegister />} />
           <Route path="/register/shipper" element={<ShipperRegister />} />
-          <Route path="/pending-approval" element={<PendingApproval />} />
 
           {/* Merchant Routes - Bảo vệ bằng user?.role */}
           <Route path="/merchant" element={user?.role === 'merchant' ? <MerchantLayout /> : <Navigate to="/" />}>

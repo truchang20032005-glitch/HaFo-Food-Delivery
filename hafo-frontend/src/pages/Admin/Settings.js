@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import api from '../../services/api';
 
 function Settings() {
     // State cho thông tin Admin
     const [adminInfo, setAdminInfo] = useState({
         name: 'Admin HaFo',
-        email: 'admin@hafo.vn',
-        phone: '0912345678'
+        email: 'happyfoodcskh2025@gmail.com',
+        phone: '0357913676'
     });
 
     // State cho cấu hình hệ thống
@@ -48,7 +48,12 @@ function Settings() {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return alert("Vui lòng đăng nhập lại!");
 
-            const res = await axios.post('http://localhost:5000/api/auth/change-password', {
+            /*const res = await axios.post('http://localhost:5000/api/auth/change-password', {
+                userId: user.id,
+                oldPass: passData.current,
+                newPass: passData.new
+            });*/
+            const res = await api.post('/auth/change-password', {
                 userId: user.id,
                 oldPass: passData.current,
                 newPass: passData.new

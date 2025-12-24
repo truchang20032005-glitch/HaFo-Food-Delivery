@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -12,7 +12,8 @@ function ShipperOrderDetail() {
     // Gọi API lấy chi tiết đơn
     const fetchOrder = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
+            //const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
+            const res = await api.get(`/orders/${id}`);
             setOrder(res.data);
         } catch (err) {
             alert("Lỗi tải đơn hàng");
@@ -28,7 +29,8 @@ function ShipperOrderDetail() {
         try {
             // Ở đây logic đơn giản: prep -> pickup (đang giao)
             // Thực tế có thể chia nhỏ hơn: arriving -> picked_up -> delivering
-            await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'pickup' });
+            //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'pickup' });
+            await api.put(`/orders/${id}`, { status: 'pickup' });
             alert("Đã xác nhận lấy món! Bắt đầu đi giao.");
             fetchOrder();
         } catch (err) {
@@ -40,7 +42,8 @@ function ShipperOrderDetail() {
     const handleDelivered = async () => {
         if (window.confirm("Xác nhận đã giao hàng thành công và nhận tiền?")) {
             try {
-                await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'done' });
+                //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'done' });
+                await api.put(`/orders/${id}`, { status: 'done' });
                 alert("Chúc mừng! Bạn đã hoàn thành đơn hàng.");
                 navigate('/shipper/dashboard'); // Quay về săn đơn tiếp
             } catch (err) {
@@ -54,7 +57,8 @@ function ShipperOrderDetail() {
         const reason = prompt("Nhập lý do hủy đơn:");
         if (reason) {
             try {
-                await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'cancel' });
+                //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'cancel' });
+                await api.put(`/orders/${id}`, { status: 'cancel' });
                 alert("Đã hủy đơn.");
                 navigate('/shipper/dashboard');
             } catch (err) {

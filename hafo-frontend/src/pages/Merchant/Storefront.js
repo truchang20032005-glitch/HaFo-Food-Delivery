@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 function Storefront() {
     const [shop, setShop] = useState(null);
@@ -9,7 +9,8 @@ function Storefront() {
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
-            axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     setShop(res.data);
                     setFormData(res.data); // Fill dữ liệu vào form
@@ -22,7 +23,8 @@ function Storefront() {
 
     const handleSave = async () => {
         try {
-            await axios.put(`http://localhost:5000/api/restaurants/${shop._id}`, formData);
+            //await axios.put(`http://localhost:5000/api/restaurants/${shop._id}`, formData);
+            await api.put(`/restaurants/${shop._id}`, formData);
             alert("Đã cập nhật thông tin quán!");
         } catch (err) {
             alert("Lỗi: " + err.message);

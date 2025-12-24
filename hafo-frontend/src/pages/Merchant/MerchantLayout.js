@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import './Merchant.css';
 
 function MerchantLayout() {
@@ -17,7 +17,8 @@ function MerchantLayout() {
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
-            axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     if (res.data) {
                         setMyShop(res.data);
