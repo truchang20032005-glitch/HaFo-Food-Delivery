@@ -332,9 +332,24 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
                                 <button
                                     className="btn danger small"
                                     onClick={() => removeOption(idx)}
-                                    style={{ background: '#fee2e2', color: 'red', border: 'none', borderRadius: 6, width: 30, cursor: 'pointer' }}
+                                    style={{
+                                        //background: '#fee2e2',
+                                        border: 'none',
+                                        borderRadius: 6,
+                                        width: 30,
+                                        height: 30,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: 0
+                                    }}
                                 >
-                                    X
+                                    <img
+                                        src="/images/remove.png"
+                                        alt="Xóa"
+                                        style={{ width: 20, height: 20 }}
+                                    />
                                 </button>
                             </div>
                         ))}
@@ -374,10 +389,26 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
                                 />
 
                                 <button
+                                    className="btn danger small"
                                     onClick={() => removeTopping(idx)}
-                                    style={{ background: '#fee2e2', color: 'red', border: 'none', borderRadius: 6, width: 30, cursor: 'pointer' }}
+                                    style={{
+                                        //background: '#fee2e2',
+                                        border: 'none',
+                                        borderRadius: 6,
+                                        width: 30,
+                                        height: 30,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: 0
+                                    }}
                                 >
-                                    X
+                                    <img
+                                        src="/images/remove.png"
+                                        alt="Xóa"
+                                        style={{ width: 20, height: 20 }}
+                                    />
                                 </button>
                             </div>
                         ))}
