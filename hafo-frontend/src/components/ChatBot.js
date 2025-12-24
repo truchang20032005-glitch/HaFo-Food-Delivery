@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { useCart } from '../context/CartContext';
 import './ChatBot.css'; // File CSS riêng cho đẹp
 
 function ChatBot() {
@@ -10,6 +11,7 @@ function ChatBot() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
+    const { addToCart } = useCart();
 
     // Tự động cuộn xuống cuối khi có tin nhắn mới
     const scrollToBottom = () => {
@@ -35,7 +37,12 @@ function ChatBot() {
                 history: messages // Gửi kèm lịch sử để AI hiểu ngữ cảnh
             });
 
-            const botMsg = { sender: 'bot', text: res.data.reply };
+            // Backend trả về: reply (text) và foods (mảng món ăn gợi ý)
+            const botMsg = {
+                sender: 'bot',
+                text: res.data.reply,
+                foods: res.data.foods || []
+            };
             setMessages(prev => [...prev, botMsg]);
         } catch (error) {
             setMessages(prev => [...prev, { sender: 'bot', text: 'Hic, mình đang bị mất kết nối một chút. Bạn thử lại sau nhé!' }]);
@@ -46,6 +53,22 @@ function ChatBot() {
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') handleSend();
+    };
+
+    // Hàm thêm món từ Chat vào Giỏ (Tạo nhanh item với options mặc định)
+    const handleAddToCartFromChat = (food) => {
+        const cartItem = {
+            ...food,
+            uniqueId: Date.now(),
+            quantity: 1,
+            // Nếu món có options, chọn cái đầu tiên làm mặc định
+            selectedSize: food.options?.[0]?.name || 'Tiêu chuẩn',
+            sizePrice: food.options?.[0]?.price || 0,
+            selectedToppings: [],
+            note: 'Thêm từ Chatbot',
+            finalPrice: (food.price || 0) + (food.options?.[0]?.price || 0)
+        };
+        addToCart(cartItem);
     };
 
     return (
@@ -89,17 +112,50 @@ function ChatBot() {
 
                     <div className="chat-body">
                         {messages.map((msg, idx) => (
-                            <div key={idx} className={`msg ${msg.sender}`}>
-                                {msg.text}
+                            <div key={idx} className={`chat-msg ${msg.sender}`} style={{ alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                                {/* Nội dung tin nhắn text */}
+                                <div className="msg-content">
+                                    {msg.text}
+                                </div>
+
+                                {/* RENDER DANH SÁCH MÓN ĂN GỢI Ý (Nếu có) */}
+                                {msg.sender === 'bot' && msg.foods && msg.foods.length > 0 && (
+                                    <div className="food-suggestions">
+                                        {msg.foods.map((food) => (
+                                            <div key={food._id} className="chat-food-card">
+                                                <img
+                                                    src={food.image || 'https://via.placeholder.com/150?text=HaFo'}
+                                                    alt={food.name}
+                                                    className="cf-img"
+                                                    onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=HaFo'}
+                                                />
+                                                <div className="cf-info">
+                                                    <div className="cf-name" title={food.name}>{food.name}</div>
+                                                    <div className="cf-price">{food.price?.toLocaleString()}đ</div>
+                                                    <button
+                                                        className="cf-btn"
+                                                        onClick={() => handleAddToCartFromChat(food)}
+                                                    >
+                                                        + Thêm ngay
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
+
                         {isLoading && (
-                            <div className="msg bot">
-                                <i className="fa-solid fa-ellipsis fa-fade"></i>
+                            <div className="chat-msg bot">
+                                <div className="msg-content">
+                                    <i className="fa-solid fa-ellipsis fa-fade"></i>
+                                </div>
                             </div>
                         )}
                         <div ref={messagesEndRef} />
                     </div>
+
 
                     <div className="chat-footer">
                         <input
@@ -107,7 +163,8 @@ function ChatBot() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            placeholder="Hỏi HaFo món ngon..."
+                            placeholder="Bạn muốn ăn gì?..."
+                            disabled={isLoading}
                         />
                         <button className="chat-send" onClick={handleSend} disabled={isLoading}>
                             <img

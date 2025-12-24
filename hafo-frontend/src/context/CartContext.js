@@ -1,36 +1,43 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const CartContext = createContext();
+
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
+    // Lấy giỏ hàng từ localStorage khi khởi động
     const [cartItems, setCartItems] = useState(() => {
-        const saved = localStorage.getItem('hafo_cart');
-        return saved ? JSON.parse(saved) : [];
+        try {
+            const savedCart = localStorage.getItem('hafo_cart');
+            return savedCart ? JSON.parse(savedCart) : [];
+        } catch (error) {
+            console.error("Lỗi khi đọc giỏ hàng từ localStorage:", error);
+            return [];
+        }
     });
 
+    // Lưu giỏ hàng vào localStorage mỗi khi có thay đổi
     useEffect(() => {
         localStorage.setItem('hafo_cart', JSON.stringify(cartItems));
     }, [cartItems]);
 
-    // --- HÀM THÊM VÀO GIỎ (LOGIC MỚI) ---
-    const addToCart = (newItem) => {
-        setCartItems((prev) => {
-            // Để đơn giản và chính xác nhất với logic chọn topping/size, 
-            // mỗi lần thêm từ Modal sẽ là một item riêng biệt (không gộp dòng)
-            // để tránh lỗi khi so sánh topping phức tạp.
-            return [...prev, newItem];
+    // Hàm thêm món vào giỏ hàng
+    const addToCart = (product) => {
+        setCartItems((prevItems) => {
+            // Logic đơn giản: luôn thêm mới để tránh lỗi merge option phức tạp
+            // Trong thực tế bạn có thể check trùng ID + Option để tăng số lượng
+            return [...prevItems, product];
         });
-        // Có thể thêm Toast thông báo ở đây
-        alert(`Đã thêm ${newItem.quantity} phần "${newItem.name}" vào giỏ!`);
+        // Thông báo đơn giản (có thể thay bằng Toast)
+        alert(`Đã thêm "${product.name}" vào giỏ!`);
     };
 
+    // Hàm xóa món khỏi giỏ hàng
     const removeFromCart = (uniqueId) => {
-        if (window.confirm("Bạn muốn xóa món này?")) {
-            setCartItems((prev) => prev.filter((item) => item.uniqueId !== uniqueId));
-        }
+        setCartItems((prevItems) => prevItems.filter((item) => item.uniqueId !== uniqueId));
     };
 
+    // Hàm cập nhật số lượng món
     const updateQuantity = (uniqueId, change) => {
         setCartItems((prevItems) =>
             prevItems.map((item) => {
@@ -43,14 +50,29 @@ export const CartProvider = ({ children }) => {
         );
     };
 
-    const clearCart = () => setCartItems([]);
+    // Hàm xóa toàn bộ giỏ hàng
+    const clearCart = () => {
+        setCartItems([]);
+    };
 
-    // Tính tổng tiền: Dựa trên finalPrice (giá đã cộng topping)
-    const totalAmount = cartItems.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
+    // Tính tổng số lượng món (để hiện trên badge navbar)
     const totalCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+    // Tính tổng thành tiền
+    const totalAmount = cartItems.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
+
     return (
-        <CartContext.Provider value={{ cartItems, addToCart, updateQuantity, removeFromCart, clearCart, totalAmount, totalCount }}>
+        <CartContext.Provider
+            value={{
+                cartItems,
+                addToCart,
+                removeFromCart,
+                updateQuantity,
+                clearCart,
+                totalCount,
+                totalAmount
+            }}
+        >
             {children}
         </CartContext.Provider>
     );
