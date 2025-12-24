@@ -67,7 +67,12 @@ app.use('/api/pending', pendingRoutes);
 app.use('/api', citiesRoute);
 app.use('/api/chat', chatRoutes);
 app.use('/api/promos', promoRoutes);
+app.use("/api/health", (req, res) => {
+    console.log('[PING]');
+    res.status(200).send('OK');
+});
 
 app.get('/', (req, res) => res.send('Server HaFo đang chạy ngon lành!'));
 
 app.listen(PORT, () => console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`));
+
