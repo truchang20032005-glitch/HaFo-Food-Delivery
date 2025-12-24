@@ -6,6 +6,7 @@ function Navbar({ onOpenLogin }) {
     const [user, setUser] = useState(null);
     const { totalCount } = useCart();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [bump, setBump] = useState(false);
 
     // Sử dụng useLocation để lấy đường dẫn hiện tại
     const location = useLocation();
@@ -17,6 +18,15 @@ function Navbar({ onOpenLogin }) {
         if (loggedInUser) {
             setUser(JSON.parse(loggedInUser));
         }
+    }, []);
+
+    useEffect(() => {
+        const onAdded = () => {
+            setBump(true);
+            setTimeout(() => setBump(false), 380);
+        };
+        window.addEventListener('hafo_cart_added', onAdded);
+        return () => window.removeEventListener('hafo_cart_added', onAdded);
     }, []);
 
     // Xử lý đăng xuất
@@ -119,7 +129,10 @@ function Navbar({ onOpenLogin }) {
                             {!isRegisterPage && (
                                 <Link to="/cart" className="cart-btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #ded6c7', borderRadius: '999px', padding: '8px 12px', textDecoration: 'none', color: 'inherit', fontWeight: '700', transition: '0.15s' }}>
                                     <i className="fa-solid fa-cart-shopping" style={{ color: '#6c635b', fontSize: '16px' }}></i>
-                                    <span className="cart-count" style={{ minWidth: '18px', height: '18px', lineHeight: '18px', padding: '0 6px', fontSize: '12px', fontWeight: '800', textAlign: 'center', color: '#fff', background: 'var(--cam)', borderRadius: '999px' }}>
+                                    <span
+                                        className={`cart-count ${bump ? 'bump' : ''}`}
+                                        style={{ minWidth: '18px', height: '18px', lineHeight: '18px', padding: '0 6px', fontSize: '12px', fontWeight: '800', textAlign: 'center', color: '#fff', background: 'var(--cam)', borderRadius: '999px' }}
+                                    >
                                         {totalCount}
                                     </span>
                                 </Link>
