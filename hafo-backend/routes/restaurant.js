@@ -27,16 +27,13 @@ router.get('/', async (req, res) => {
 // ✅ THÊM ROUTE NÀY - Lấy thông tin quán của merchant
 router.get('/my-shop/:userId', async (req, res) => {
     try {
-        console.log('🔍 Đang tìm restaurant cho user:', req.params.userId);
-        
         const restaurant = await Restaurant.findOne({ owner: req.params.userId });
-        
+
         if (!restaurant) {
             console.log('❌ Không tìm thấy restaurant');
             return res.status(404).json({ message: 'Chưa có thông tin quán' });
         }
-        
-        console.log('✅ Tìm thấy restaurant:', restaurant.name);
+
         res.json(restaurant);
     } catch (err) {
         console.error('❌ Lỗi:', err);
@@ -58,9 +55,7 @@ router.get('/:id', async (req, res) => {
 // ✅ THÊM ROUTE NÀY - Lấy menu của 1 quán
 router.get('/:id/menu', async (req, res) => {
     try {
-        console.log('📋 Đang lấy menu cho restaurant:', req.params.id);
         const foods = await Food.find({ restaurant: req.params.id });
-        console.log('✅ Tìm thấy', foods.length, 'món');
         res.json(foods);
     } catch (err) {
         console.error('❌ Lỗi lấy menu:', err);

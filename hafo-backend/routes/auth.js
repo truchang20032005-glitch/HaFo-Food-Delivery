@@ -139,4 +139,32 @@ router.get('/me/:userId', async (req, res) => {
     }
 });
 
+// --- 4. API ĐỔI MẬT KHẨU ---
+router.post('/change-password', async (req, res) => {
+    const { userId, oldPass, newPass } = req.body;
+
+    try {
+        // 1. Tìm user
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+
+        // 2. Kiểm tra mật khẩu cũ
+        const isMatch = await bcrypt.compare(oldPass, user.password);
+        if (!isMatch) return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng!' });
+
+        // 3. Mã hóa mật khẩu mới
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPass, salt);
+
+        // 4. Cập nhật vào DB
+        user.password = hashedPassword;
+        await user.save();
+
+        res.json({ message: 'Đổi mật khẩu thành công!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server: ' + error.message });
+    }
+});
+
+
 module.exports = router;
