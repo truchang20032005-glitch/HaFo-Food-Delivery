@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
 import AddDishModal from './AddDishModal';
 
 function Menu() {
@@ -9,117 +8,143 @@ function Menu() {
     const [myShop, setMyShop] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // 1. Tải thông tin quán và menu
-    const fetchShopAndMenu = async () => {
+    // State lưu món đang được chọn để sửa
+    const [editingFood, setEditingFood] = useState(null);
+
+    // ... (Phần fetchShopInfo giữ nguyên) ...
+    const fetchShopInfo = async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             try {
-                // Lấy thông tin quán
-                const shopRes = await axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`);
-
-                if (shopRes.data) {
-                    setMyShop(shopRes.data);
-                    // Có quán rồi mới lấy menu
-                    fetchMenu(shopRes.data._id);
+                const res = await axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`);
+                if (res.data) {
+                    setMyShop(res.data);
+                    fetchMenu(res.data._id);
+                } else {
+                    console.log("Chưa tìm thấy quán...");
                 }
             } catch (err) {
-                console.error("Chưa có thông tin quán hoặc lỗi:", err);
+                console.error("Lỗi lấy thông tin quán:", err);
             } finally {
                 setLoading(false);
             }
         }
     };
 
-    // Hàm lấy menu riêng
+    useEffect(() => { fetchShopInfo(); }, []);
+
     const fetchMenu = async (restaurantId) => {
         try {
             const res = await axios.get(`http://localhost:5000/api/restaurants/${restaurantId}/menu`);
             setFoods(res.data);
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     };
 
-    useEffect(() => {
-        fetchShopAndMenu();
-    }, []);
+    // Hàm mở modal Thêm
+    const handleAdd = () => {
+        setEditingFood(null); // Reset
+        setShowModal(true);
+    };
 
+    // Hàm mở modal Sửa
+    const handleEdit = (food) => {
+        setEditingFood(food); // Lưu món cần sửa
+        setShowModal(true);
+    };
+
+    // Hàm Xóa món (Giữ nguyên)
     const handleDelete = async (id) => {
         if (window.confirm("Bạn chắc chắn muốn xóa món này?")) {
             try {
                 await axios.delete(`http://localhost:5000/api/foods/${id}`);
-                // Load lại menu sau khi xóa
-                if (myShop) fetchMenu(myShop._id);
-            } catch (err) {
-                alert("Lỗi xóa món");
-            }
+                fetchMenu(myShop._id);
+            } catch (err) { alert("Lỗi xóa: " + err.message); }
         }
     };
 
     if (loading) return <div style={{ padding: 20 }}>Đang tải...</div>;
-
-    // --- LOGIC QUAN TRỌNG: CHƯA CÓ QUÁN THÌ KHÔNG CHO THÊM MÓN ---
-    if (!myShop) {
-        return (
-            <div className="panel">
-                <div className="head">Quản lý Menu</div>
-                <div className="body" style={{ textAlign: 'center', padding: '40px' }}>
-                    <p>Bạn chưa cập nhật thông tin cửa hàng.</p>
-                    <p>Vui lòng vào mục <b>"Thông tin quán"</b> để tạo quán trước khi thêm món ăn.</p>
-                    <Link to="/merchant/storefront" className="btn primary">Tạo cửa hàng ngay</Link>
-                </div>
-            </div>
-        );
-    }
+    if (!myShop) return <div style={{ textAlign: 'center', padding: 40 }}>Lỗi dữ liệu quán.</div>;
 
     return (
         <section className="panel">
-            <div className="head">Quản lý Menu ({foods.length} món)</div>
+            <div className="head">Quản lý thực đơn</div>
             <div className="body">
-                <button className="btn primary small" onClick={() => setShowModal(true)} style={{ marginBottom: 15 }}>
-                    <i className="fa-solid fa-plus"></i> Thêm món mới
-                </button>
 
-                {foods.length === 0 ? (
-                    <p style={{ color: '#888', fontStyle: 'italic' }}>Chưa có món ăn nào. Hãy thêm món đầu tiên!</p>
-                ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                        <thead>
-                            <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee' }}>
-                                <th style={{ padding: '10px' }}>Ảnh</th>
-                                <th>Tên món</th>
-                                <th>Giá bán</th>
-                                <th>Mô tả</th>
-                                <th>Hành động</th>
+                <div className="row" style={{ marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 'bold', color: '#F97350', fontSize: '16px' }}>{myShop.name}</div>
+                    <button className="btn primary small" onClick={handleAdd}>
+                        <i className="fa-solid fa-plus"></i> Thêm món
+                    </button>
+                </div>
+
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr>
+                            <th>Ảnh</th>
+                            <th>Tên món</th>
+                            <th>Giá</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {foods.map((food) => (
+                            <tr key={food._id} style={{ borderBottom: '1px dashed #efe2cc' }}>
+                                <td style={{ padding: '10px' }}>
+                                    <img
+                                        src={food.image ? `http://localhost:5000/${food.image}` : 'https://via.placeholder.com/40'}
+                                        alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }}
+                                    />
+                                </td>
+                                <td>
+                                    <b>{food.name}</b>
+                                    {/* Hiển thị label nếu có nhiều size/topping */}
+                                    {(food.options?.length > 1 || food.toppings?.length > 0) && (
+                                        <div style={{ fontSize: 11, color: '#666' }}>+Tùy chọn</div>
+                                    )}
+                                </td>
+                                <td style={{ color: '#F97350', fontWeight: 'bold' }}>{food.price?.toLocaleString()}đ</td>
+                                <td>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <button
+                                            className="btn small soft"
+                                            onClick={() => handleEdit(food)}
+                                        >
+                                            <i className="fa-solid fa-pen"></i>Sửa
+                                        </button>
+
+                                        <button
+                                            className="btn small danger"
+                                            onClick={() => handleDelete(food._id)}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                padding: 0,
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <img
+                                                src="/images/delete.png"
+                                                alt="Xóa"
+                                                style={{ width: 22, height: 22, display: 'block' }}
+                                            />
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {foods.map(food => (
-                                <tr key={food._id} style={{ borderBottom: '1px dashed #efe2cc' }}>
-                                    <td style={{ padding: '10px' }}>
-                                        <img src={food.image || 'https://via.placeholder.com/40'} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }} />
-                                    </td>
-                                    <td><b>{food.name}</b></td>
-                                    <td style={{ color: '#F97350', fontWeight: 'bold' }}>{food.price?.toLocaleString()}đ</td>
-                                    <td style={{ fontSize: '13px', color: '#666', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {food.description}
-                                    </td>
-                                    <td>
-                                        <button className="btn small soft" onClick={() => handleDelete(food._id)} style={{ color: 'red' }}>Xóa</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                        ))}
+                    </tbody>
+                </table>
 
-                {/* Modal Thêm Món */}
                 {showModal && (
                     <AddDishModal
                         isOpen={showModal}
                         onClose={() => setShowModal(false)}
                         onRefresh={() => fetchMenu(myShop._id)}
                         restaurantId={myShop._id}
+                        editFood={editingFood} // Truyền món cần sửa vào Modal
                     />
                 )}
             </div>

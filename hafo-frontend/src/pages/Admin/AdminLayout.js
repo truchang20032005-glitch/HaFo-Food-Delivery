@@ -62,7 +62,7 @@ function AdminLayout() {
 
                         {/* Avatar & Menu */}
                         <div className="avatar" onClick={() => setShowMenu(!showMenu)}>
-                            <img src="/images/logo.png" alt="Admin" onError={(e) => e.target.src = 'https://via.placeholder.com/40'} />
+                            <img src="/images/admin.png" alt="Admin" onError={(e) => e.target.src = 'https://via.placeholder.com/40'} />
                         </div>
 
                         {/* Dropdown Menu */}

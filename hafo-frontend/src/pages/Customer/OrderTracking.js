@@ -189,7 +189,14 @@ function OrderTracking() {
                     <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd' }}>
                         <h4 style={{ marginTop: 0 }}>Tóm tắt đơn</h4>
                         <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#333' }}>
-                            {order.items}
+                            {/* SỬA ĐOẠN NÀY */}
+                            {Array.isArray(order.items) ? (
+                                <ul style={{ paddingLeft: 15, margin: 0 }}>
+                                    {order.items.map((it, i) => (
+                                        <li key={i}>{it.quantity}x {it.name} <small>{it.options}</small></li>
+                                    ))}
+                                </ul>
+                            ) : order.items}
                         </div>
                         <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '15px 0' }} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '16px' }}>

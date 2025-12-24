@@ -15,41 +15,26 @@ router.get('/', async (req, res) => {
 
         // Nếu có truyền shipperId -> Chỉ lấy đơn của shipper đó
         if (shipperId) {
-            // Logic cho shipper: Đơn đã nhận (pickup/done) HOẶC Đơn đang chờ (prep) chưa có shipper
-            // Nhưng để đơn giản, shipper dashboard sẽ gọi API riêng hoặc lọc ở client nếu ít đơn.
-            // Ở đây ta ưu tiên lọc theo quán trước.
+            // Logic cho shipper: Đơn đã nhận (pickup/done)
+            // HOẶC có thể thêm logic lấy đơn 'prep' chưa có shipper nếu cần
+            query.$or = [
+                { shipperId: shipperId },
+                // { status: 'prep', shipperId: null } // (Tùy chọn: Hiện cả đơn chờ nhận)
+            ];
         }
 
-        const orders = await Order.find().sort({ createdAt: -1 });
+        const orders = await Order.find(query).sort({ createdAt: -1 });
 
-        const formattedOrders = orders.map(order => ({
-            id: order._id,
-            customer: order.customer,
-            items: order.items,
-            total: order.total,
-            status: order.status,
-            time: new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-        }));
-
-        res.json(formattedOrders);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// --- 2. API LẤY LỊCH SỬ ĐƠN CỦA 1 USER (MỚI) ---
-// GET /api/orders/user/:userId
-router.get('/user/:userId', async (req, res) => {
-    try {
-        // Tìm đơn hàng có userId trùng khớp, sắp xếp mới nhất lên đầu
-        const orders = await Order.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+        // Format dữ liệu items nếu cần (tuy nhiên frontend giờ đã lưu object)
+        // Mình sẽ trả về nguyên object để frontend tự xử lý hiển thị
         res.json(orders);
+
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-// --- 3. API LẤY CHI TIẾT 1 ĐƠN HÀNG ---
+// --- 2. API LẤY CHI TIẾT 1 ĐƠN HÀNG ---
 router.get('/:id', async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -62,39 +47,57 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// --- 4. TẠO ĐƠN HÀNG MỚI (SỬA LẠI) ---
+// --- 3. TẠO ĐƠN HÀNG MỚI (CẬP NHẬT) ---
 router.post('/', async (req, res) => {
-    // Nhận thêm userId từ Frontend gửi xuống
+    // Nhận thêm restaurantId từ Frontend gửi xuống
     const { customer, items, total, userId, restaurantId } = req.body;
 
     try {
         const newOrder = new Order({
             userId,
-            restaurantId,
+            restaurantId, // <-- Lưu restaurantId vào DB
             customer,
-            items,
+            items, // <-- Lưu mảng items chi tiết
             total
         });
         await newOrder.save();
         res.status(201).json(newOrder);
     } catch (error) {
+        console.error("Lỗi tạo đơn:", error);
         res.status(400).json({ message: error.message });
     }
 });
 
-// --- 5. CẬP NHẬT TRẠNG THÁI ĐƠN ---
+// --- 4. CẬP NHẬT TRẠNG THÁI ĐƠN ---
 router.put('/:id', async (req, res) => {
-    const { status } = req.body;
+    const { status, shipperId, rating, review, isReviewed } = req.body;
+    let updateData = {};
+
+    if (status) updateData.status = status;
+    if (shipperId) updateData.shipperId = shipperId;
+    if (rating) updateData.rating = rating;
+    if (review) updateData.review = review;
+    if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
 
     try {
         const updatedOrder = await Order.findByIdAndUpdate(
             req.params.id,
-            { status: status },
+            updateData,
             { new: true }
         );
         res.json(updatedOrder);
     } catch (error) {
         res.status(400).json({ message: error.message });
+    }
+});
+
+// --- 5. LẤY LỊCH SỬ ĐƠN CỦA 1 USER ---
+router.get('/user/:userId', async (req, res) => {
+    try {
+        const orders = await Order.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 

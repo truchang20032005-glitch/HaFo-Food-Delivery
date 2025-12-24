@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 function LoginModal({ isOpen, onClose, targetRole }) {
     const navigate = useNavigate();
+    const { login } = useAuth();
     // 1. Quản lý trạng thái: Đăng nhập (false) hay Đăng ký (true)
     const [isRegister, setIsRegister] = useState(false);
 
@@ -36,47 +38,56 @@ function LoginModal({ isOpen, onClose, targetRole }) {
 
         try {
             const endpoint = isRegister ? '/register' : '/login';
-            const url = `http://localhost:5000/api/auth${endpoint}`;
-            const response = await axios.post(url, formData);
+            // Logic gửi role khi đăng ký (giữ nguyên)
+            let payload = { ...formData };
+            if (isRegister) {
+                if (targetRole === 'merchant') payload.role = 'pending_merchant';
+                if (targetRole === 'shipper') payload.role = 'pending_shipper';
+                payload.targetRole = targetRole;
+            }
+
+            const response = await axios.post(`http://localhost:5000/api/auth${endpoint}`, payload);
 
             if (isRegister) {
-                alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
+                alert('Đăng ký thành công! Vui lòng đăng nhập.');
                 setIsRegister(false);
             } else {
                 alert('Đăng nhập thành công!');
-                const userData = response.data.user; // Lấy thông tin user từ response
+                const user = response.data.user;
                 const token = response.data.token;
 
-                localStorage.setItem('token', response.data.token);
-                localStorage.setItem('user', JSON.stringify(response.data.user));
-
+                // GỌI HÀM LOGIN CỦA CONTEXT -> APP SẼ TỰ RE-RENDER NGAY LẬP TỨC
+                login(user, token);
                 onClose();
 
-                // --- LOGIC ĐIỀU HƯỚNG QUAN TRỌNG ---
-                if (targetRole === 'merchant') {
-                    navigate('/register/merchant'); // Chuyển sang form Nhà hàng
-                } else if (targetRole === 'shipper') {
-                    navigate('/register/shipper'); // Chuyển sang form Shipper
-                } else {
-                    window.location.reload(); // Khách thường thì reload
+                // --- LOGIC ĐIỀU HƯỚNG MỚI (CHECK KỸ HƠN) ---
+
+                // 1. Nếu đã bị TỪ CHỐI
+                if (user.approvalStatus === 'rejected') {
+                    alert("Hồ sơ của bạn đã bị từ chối. Vui lòng liên hệ Admin.");
+                    return;
                 }
 
-                // 2. Nếu đăng nhập bình thường -> Chuyển theo Role của User
-                switch (userData.role) {
-                    case 'merchant':
-                        navigate('/merchant/dashboard'); // Chuyển sang trang Quản lý quán
-                        break;
-                    case 'shipper':
-                        navigate('/shipper/dashboard'); // Chuyển sang trang Tài xế
-                        break;
-                    case 'admin':
-                        navigate('/admin/dashboard'); // Chuyển sang trang Admin
-                        break;
-                    default:
-                        navigate('/'); // Khách hàng về trang chủ
-                        window.location.reload(); // Reload để cập nhật Navbar
-                        break;
+                // 2. Nếu đang CHỜ DUYỆT (Đã nộp đơn rồi)
+                if (user.approvalStatus === 'pending') {
+                    navigate('/pending-approval');
+                    return;
                 }
+
+                // 3. Nếu CHƯA NỘP ĐƠN (pending_... nhưng status là none)
+                if (user.role === 'pending_merchant') {
+                    navigate('/register/merchant');
+                    return;
+                }
+                if (user.role === 'pending_shipper') {
+                    navigate('/register/shipper');
+                    return;
+                }
+
+                // 4. Các role chính thức
+                if (user.role === 'merchant') navigate('/merchant/dashboard');
+                else if (user.role === 'shipper') navigate('/shipper/dashboard');
+                else if (user.role === 'admin') navigate('/admin/dashboard');
             }
         } catch (error) {
             alert(error.response?.data?.message || "Có lỗi xảy ra!");

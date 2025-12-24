@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 
 function Settings() {
     // State cho thông tin Admin
@@ -20,19 +21,19 @@ function Settings() {
     const [showPassModal, setShowPassModal] = useState(false);
     const [passData, setPassData] = useState({ current: '', new: '', confirm: '' });
 
-    // Xử lý lưu thông tin
+    // Xử lý lưu thông tin (Demo)
     const handleSaveInfo = () => {
         alert(`✅ Đã lưu thông tin Admin:\nTên: ${adminInfo.name}\nEmail: ${adminInfo.email}\nSĐT: ${adminInfo.phone}`);
     };
 
-    // Xử lý lưu cấu hình
+    // Xử lý lưu cấu hình (Demo)
     const handleSaveConfig = () => {
         alert(`⚙️ Cấu hình đã lưu:\nThời gian chờ: ${systemConfig.timeout} phút\nGiới hạn đơn: ${systemConfig.maxOrders}/ngày\nGiao diện: ${systemConfig.theme}`);
-        // Thực tế có thể lưu vào localStorage hoặc gọi API
     };
 
-    // Xử lý đổi mật khẩu
-    const handleChangePass = () => {
+    // --- HÀM ĐỔI MẬT KHẨU THẬT (GỌI API) ---
+    const handleChangePass = async () => {
+        // 1. Validate
         if (!passData.current || !passData.new || !passData.confirm) {
             alert("⚠️ Vui lòng nhập đầy đủ thông tin!");
             return;
@@ -41,9 +42,29 @@ function Settings() {
             alert("❌ Mật khẩu xác nhận không khớp!");
             return;
         }
-        alert("✅ Mật khẩu đã được thay đổi thành công!");
-        setShowPassModal(false);
-        setPassData({ current: '', new: '', confirm: '' });
+
+        // 2. Gọi API
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user) return alert("Vui lòng đăng nhập lại!");
+
+            const res = await axios.post('http://localhost:5000/api/auth/change-password', {
+                userId: user.id,
+                oldPass: passData.current,
+                newPass: passData.new
+            });
+
+            alert("✅ " + res.data.message);
+            setShowPassModal(false);
+            setPassData({ current: '', new: '', confirm: '' });
+
+            // (Tùy chọn) Đăng xuất để bắt đăng nhập lại bằng pass mới
+            // localStorage.clear();
+            // window.location.href = '/';
+
+        } catch (err) {
+            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+        }
     };
 
     return (

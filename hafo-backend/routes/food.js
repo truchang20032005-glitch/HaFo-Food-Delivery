@@ -1,58 +1,138 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Food = require('../models/Food');
 
-// API THÊM MÓN MỚI
-router.post('/', async (req, res) => {
-    // 1. Nhận dữ liệu từ Frontend
-    const { name, price, description, image, restaurantId, category } = req.body;
+const uploadDir = 'uploads/foods';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-    // 2. Kiểm tra dữ liệu bắt buộc
-    if (!restaurantId) {
-        return res.status(400).json({ message: 'Lỗi: Không xác định được quán ăn! Vui lòng cập nhật thông tin quán trước.' });
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+        cb(null, uniqueName);
     }
-    if (!name || !price) {
-        return res.status(400).json({ message: 'Vui lòng nhập tên món và giá!' });
-    }
+});
 
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Chỉ chấp nhận file ảnh (JPEG, PNG, WEBP)'), false);
+    }
+};
+
+const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
+// ========== API THÊM MÓN ==========
+router.post('/', upload.single('image'), async (req, res) => {
+    // ... (Code cũ của bạn, đảm bảo có xử lý options/toppings)
     try {
+        const { name, price, description, restaurantId, options, toppings } = req.body;
+        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : "";
+
+        let parsedOptions = [];
+        let parsedToppings = [];
+        if (options) { try { parsedOptions = JSON.parse(options); } catch (e) { } }
+        if (toppings) { try { parsedToppings = JSON.parse(toppings); } catch (e) { } }
+
         const newFood = new Food({
             name,
-            price,
+            price: Number(price),
             description,
-            image,
-            category,
-            // --- SỬA LỖI Ở ĐÂY ---
-            restaurant: restaurantId // Map 'restaurantId' từ FE vào trường 'restaurant' của DB
-            // ---------------------
+            image: imagePath,
+            restaurant: restaurantId,
+            options: parsedOptions,
+            toppings: parsedToppings
         });
 
         await newFood.save();
         res.status(201).json(newFood);
     } catch (error) {
-        console.error("Lỗi tạo món:", error);
         res.status(400).json({ message: error.message });
     }
 });
 
-// Lấy danh sách món (Giữ nguyên)
+// ========== API SỬA MÓN (MỚI) ==========
+router.put('/:id', upload.single('image'), async (req, res) => {
+    try {
+        const { name, price, description, isAvailable, options, toppings } = req.body;
+
+        const updateData = {
+            name,
+            price: Number(price),
+            description,
+            isAvailable: isAvailable === 'true' // Chuyển string sang boolean
+        };
+
+        // Nếu có file ảnh mới thì cập nhật, không thì giữ nguyên
+        if (req.file) {
+            updateData.image = req.file.path.replace(/\\/g, "/");
+        }
+
+        // Cập nhật Options & Toppings
+        if (options) {
+            try { updateData.options = JSON.parse(options); } catch (e) { }
+        }
+        if (toppings) {
+            try { updateData.toppings = JSON.parse(toppings); } catch (e) { }
+        }
+
+        const updatedFood = await Food.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        res.json(updatedFood);
+    } catch (error) {
+        console.error("Lỗi sửa món:", error);
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// API Lấy danh sách món
 router.get('/', async (req, res) => {
     try {
-        const foods = await Food.find();
+        const foods = await Food.find().populate('restaurant', 'name');
         res.json(foods);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
-
-// Xóa món (Giữ nguyên)
-router.delete('/:id', async (req, res) => {
+// API Lấy chi tiết 1 món
+router.get('/:id', async (req, res) => {
     try {
-        await Food.findByIdAndDelete(req.params.id);
-        res.json({ message: 'Đã xóa món ăn' });
+        const food = await Food.findById(req.params.id);
+        res.json(food);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
+// API Lấy menu quán
+router.get('/:id/menu', async (req, res) => {
+    try {
+        const foods = await Food.find({ restaurant: req.params.id });
+        res.json(foods);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+// API Xóa món
+router.delete('/:id', async (req, res) => {
+    try {
+        await Food.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Deleted' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 
 module.exports = router;

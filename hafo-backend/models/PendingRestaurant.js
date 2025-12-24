@@ -1,40 +1,46 @@
 const mongoose = require('mongoose');
 
 const PendingRestaurantSchema = new mongoose.Schema({
-    userId: { type: String, required: true }, // ID tài khoản đăng ký
+    userId: { type: String, required: true },
 
-    // Bước 1: Loại hình
+    // --- BƯỚC 1: LOẠI HÌNH ---
     serviceType: { type: String, default: 'food' }, // food | mart
 
-    // Bước 2: Thông tin quán
+    // --- BƯỚC 2: THÔNG TIN CƠ BẢN ---
     name: String,
-    type: String, // Loại món (Bún bò, Cơm...)
-    address: String, // Địa chỉ đầy đủ
+    phone: String,
+    email: String,
+    address: String,
     city: String,
     district: String,
-    phone: String,
 
-    // Bước 3: Người đại diện
-    repName: String,
-    repEmail: String,
-    repPhone: String,
-    cccdFront: String, // Link ảnh
-    cccdBack: String,
-    regType: String, // cá nhân | hộ kinh doanh | doanh nghiệp
+    // --- BƯỚC 3: ẨM THỰC & VẬN HÀNH ---
+    cuisine: [String], // Mảng các loại món (Cơm, Bún...)
+    signatureDish: String, // Món đặc trưng
+    openTime: String,
+    closeTime: String,
+    priceRange: String,
+    parkingFee: String,
+    avatar: String, // Link ảnh mặt tiền
 
-    // Bước 4: Ngân hàng
+    // --- BƯỚC 4: PHÁP LÝ ---
+    ownerName: String,
+    idCard: String,
+    idCardFront: String, // Mặt trước CMND
+    idCardBack: String,  // Mặt sau CMND
+
+    // --- BƯỚC 5: NGÂN HÀNG ---
     bankName: String,
     bankAccount: String,
     bankOwner: String,
     bankBranch: String,
 
-    // Bước 5: Chi tiết
-    avatar: String,
-    cover: String,
-    openHours: Object, // Lưu JSON giờ mở cửa
+    // --- ẢNH CÁC THÔNG TIN QUÁN ---
+    logo: { type: String },      // Đường dẫn ảnh logo quán
+    coverImage: { type: String }, // Đường dẫn ảnh mặt tiền quán
 
-    status: { type: String, default: 'pending' }, // pending | approved | rejected
+    status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('PendingRestaurant', PendingRestaurantSchema);
+module.exports = mongoose.models.PendingRestaurant || mongoose.model('PendingRestaurant', PendingRestaurantSchema);

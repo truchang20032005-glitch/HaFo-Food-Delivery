@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
@@ -7,161 +7,434 @@ function MerchantRegister() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [cities, setCities] = useState([]);
 
-    // Dữ liệu form tổng hợp
-    const [formData, setFormData] = useState({
-        serviceType: 'food',
-        name: '', phone: '', city: 'TP. Hồ Chí Minh', district: '', address: '',
-        repName: '', repEmail: '', repPhone: '',
-        bankName: '', bankAccount: '', bankOwner: '',
-        openTime: '07:00', closeTime: '22:00'
+    // Khởi tạo state từ localStorage (nếu có)
+    const [data, setData] = useState(() => {
+        const savedData = localStorage.getItem('merchant_draft');
+        return savedData ? JSON.parse(savedData) : {
+            serviceType: 'food',
+            name: '', phone: '', email: '', city: 'TP. Hồ Chí Minh', district: '', address: '',
+            cuisine: [], signatureDish: '',
+            openTime: '07:00', closeTime: '22:00', priceRange: '20.000đ - 50.000đ', parkingFee: 'Miễn phí',
+            ownerName: '', idCard: '',
+            bankName: '', bankAccount: '', bankOwner: '', bankBranch: '',
+            // File ảnh không lưu được vào localStorage dạng text, nên phải chọn lại
+            avatar: null, idCardFront: null, idCardBack: null, businessLicense: null
+        };
     });
+    // Tự động lưu nháp mỗi khi nhập liệu (trừ file ảnh)
+    useEffect(() => {
+        const dataToSave = { ...data, avatar: null, idCardFront: null, idCardBack: null, businessLicense: null };
+        localStorage.setItem('merchant_draft', JSON.stringify(dataToSave));
+    }, [data]);
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Kiểm tra User & Trạng thái duyệt khi vào trang
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            alert("Vui lòng đăng nhập!");
+            navigate('/');
+            return;
+        }
+        // Nếu đã nộp đơn rồi (pending) -> Chuyển sang trang thông báo
+        if (user.approvalStatus === 'pending') {
+            navigate('/pending-approval');
+        }
 
+        // Lấy cities
+        axios.get('http://localhost:5000/api/cities').then(res => setCities(res.data)).catch(() => { });
+    }, [navigate]);
+
+    // Xử lý nhập text
+    const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
+
+    // Xử lý chọn file ảnh
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        // 1. Kiểm tra định dạng (Chỉ cho ảnh và PDF)
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            alert("❌ Định dạng sai! Chỉ chấp nhận file ảnh (JPG, PNG) hoặc PDF.");
+            e.target.value = ''; // Reset ô input
+            return;
+        }
+
+        // 2. Kiểm tra dung lượng (Ví dụ: Tối đa 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert("❌ File quá lớn! Vui lòng chọn file dưới 5MB.");
+            e.target.value = ''; // Reset ô input
+            return;
+        }
+
+        // Nếu OK thì lưu vào state
+        setData(prevData => ({ ...prevData, [e.target.name]: file }));
+    };
+
+    // Xử lý chọn nhiều loại ẩm thực
+    const handleCuisine = (val) => {
+        const current = data.cuisine.includes(val)
+            ? data.cuisine.filter(c => c !== val)
+            : [...data.cuisine, val];
+        setData({ ...data, cuisine: current });
+    };
+
+    const handleCityChange = (e) => {
+        const selectedCity = e.target.value;
+        const cityData = cities.find(city => city.name === selectedCity);
+        setData({ ...data, city: selectedCity, district: cityData ? cityData.districts[0] : '' });
+    };
+
+    const handleDistrictChange = (e) => setData({ ...data, district: e.target.value });
+
+    // Danh sách ngân hàng
+    const banks = [
+        "Vietcombank", "VietinBank", "MB Bank", "BIDV", "Sacombank", "Techcombank",
+        "ACB", "Eximbank", "SHB", "OceanBank", "TPBank", "VPBank", "HDBank", "SeABank"
+    ];
+
+    // --- HÀM KIỂM TRA DỮ LIỆU TRƯỚC KHI NEXT (MỚI) ---
+    const handleNext = () => {
+        // Bước 1: Loại hình
+        if (step === 1) {
+            if (!data.serviceType) return alert("Vui lòng chọn loại hình kinh doanh!");
+        }
+
+        // Bước 2: Thông tin cơ bản
+        if (step === 2) {
+            if (!data.name.trim()) return alert("Vui lòng nhập tên quán!");
+
+            // Validate SDT
+            if (!data.phone.trim()) return alert("Vui lòng nhập số điện thoại!");
+            const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
+            if (!phoneRegex.test(data.phone)) return alert("Số điện thoại không hợp lệ (Phải có 10 số, bắt đầu bằng 0)!");
+
+            // Validate Email
+            if (!data.email.trim()) return alert("Vui lòng nhập Email!");
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(data.email)) return alert("Địa chỉ Email không hợp lệ!");
+
+            if (!data.address.trim()) return alert("Vui lòng nhập địa chỉ!");
+            if (!data.city || !data.district) return alert("Vui lòng chọn Tỉnh/Thành và Quận/Huyện!");
+        }
+
+        // Bước 3: Vận hành
+        if (step === 3) {
+            if (data.cuisine.length === 0) return alert("Vui lòng chọn ít nhất 1 loại hình ẩm thực!");
+            if (!data.openTime || !data.closeTime) return alert("Vui lòng nhập giờ mở/đóng cửa!");
+            if (!data.avatar) return alert("Vui lòng tải lên ảnh mặt tiền quán!");
+        }
+
+        // Bước 4: Pháp lý
+        if (step === 4) {
+            if (!data.ownerName.trim()) return alert("Vui lòng nhập họ tên chủ quán!");
+            if (!data.idCard.trim()) return alert("Vui lòng nhập số CCCD/CMND!");
+            if (!data.idCardFront || !data.idCardBack) return alert("Vui lòng tải lên ảnh 2 mặt CCCD!");
+        }
+
+        // Bước 5: Ngân hàng
+        if (step === 5) {
+            if (!data.bankName.trim()) return alert("Vui lòng nhập tên ngân hàng!");
+            if (!data.bankAccount.trim()) return alert("Vui lòng nhập số tài khoản!");
+            if (!data.bankOwner.trim()) return alert("Vui lòng nhập tên chủ tài khoản!");
+        }
+
+        // Nếu qua hết các bài kiểm tra thì cho Next
+        setStep(step + 1);
+    };
+
+    // Gửi form
     const handleSubmit = async () => {
         try {
-            // Lấy userId từ localStorage để gắn vào hồ sơ
             const user = JSON.parse(localStorage.getItem('user'));
-            if (!user) return alert("Vui lòng đăng nhập trước!");
+            if (!user) return alert("Vui lòng đăng nhập!");
 
-            await axios.post('http://localhost:5000/api/pending/merchant', {
-                ...formData,
-                userId: user.id
+            // Tạo FormData để gửi file
+            const formData = new FormData();
+            formData.append('userId', user.id);
+
+            // Duyệt qua state data để append vào formData
+            Object.keys(data).forEach(key => {
+                if (key === 'cuisine') {
+                    // Mảng cần append từng phần tử
+                    data.cuisine.forEach(c => formData.append('cuisine', c));
+                } else if (data[key] !== null) {
+                    formData.append(key, data[key]);
+                }
             });
+
+            // Gửi API
+            await axios.post('http://localhost:5000/api/pending/merchant', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Xóa bản nháp sau khi gửi thành công
+            localStorage.removeItem('merchant_draft');
+
+            // Cập nhật trạng thái user ở localStorage để chuyển trang
+            const updatedUser = { ...user, approvalStatus: 'pending' };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
             setIsSuccess(true);
             window.scrollTo(0, 0);
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alert("Lỗi: " + (err.response?.data?.error || err.message));
         }
     };
 
-    const steps = ["Loại hình", "Thông tin quán", "Người đại diện", "Ngân hàng", "Kiểm tra"];
+    const steps = ["Loại hình", "Thông tin", "Vận hành", "Pháp lý", "Ngân hàng", "Gửi"];
+
+    // Helper hiển thị ảnh preview
+    const renderPreview = (file, label) => (
+        <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{label}</div>
+            {file ? (
+                <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 80, borderRadius: 8, border: '1px solid #ddd' }} />
+            ) : (
+                <div style={{ fontSize: 12, color: 'red', fontStyle: 'italic' }}>Chưa tải lên</div>
+            )}
+        </div>
+    );
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh', paddingBottom: 50 }}>
             <Navbar />
-            <div className="hop" style={{ maxWidth: 900, marginTop: 30 }}>
-
+            <div className="wizard-container">
                 {/* 1. THANH TIẾN TRÌNH */}
-                <div className="wizard-steps">
-                    {steps.map((name, idx) => (
-                        <div key={idx} className={`wizard-step ${step === idx + 1 ? 'active' : (step > idx + 1 ? 'done' : '')}`} onClick={() => step > idx + 1 && setStep(idx + 1)}>
-                            <div className="num">{idx + 1}</div> {name}
+                <div className="steps-header">
+                    {steps.map((label, idx) => (
+                        <div key={idx} className={`step-node ${step === idx + 1 ? 'active' : (step > idx + 1 ? 'done' : '')}`}>
+                            <div className="step-num">{idx + 1}</div>
+                            <div className="step-name">{label}</div>
                         </div>
                     ))}
                 </div>
 
-                {/* 2. NỘI DUNG FORM */}
                 {isSuccess ? (
-                    <div className="wizard-body" style={{ textAlign: 'center', padding: 40 }}>
+                    <div className="form-card" style={{ textAlign: 'center' }}>
                         <i className="fa-solid fa-circle-check" style={{ fontSize: 60, color: '#22C55E', marginBottom: 20 }}></i>
-                        <h2>Gửi yêu cầu thành công!</h2>
-                        <p>Hồ sơ của bạn đã được chuyển đến Admin. Kết quả sẽ được gửi qua email trong 1-3 ngày.</p>
+                        <h2>Gửi hồ sơ thành công!</h2>
+                        <p>Vui lòng chờ Admin xét duyệt.</p>
                         <button className="btn primary" onClick={() => navigate('/')}>Về trang chủ</button>
                     </div>
                 ) : (
-                    <div className="wizard-body">
-                        <div className="wizard-head">
-                            <i className="fa-solid fa-pen-to-square"></i> Bước {step}: {steps[step - 1]}
-                        </div>
-                        <div className="wizard-content">
-
-                            {/* BƯỚC 1: LOẠI HÌNH */}
-                            {step === 1 && (
-                                <div>
-                                    <div className={`sel-card ${formData.serviceType === 'food' ? 'active' : ''}`} onClick={() => setFormData({ ...formData, serviceType: 'food' })}>
-                                        <input type="radio" checked={formData.serviceType === 'food'} readOnly />
-                                        <div>
-                                            <div style={{ fontWeight: 'bold' }}>Giao đồ ăn</div>
-                                            <div style={{ fontSize: 13, color: '#666' }}>Nhà hàng, quán ăn, cafe, trà sữa...</div>
-                                        </div>
-                                    </div>
-                                    <div className={`sel-card ${formData.serviceType === 'mart' ? 'active' : ''}`} onClick={() => setFormData({ ...formData, serviceType: 'mart' })}>
-                                        <input type="radio" checked={formData.serviceType === 'mart'} readOnly />
-                                        <div>
-                                            <div style={{ fontWeight: 'bold' }}>Giao thực phẩm</div>
-                                            <div style={{ fontSize: 13, color: '#666' }}>Siêu thị, cửa hàng tiện lợi, bách hóa...</div>
-                                        </div>
+                    <div className="form-card">
+                        {step === 1 && (
+                            <div>
+                                <div className="form-title">Bước 1: Chọn loại hình kinh doanh</div>
+                                <div className={`check-card ${data.serviceType === 'food' ? 'checked' : ''}`} onClick={() => setData({ ...data, serviceType: 'food' })}>
+                                    <input type="radio" checked={data.serviceType === 'food'} readOnly />
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>Giao đồ ăn (Food Delivery)</div>
+                                        <div style={{ fontSize: 13, color: '#666' }}>Nhà hàng, quán ăn, cafe, trà sữa...</div>
                                     </div>
                                 </div>
-                            )}
-
-                            {/* BƯỚC 2: THÔNG TIN QUÁN */}
-                            {step === 2 && (
-                                <div>
-                                    <label className="wiz-label">Tên quán *</label>
-                                    <input className="wiz-input" name="name" value={formData.name} onChange={handleChange} placeholder="Ví dụ: Bún Bò Hằng Nga" />
-
-                                    <div className="wiz-grid" style={{ marginTop: 15 }}>
-                                        <div><label className="wiz-label">Thành phố</label>
-                                            <select className="wiz-input" name="city" value={formData.city} onChange={handleChange}>
-                                                <option>TP. Hồ Chí Minh</option><option>Hà Nội</option>
-                                            </select></div>
-                                        <div><label className="wiz-label">Quận/Huyện</label>
-                                            <input className="wiz-input" name="district" value={formData.district} onChange={handleChange} /></div>
-                                    </div>
-
-                                    <label className="wiz-label">Địa chỉ chi tiết *</label>
-                                    <input className="wiz-input" name="address" value={formData.address} onChange={handleChange} placeholder="Số nhà, tên đường..." />
-
-                                    <label className="wiz-label" style={{ marginTop: 15 }}>Số điện thoại quán</label>
-                                    <input className="wiz-input" name="phone" value={formData.phone} onChange={handleChange} />
-                                </div>
-                            )}
-
-                            {/* BƯỚC 3: NGƯỜI ĐẠI DIỆN */}
-                            {step === 3 && (
-                                <div>
-                                    <div className="wiz-note">Thông tin này dùng để xác thực chủ sở hữu và đối soát thanh toán.</div>
-                                    <div className="wiz-grid">
-                                        <div><label className="wiz-label">Họ tên chủ quán</label><input className="wiz-input" name="repName" value={formData.repName} onChange={handleChange} /></div>
-                                        <div><label className="wiz-label">Số điện thoại cá nhân</label><input className="wiz-input" name="repPhone" value={formData.repPhone} onChange={handleChange} /></div>
-                                    </div>
-                                    <label className="wiz-label">Email liên hệ</label>
-                                    <input className="wiz-input" name="repEmail" value={formData.repEmail} onChange={handleChange} />
-                                </div>
-                            )}
-
-                            {/* BƯỚC 4: NGÂN HÀNG */}
-                            {step === 4 && (
-                                <div>
-                                    <div className="wiz-grid">
-                                        <div><label className="wiz-label">Ngân hàng</label><input className="wiz-input" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="VD: MB Bank" /></div>
-                                        <div><label className="wiz-label">Chi nhánh</label><input className="wiz-input" name="bankBranch" value={formData.bankBranch} onChange={handleChange} /></div>
-                                    </div>
-                                    <div className="wiz-grid">
-                                        <div><label className="wiz-label">Số tài khoản</label><input className="wiz-input" name="bankAccount" value={formData.bankAccount} onChange={handleChange} /></div>
-                                        <div><label className="wiz-label">Tên chủ tài khoản</label><input className="wiz-input" name="bankOwner" value={formData.bankOwner} onChange={handleChange} placeholder="Viết hoa không dấu" /></div>
+                                <div className={`check-card ${data.serviceType === 'mart' ? 'checked' : ''}`} onClick={() => setData({ ...data, serviceType: 'mart' })}>
+                                    <input type="radio" checked={data.serviceType === 'mart'} readOnly />
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>Giao thực phẩm (Mart)</div>
+                                        <div style={{ fontSize: 13, color: '#666' }}>Siêu thị, cửa hàng tiện lợi, bách hóa...</div>
                                     </div>
                                 </div>
-                            )}
-
-                            {/* BƯỚC 5: KIỂM TRA & GỬI */}
-                            {step === 5 && (
-                                <div>
-                                    <div className="wiz-note" style={{ color: '#15803d', borderColor: '#bbf7d0', background: '#f0fdf4' }}>
-                                        <i className="fa-solid fa-circle-info"></i> Vui lòng kiểm tra kỹ thông tin trước khi gửi.
-                                    </div>
-                                    <table className="review-table">
-                                        <tbody>
-                                            <tr><td>Tên quán</td><td>{formData.name}</td></tr>
-                                            <tr><td>Địa chỉ</td><td>{formData.address}, {formData.district}, {formData.city}</td></tr>
-                                            <tr><td>SĐT Quán</td><td>{formData.phone}</td></tr>
-                                            <tr><td>Chủ quán</td><td>{formData.repName}</td></tr>
-                                            <tr><td>Ngân hàng</td><td>{formData.bankName} - {formData.bankAccount}</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            {/* NÚT ĐIỀU HƯỚNG */}
-                            <div className="wizard-actions">
-                                {step > 1 && <button className="btn soft" onClick={() => setStep(step - 1)}>Quay lại</button>}
-                                {step < 5 && <button className="btn primary" onClick={() => setStep(step + 1)}>Tiếp tục</button>}
-                                {step === 5 && <button className="btn primary" onClick={handleSubmit}><i className="fa-solid fa-paper-plane"></i> Gửi hồ sơ</button>}
                             </div>
+                        )}
 
+                        {step === 2 && (
+                            <div>
+                                <div className="form-title">Bước 2: Thông tin cơ bản</div>
+                                <div className="f-grid">
+                                    <div className="f-group">
+                                        <label className="f-label">Tên nhà hàng/quán ăn *</label>
+                                        <input className="f-input" name="name" value={data.name} onChange={handleChange} placeholder="VD: Cơm Tấm Sài Gòn" />
+                                    </div>
+                                    <div className="f-group">
+                                        <label className="f-label">Số điện thoại liên hệ *</label>
+                                        <input className="f-input" name="phone" value={data.phone} onChange={handleChange} />
+                                    </div>
+                                </div>
+                                <div className="f-group">
+                                    <label className="f-label">Địa chỉ chính xác *</label>
+                                    <input className="f-input" name="address" value={data.address} onChange={handleChange} placeholder="Số nhà, tên đường, phường/xã..." />
+                                </div>
+                                <div className="form-grid">
+                                    <div className="f-group">
+                                        <label className="f-label">Thành phố</label>
+                                        <select className="f-select" name="city" value={data.city} onChange={handleCityChange}>
+                                            <option value="">Chọn thành phố</option>
+                                            {cities.map(city => (
+                                                <option key={city.name} value={city.name}>{city.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="f-group">
+                                        <label className="f-label">Quận/Huyện</label>
+                                        <select className="f-select" name="district" value={data.district} onChange={handleDistrictChange}>
+                                            <option value="">Chọn quận/huyện</option>
+                                            {cities.find(city => city.name === data.city)?.districts.map(district => (
+                                                <option key={district} value={district}>{district}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="f-group">
+                                    <label className="f-label">Email nhận thông báo</label>
+                                    <input className="f-input" name="email" value={data.email} onChange={handleChange} />
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 3 && (
+                            <div>
+                                <div className="form-title">Bước 3: Vận hành & Thực đơn</div>
+                                <label className="f-label">Loại hình ẩm thực (Chọn nhiều)</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                                    {['Cơm', 'Bún/Phở', 'Đồ uống', 'Ăn vặt', 'Món Á', 'Món Âu', 'Chay', 'Bánh mì'].map(c => (
+                                        <div key={c} className={`check-card ${data.cuisine.includes(c) ? 'checked' : ''}`} onClick={() => handleCuisine(c)}>
+                                            <input type="checkbox" checked={data.cuisine.includes(c)} readOnly /> {c}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="f-group">
+                                    <label className="f-label">Món đặc trưng (Signature)</label>
+                                    <input className="f-input" name="signatureDish" value={data.signatureDish} onChange={handleChange} placeholder="VD: Cơm sườn bì chả" />
+                                </div>
+                                <div className="form-grid">
+                                    <div className="f-group"><label className="f-label">Giờ mở cửa</label><input type="time" className="f-input" name="openTime" value={data.openTime} onChange={handleChange} /></div>
+                                    <div className="f-group"><label className="f-label">Giờ đóng cửa</label><input type="time" className="f-input" name="closeTime" value={data.closeTime} onChange={handleChange} /></div>
+                                </div>
+                                <div className="form-grid">
+                                    <div className="f-group">
+                                        <label className="f-label">Khoảng giá trung bình</label>
+                                        <select className="f-select" name="priceRange" value={data.priceRange} onChange={handleChange}>
+                                            <option>Dưới 20.000đ</option>
+                                            <option>20.000đ - 50.000đ</option>
+                                            <option>50.000đ - 100.000đ</option>
+                                            <option>Trên 100.000đ</option>
+                                        </select>
+                                    </div>
+                                    <div className="f-group">
+                                        <label className="f-label">Phí gửi xe</label>
+                                        <input className="f-input" name="parkingFee" value={data.parkingFee} onChange={handleChange} />
+                                    </div>
+                                </div>
+                                {/* UPLOAD ẢNH MẶT TIỀN (avatar) */}
+                                <div className="upload-box" style={{ position: 'relative' }}>
+                                    <input type="file" name="avatar" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                    <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 24, marginBottom: 10 }}></i>
+                                    <div>{data.avatar ? data.avatar.name : "Tải lên ảnh mặt tiền quán"}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 4 && (
+                            <div>
+                                <div className="form-title">Bước 4: Thông tin pháp lý (Chủ sở hữu)</div>
+                                <div className="f-group">
+                                    <label className="f-label">Họ tên chủ quán (trên CCCD)</label>
+                                    <input className="f-input" name="ownerName" value={data.ownerName} onChange={handleChange} />
+                                </div>
+                                <div className="f-group">
+                                    <label className="f-label">Số CCCD / CMND</label>
+                                    <input className="f-input" name="idCard" value={data.idCard} onChange={handleChange} />
+                                </div>
+                                <div className="form-grid">
+                                    <div className="upload-box" style={{ position: 'relative' }}>
+                                        <input type="file" name="idCardFront" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                        <div>{data.idCardFront ? data.idCardFront.name : "Mặt trước CCCD"}</div>
+                                    </div>
+                                    <div className="upload-box" style={{ position: 'relative' }}>
+                                        <input type="file" name="idCardBack" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                        <div>{data.idCardBack ? data.idCardBack.name : "Mặt sau CCCD"}</div>
+                                    </div>
+                                </div>
+                                <div className="upload-box" style={{ position: 'relative', marginTop: 20 }}>
+                                    <input type="file" name="businessLicense" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                                    <div>{data.businessLicense ? data.businessLicense.name : "Giấy phép kinh doanh (nếu có)"}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 5 && (
+                            <div>
+                                <div className="form-title">Bước 5: Tài khoản ngân hàng (Nhận doanh thu)</div>
+                                <div className="f-group"><label className="f-label">Tên Ngân hàng</label>
+                                    <select className="f-select" name="bankName" value={data.bankName} onChange={handleChange}>
+                                        <option value="">Chọn ngân hàng</option>
+                                        {banks.map(bank => (
+                                            <option key={bank} value={bank}>{bank}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="f-group"><label className="f-label">Chi nhánh</label><input className="f-input" name="bankBranch" value={data.bankBranch} onChange={handleChange} /></div>
+                                <div className="form-grid">
+                                    <div className="f-group"><label className="f-label">Số tài khoản</label><input className="f-input" name="bankAccount" value={data.bankAccount} onChange={handleChange} /></div>
+                                    <div className="f-group"><label className="f-label">Tên chủ tài khoản</label><input className="f-input" name="bankOwner" value={data.bankOwner} onChange={handleChange} placeholder="VIET HOA KHONG DAU" /></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 6 && (
+                            <div>
+                                <div className="form-title" style={{ borderBottom: 'none', textAlign: 'center', color: '#22C55E' }}>
+                                    <i className="fa-solid fa-clipboard-list" style={{ fontSize: 40, marginBottom: 10 }}></i><br />
+                                    Xác nhận thông tin hồ sơ
+                                </div>
+
+                                <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: 12, border: '1px solid #eee', fontSize: 14 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>1. Thông tin quán</h4>
+                                            <p><b>Tên quán:</b> {data.name}</p>
+                                            <p><b>SĐT:</b> {data.phone}</p>
+                                            <p><b>Email:</b> {data.email}</p>
+                                            <p><b>Địa chỉ:</b> {data.address}, {data.district}, {data.city}</p>
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>2. Vận hành</h4>
+                                            <p><b>Loại hình:</b> {data.cuisine.join(', ')}</p>
+                                            <p><b>Giờ hoạt động:</b> {data.openTime} - {data.closeTime}</p>
+                                            <p><b>Mức giá:</b> {data.priceRange}</p>
+                                            <p><b>Món Signature:</b> {data.signatureDish}</p>
+                                        </div>
+                                    </div>
+                                    <div style={{ height: 1, background: '#ddd', margin: '15px 0' }}></div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>3. Chủ sở hữu</h4>
+                                            <p><b>Họ tên:</b> {data.ownerName}</p>
+                                            <p><b>CCCD:</b> {data.idCard}</p>
+                                            <p><b>Ngân hàng:</b> {data.bankName}</p>
+                                            <p><b>STK:</b> {data.bankAccount} ({data.bankOwner})</p>
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: '0 0 10px', color: '#F97350' }}>4. Hồ sơ ảnh</h4>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                                                {renderPreview(data.avatar, "Mặt tiền")}
+                                                {renderPreview(data.idCardFront, "CCCD Trước")}
+                                                {renderPreview(data.idCardBack, "CCCD Sau")}
+                                                {renderPreview(data.businessLicense, "GPKD")}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ textAlign: 'center', margin: '20px 0', fontSize: 13, color: '#666' }}>
+                                    Bằng việc nhấn "Gửi hồ sơ", bạn cam kết các thông tin trên là chính xác.
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ACTIONS */}
+                        <div className="form-actions">
+                            {step > 1 && <button className="btn soft" onClick={() => setStep(step - 1)}>Quay lại</button>}
+                            <div style={{ marginLeft: 'auto' }}>
+                                {step < 6 && <button className="btn primary" onClick={handleNext}>Tiếp tục</button>}
+                                {step === 6 && <button className="btn primary" onClick={handleSubmit}>Gửi hồ sơ đăng ký</button>}
+                            </div>
                         </div>
                     </div>
                 )}
