@@ -29,6 +29,162 @@ body {
   background: var(--mau-kem);
 }
 
+/* ======================================================
+   CSS MỚI CHO MODAL ĐĂNG KÝ / ĐĂNG NHẬP / QUÊN MẬT KHẨU
+   (Thêm vào cuối file App.css)
+   ====================================================== */
+
+/* Lớp phủ mờ đè lên toàn màn hình */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  /* Màu đen mờ 60% */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  /* Đảm bảo luôn nổi trên cùng */
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(4px);
+  /* Làm mờ nền phía sau cho đẹp */
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Hộp Modal (Cái khung trắng chính) */
+.modal {
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  width: 95%;
+  /* Mặc định mobile */
+  /* maxWidth sẽ được JS xử lý, nhưng ta set mặc định để an toàn */
+  max-width: 500px;
+  position: relative;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Phần Đầu Modal (Tiêu đề màu cam) */
+.modal__head {
+  background: var(--mau-cam);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.modal__title {
+  color: #fff;
+  font-weight: 800;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modal__close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.2s;
+}
+
+.modal__close:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: rotate(90deg);
+}
+
+/* Phần Thân Modal */
+.modal__body {
+  padding: 24px;
+  background: #fff;
+  max-height: 80vh;
+  /* Giới hạn chiều cao nếu màn hình nhỏ */
+  overflow-y: auto;
+  /* Cho phép cuộn nếu nội dung dài */
+}
+
+/* Hiệu ứng Animation xuất hiện */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Tinh chỉnh lại ô Input trong modal cho đẹp hơn */
+.nhom-input input,
+.nhom-input select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  background: #f9f9f9;
+  transition: all 0.2s;
+}
+
+.nhom-input input:focus,
+.nhom-input select:focus {
+  background: #fff;
+  border-color: var(--mau-cam);
+  box-shadow: 0 0 0 4px rgba(249, 115, 80, 0.1);
+  outline: none;
+}
+
+/* Nút chính trong modal */
+.nut-dang-nhap-chinh {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--mau-cam), #ff8f70);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 10px;
+  box-shadow: 0 4px 15px rgba(249, 115, 80, 0.3);
+  transition: transform 0.2s;
+}
+
+.nut-dang-nhap-chinh:active {
+  transform: scale(0.98);
+}
+
+.nut-dang-nhap-chinh:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* NAVBAR */
 .thanh-tren {
   position: sticky;
@@ -145,97 +301,6 @@ body {
   border-radius: 10px;
   font-weight: 600;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-
-/* MODAL LOGIN */
-.lop-phu {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hop-dang-nhap {
-  width: 500px;
-  background: var(--mau-trang);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  animation: hienLen 0.3s ease-out;
-}
-
-@keyframes hienLen {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.hdn__tieu-de {
-  background: var(--mau-cam);
-  color: white;
-  padding: 15px;
-  text-align: center;
-  font-size: 20px;
-  font-weight: bold;
-  position: relative;
-}
-
-.nut-dong {
-  position: absolute;
-  right: 15px;
-  top: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: none;
-  color: white;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.hdn__than {
-  padding: 20px;
-}
-
-.nhom-input {
-  margin-bottom: 12px;
-}
-
-.nhom-input input {
-  width: 100%;
-  height: 44px;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #fff;
-  font-weight: 500;
-}
-
-.nhom-input input:focus {
-  outline: 2px solid var(--mau-vang);
-  border-color: transparent;
-}
-
-.nut-dang-nhap-chinh {
-  width: 100%;
-  padding: 12px;
-  background: var(--mau-cam);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 10px;
 }
 
 .gioi-thieu {
@@ -2230,4 +2295,100 @@ input:checked+.slider:before {
   color: #F97350;
   margin-bottom: 20px;
   font-size: 1.2rem;
+}
+
+/* ======================================================
+   FIX LỖI HIỂN THỊ MODAL (Dùng tên class riêng biệt)
+   ====================================================== */
+
+/* 1. Lớp phủ (Overlay) */
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  /* Bắt buộc flex để căn giữa */
+  align-items: center;
+  justify-content: center;
+  z-index: 99999 !important;
+  /* Luôn nổi trên cùng */
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(4px);
+}
+
+/* 2. Hộp Modal Chính (Đổi tên thành .auth-modal) */
+.auth-modal {
+  background-color: #fff !important;
+  /* Nền trắng bắt buộc */
+  width: 95%;
+  max-width: 500px;
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden;
+  position: relative;
+  display: block !important;
+  /* Bắt buộc hiện */
+  opacity: 1 !important;
+  visibility: visible !important;
+  animation: slideUp 0.3s ease-out;
+}
+
+/* 3. Header Modal */
+.auth-modal__head {
+  background: #F97350;
+  /* Màu cam */
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-modal__title {
+  color: #fff;
+  font-weight: 800;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.auth-modal__close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: 0.2s;
+}
+
+.auth-modal__close:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* 4. Body Modal */
+.auth-modal__body {
+  padding: 24px;
+  background: #fff;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Hiệu ứng trồi lên */
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

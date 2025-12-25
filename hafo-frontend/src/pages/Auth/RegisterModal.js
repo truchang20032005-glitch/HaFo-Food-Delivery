@@ -1,170 +1,107 @@
 import { useState } from 'react';
 import api from '../../services/api';
-import { useNavigate } from 'react-router-dom';
 
-/**
- * Modal đăng ký tài khoản
- * @param {boolean} isOpen - Hiển thị modal hay không
- * @param {function} onClose - Hàm đóng modal
- * @param {string} role - Role để đăng ký: 'pending_merchant' hoặc 'pending_shipper'
- */
 function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
-    const navigate = useNavigate();
+    const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
-        username: '',
-        password: '',
-        confirmPassword: '',
-        fullName: ''
+        username: '', password: '', confirmPassword: '',
+        fullName: '', email: '', phone: '',
+        gender: 'Nam', birthday: '', address: '', otp: ''
     });
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleSendOtp = async () => {
+        if (!formData.email) return alert("Vui lòng nhập Email trước!");
+        setLoading(true);
+        try {
+            await api.post('/auth/send-otp', { email: formData.email });
+            alert(`✅ Đã gửi mã OTP đến ${formData.email}`);
+            setStep(2);
+        } catch (err) {
+            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async () => {
-        // 1. Validate
-        if (!formData.username || !formData.password || !formData.fullName) {
-            alert("Vui lòng nhập đầy đủ thông tin!");
-            return;
-        }
+        if (!formData.username || !formData.password || !formData.otp) return alert("Điền đủ thông tin!");
+        if (formData.password !== formData.confirmPassword) return alert("Mật khẩu không khớp!");
 
-        if (formData.password !== formData.confirmPassword) {
-            alert("Mật khẩu xác nhận không khớp!");
-            return;
-        }
-
+        setLoading(true);
         try {
-            // 2. Đăng ký với role PENDING (chưa phải merchant/shipper thật)
-            /*await axios.post('http://localhost:5000/api/auth/register', {
-                username: formData.username,
-                password: formData.password,
-                fullName: formData.fullName,
-                role: role // ✅ GỬI: 'pending_merchant' hoặc 'pending_shipper'
-            });*/
-            await api.post('/auth/register', {
-                username: formData.username,
-                password: formData.password,
-                fullName: formData.fullName,
-                role: role // ✅ GỬI: 'pending_merchant' hoặc 'pending_shipper'
-            });
-
-            alert('Đăng ký thành công!');
-
-            // 3. Tự động đăng nhập
-            /*const loginResponse = await axios.post('http://localhost:5000/api/auth/login', {
-                username: formData.username,
-                password: formData.password
-            });*/
-            const loginResponse = await api.post('/auth/login', {
-                username: formData.username,
-                password: formData.password
-            });
-
-            // 4. Lưu token và thông tin user
-            localStorage.setItem('token', loginResponse.data.token);
-            localStorage.setItem('user', JSON.stringify(loginResponse.data.user));
-
+            await api.post('/auth/register', { ...formData, role: role || 'customer' });
+            alert("🎉 Đăng ký thành công!");
             onClose();
-
-            // 5. Chuyển đến trang điền thông tin
-            if (role === 'pending_merchant') {
-                navigate('/register/merchant');
-            } else if (role === 'pending_shipper') {
-                navigate('/register/shipper');
-            }
-
-        } catch (error) {
-            alert(error.response?.data?.message || "Có lỗi xảy ra!");
+            onOpenLogin();
+        } catch (err) {
+            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
         }
     };
 
     if (!isOpen) return null;
 
-    // Hiển thị tiêu đề theo role
-    const getTitle = () => {
-        if (role === 'pending_merchant') return 'Đăng ký Đối tác Nhà hàng';
-        if (role === 'pending_shipper') return 'Đăng ký Đối tác Tài xế';
-        return 'Đăng ký tài khoản';
-    };
-
+    // ✅ ĐÃ ĐỔI TÊN CLASS Ở ĐÂY
     return (
-        <div className="lop-phu">
-            <div className="hop-dang-nhap">
-                <div className="hdn__tieu-de">
-                    {getTitle()}
-                    <button className="nut-dong" onClick={onClose}>✕</button>
+        <div className="auth-overlay">
+            <div className="auth-modal" style={{ maxWidth: '600px' }}>
+                <div className="auth-modal__head">
+                    <div className="auth-modal__title">
+                        {role ? 'Đăng ký Đối tác' : 'Đăng ký Tài khoản'}
+                    </div>
+                    <button className="auth-modal__close" onClick={onClose}>✕</button>
                 </div>
 
-                <div className="hdn__than">
-                    {/* Họ tên */}
-                    <div className="nhom-input">
-                        <input
-                            type="text"
-                            name="fullName"
-                            placeholder="Họ và tên hiển thị"
-                            value={formData.fullName}
-                            onChange={handleChange}
-                        />
+                <div className="auth-modal__body">
+                    {/* (Các ô input giữ nguyên code cũ nhưng nằm trong class mới) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                        <div className="nhom-input"><input name="username" placeholder="Tên đăng nhập *" value={formData.username} onChange={handleChange} /></div>
+                        <div className="nhom-input"><input name="fullName" placeholder="Họ và tên *" value={formData.fullName} onChange={handleChange} /></div>
                     </div>
 
-                    {/* Tên đăng nhập */}
-                    <div className="nhom-input">
-                        <input
-                            type="text"
-                            name="username"
-                            placeholder="Tên đăng nhập"
-                            value={formData.username}
-                            onChange={handleChange}
-                        />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                        <div className="nhom-input"><input name="email" type="email" placeholder="Email *" value={formData.email} onChange={handleChange} /></div>
+                        <div className="nhom-input"><input name="phone" placeholder="SĐT *" value={formData.phone} onChange={handleChange} /></div>
                     </div>
 
-                    {/* Mật khẩu */}
-                    <div className="nhom-input">
-                        <input
-                            type="password"
-                            name="password"
-                            placeholder="Mật khẩu"
-                            value={formData.password}
-                            onChange={handleChange}
-                        />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                        <div className="nhom-input"><input name="birthday" type="date" value={formData.birthday} onChange={handleChange} /></div>
+                        <div className="nhom-input">
+                            <select name="gender" value={formData.gender} onChange={handleChange}>
+                                <option>Nam</option><option>Nữ</option><option>Khác</option>
+                            </select>
+                        </div>
                     </div>
 
-                    {/* Xác nhận mật khẩu */}
-                    <div className="nhom-input">
-                        <input
-                            type="password"
-                            name="confirmPassword"
-                            placeholder="Nhập lại mật khẩu"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                        />
+                    <div className="nhom-input" style={{ marginBottom: '15px' }}>
+                        <input name="address" placeholder="Địa chỉ" value={formData.address} onChange={handleChange} />
                     </div>
 
-                    {/* Nút đăng ký */}
-                    <button className="nut-dang-nhap-chinh" onClick={handleSubmit}>
-                        ĐĂNG KÝ NGAY
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                        <div className="nhom-input"><input name="password" type="password" placeholder="Mật khẩu *" value={formData.password} onChange={handleChange} /></div>
+                        <div className="nhom-input"><input name="confirmPassword" type="password" placeholder="Nhập lại MK *" value={formData.confirmPassword} onChange={handleChange} /></div>
+                    </div>
+
+                    <div style={{ background: '#FFF5F2', padding: '15px', borderRadius: '8px', border: '1px dashed #F97350', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <input name="otp" placeholder="Mã OTP" value={formData.otp} onChange={handleChange} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }} />
+                            <button onClick={handleSendOtp} disabled={loading} style={{ background: '#333', color: '#fff', border: 'none', padding: '0 15px', borderRadius: '8px', cursor: 'pointer' }}>
+                                {loading ? '...' : 'Lấy OTP'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button className="nut-dang-nhap-chinh" onClick={handleSubmit} disabled={loading}>
+                        {loading ? 'ĐANG XỬ LÝ...' : 'HOÀN TẤT ĐĂNG KÝ'}
                     </button>
 
-                    {/* Link đăng nhập nếu đã có tài khoản */}
-                    <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
-                        <span>
-                            Đã có tài khoản?{' '}
-                            <span
-                                onClick={() => {
-                                    onClose();
-                                    // TODO: Mở LoginModal
-                                    onOpenLogin?.();
-                                }}
-                                style={{
-                                    color: '#F97350',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Đăng nhập
-                            </span>
-                        </span>
+                    <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>
+                        Đã có tài khoản? <span onClick={() => { onClose(); onOpenLogin(); }} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer' }}>Đăng nhập</span>
                     </div>
                 </div>
             </div>

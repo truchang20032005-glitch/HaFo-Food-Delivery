@@ -3,142 +3,197 @@ import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-function LoginModal({ isOpen, onClose, targetRole }) {
+// Import Firebase
+
+import { signInWithPopup, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
+import { auth } from '../../firebase';
+
+// 1. Thêm prop onOpenRegister vào đây
+function LoginModal({ isOpen, onClose, onOpenRegister }) {
     const navigate = useNavigate();
     const { login } = useAuth();
-    const [isRegister, setIsRegister] = useState(false);
 
-    // State cho Modal bị khóa
-    const [lockedData, setLockedData] = useState(null); // { message, reason }
+    const [view, setView] = useState('login'); // 'login' | 'forgot' | 'reset'
 
-    const [formData, setFormData] = useState({
-        username: '',
-        password: '',
-        confirmPassword: '',
-        fullName: ''
-    });
+    const [loginData, setLoginData] = useState({ username: '', password: '' });
+    const [resetData, setResetData] = useState({ email: '', otp: '', newPassword: '' });
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    // --- LOGIC ĐĂNG NHẬP ---
+    const handleLogin = async () => {
+        if (!loginData.username || !loginData.password) return alert("Nhập thiếu thông tin!");
+        try {
+            const res = await api.post('/auth/login', loginData);
+            login(res.data.user, res.data.token);
+            alert("Đăng nhập thành công!");
+            onClose();
+            // Điều hướng
+            if (res.data.user.role === 'admin') navigate('/admin');
+            else if (res.data.user.role === 'merchant') navigate('/merchant');
+            else if (res.data.user.role === 'shipper') navigate('/shipper');
+            else navigate('/home');
+        } catch (err) {
+            alert("Lỗi: " + (err.response?.data?.message || err.message));
+        }
     };
 
-    const handleSubmit = async () => {
-        if (!formData.username || !formData.password) {
-            alert("Vui lòng nhập đầy đủ thông tin!");
-            return;
-        }
-        if (isRegister && formData.password !== formData.confirmPassword) {
-            alert("Mật khẩu xác nhận không khớp!");
-            return;
-        }
-
+    const handleSocialLogin = async (providerName) => {
         try {
-            const endpoint = isRegister ? '/register' : '/login';
-            let payload = { ...formData };
-            if (isRegister) {
-                if (targetRole === 'merchant') payload.role = 'pending_merchant';
-                if (targetRole === 'shipper') payload.role = 'pending_shipper';
-                payload.targetRole = targetRole;
-            }
-
-            const response = await api.post(`/auth${endpoint}`, payload);
-
-            if (isRegister) {
-                alert('Đăng ký thành công! Vui lòng đăng nhập.');
-                setIsRegister(false);
+            let provider;
+            if (providerName === 'Google') {
+                provider = new GoogleAuthProvider();
+            } else if (providerName === 'Facebook') {
+                provider = new FacebookAuthProvider();
             } else {
-                // Đăng nhập thành công
-                const user = response.data.user;
-                const token = response.data.token;
-                login(user, token);
-                onClose();
-
-                // Logic điều hướng (giữ nguyên code cũ của bạn)
-                if (user.approvalStatus === 'rejected') { alert("Hồ sơ đã bị từ chối."); return; }
-                if (user.approvalStatus === 'pending') { navigate('/pending-approval'); return; }
-                if (user.role === 'pending_merchant') { navigate('/register/merchant'); return; }
-                if (user.role === 'pending_shipper') { navigate('/register/shipper'); return; }
-                if (user.role === 'merchant') navigate('/merchant/dashboard');
-                else if (user.role === 'shipper') navigate('/shipper/dashboard');
-                else if (user.role === 'admin') navigate('/admin/dashboard');
+                return;
             }
+
+            // 1. Mở Popup đăng nhập của Google/FB
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+
+            // 2. Lấy thông tin cần thiết
+            const payload = {
+                email: user.email,
+                fullName: user.displayName,
+                avatar: user.photoURL,
+                providerId: providerName
+            };
+
+            // 3. Gửi về Backend để lấy JWT Token của hệ thống HaFo
+            const res = await api.post('/auth/social-login', payload);
+
+            // 4. Lưu đăng nhập như bình thường
+            login(res.data.user, res.data.token);
+            alert(`Xin chào, ${res.data.user.fullName}!`);
+            onClose();
+
+            // Điều hướng
+            if (res.data.user.role === 'admin') navigate('/admin');
+            else navigate('/home');
+
         } catch (error) {
-            // XỬ LÝ RIÊNG LỖI BỊ KHÓA (403)
-            if (error.response && error.response.status === 403) {
-                // Backend trả về: { message: "...", reason: "..." }
-                setLockedData(error.response.data);
-            } else {
-                alert(error.response?.data?.message || "Có lỗi xảy ra!");
+            console.error(error);
+            if (error.code === 'auth/popup-closed-by-user') return; // Người dùng tự tắt popup
+            if (error.code === 'auth/account-exists-with-different-credential') {
+                alert("Email này đã được đăng ký bằng phương thức khác.");
+                return;
             }
+            alert("Đăng nhập thất bại: " + error.message);
+        }
+    };
+
+    const sendResetOtp = async () => {
+        if (!resetData.email) return alert("Vui lòng nhập Email!");
+        try {
+            await api.post('/auth/send-otp', { email: resetData.email });
+            alert("Đã gửi OTP vào email của bạn!");
+            setView('reset');
+        } catch (err) {
+            alert("Lỗi: " + (err.response?.data?.message || err.message));
+        }
+    };
+
+    const confirmResetPass = async () => {
+        if (!resetData.otp || !resetData.newPassword) return alert("Nhập đủ OTP và Mật khẩu mới!");
+        try {
+            await api.post('/auth/reset-password', resetData);
+            alert("Đổi mật khẩu thành công! Vui lòng đăng nhập.");
+            setView('login');
+        } catch (err) {
+            alert("Lỗi: " + (err.response?.data?.message || err.message));
         }
     };
 
     if (!isOpen) return null;
-
-    // --- GIAO DIỆN HIỂN THỊ KHI BỊ KHÓA ---
-    if (lockedData) {
-        return (
-            <div className="lop-phu">
-                <div className="hop-dang-nhap" style={{ textAlign: 'center', padding: '30px' }}>
-                    <div style={{ fontSize: '50px', marginBottom: '10px' }}>🔒</div>
-                    <h2 style={{ color: '#EF4444', margin: '0 0 10px 0' }}>Tài khoản bị khóa</h2>
-                    <p style={{ color: '#333', fontSize: '16px', fontWeight: 'bold' }}>
-                        {lockedData.message}
-                    </p>
-                    <div style={{ background: '#FFF5F5', padding: '15px', borderRadius: '8px', margin: '20px 0', border: '1px dashed #EF4444', textAlign: 'left' }}>
-                        <div style={{ fontSize: '13px', color: '#EF4444', fontWeight: 'bold', marginBottom: '5px' }}>LÝ DO:</div>
-                        <div style={{ color: '#333' }}>{lockedData.reason || "Không có lý do cụ thể."}</div>
-                    </div>
-                    <button
-                        className="nut-dang-nhap-chinh"
-                        onClick={() => { setLockedData(null); onClose(); }} // Đóng modal
-                        style={{ background: '#666' }}
-                    >
-                        Đóng
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // --- GIAO DIỆN ĐĂNG NHẬP BÌNH THƯỜNG ---
     return (
-        <div className="lop-phu">
-            <div className="hop-dang-nhap">
-                <div className="hdn__tieu-de">
-                    {isRegister ? "Đăng ký tài khoản" : "Đăng nhập"}
-                    <button className="nut-dong" onClick={onClose}>✕</button>
+        <div className="auth-overlay">
+            <div className="auth-modal">
+                <div className="auth-modal__head">
+                    <div className="auth-modal__title">
+                        {view === 'login' && 'Đăng Nhập'}
+                        {view === 'forgot' && 'Quên Mật Khẩu'}
+                        {view === 'reset' && 'Đặt Lại Mật Khẩu'}
+                    </div>
+                    <button className="auth-modal__close" onClick={onClose}>✕</button>
                 </div>
 
-                <div className="hdn__than">
-                    {isRegister && (
-                        <div className="nhom-input">
-                            <input type="text" name="fullName" placeholder="Họ và tên hiển thị" value={formData.fullName} onChange={handleChange} />
-                        </div>
-                    )}
-                    <div className="nhom-input">
-                        <input type="text" name="username" placeholder="Tên đăng nhập" value={formData.username} onChange={handleChange} />
-                    </div>
-                    <div className="nhom-input">
-                        <input type="password" name="password" placeholder="Mật khẩu" value={formData.password} onChange={handleChange} />
-                    </div>
-                    {isRegister && (
-                        <div className="nhom-input">
-                            <input type="password" name="confirmPassword" placeholder="Nhập lại mật khẩu" value={formData.confirmPassword} onChange={handleChange} />
-                        </div>
+                <div className="auth-modal__body">
+
+                    {view === 'login' && (
+                        <>
+                            <div className="nhom-input" style={{ marginBottom: 15 }}>
+                                <input placeholder="Tên đăng nhập" value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} />
+                            </div>
+                            <div className="nhom-input" style={{ marginBottom: 10 }}>
+                                <input type="password" placeholder="Mật khẩu" value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} />
+                            </div>
+
+                            <div style={{ textAlign: 'right', marginBottom: 20 }}>
+                                <span onClick={() => setView('forgot')} style={{ color: '#F97350', fontSize: 13, cursor: 'pointer' }}>Quên mật khẩu?</span>
+                            </div>
+
+                            <button className="nut-dang-nhap-chinh" onClick={handleLogin}>ĐĂNG NHẬP</button>
+
+                            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
+                                Bạn chưa có tài khoản?{' '}
+                                <span
+                                    onClick={() => { onClose(); onOpenRegister(); }}
+                                    style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                    Đăng ký ngay
+                                </span>
+                            </div>
+
+                            {/* --- PHẦN SOCIAL LOGIN --- */}
+                            <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: '#999', fontSize: 13 }}>
+                                <div style={{ flex: 1, height: 1, background: '#eee' }}></div>
+                                <span style={{ padding: '0 10px' }}>Hoặc đăng nhập bằng</span>
+                                <div style={{ flex: 1, height: 1, background: '#eee' }}></div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                {/* Nút Facebook */}
+                                <button
+                                    onClick={() => handleSocialLogin('Facebook')}
+                                    style={{ flex: 1, padding: 10, border: '1px solid #3b5998', background: '#3b5998', color: '#fff', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                >
+                                    <i className="fa-brands fa-facebook-f"></i> Facebook
+                                </button>
+
+                                {/* Nút Google */}
+                                <button
+                                    onClick={() => handleSocialLogin('Google')}
+                                    style={{ flex: 1, padding: 10, border: '1px solid #db4437', background: '#db4437', color: '#fff', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                >
+                                    <i className="fa-brands fa-google"></i> Google
+                                </button>
+                            </div>
+                        </>
                     )}
 
-                    <button className="nut-dang-nhap-chinh" onClick={handleSubmit}>
-                        {isRegister ? "ĐĂNG KÝ NGAY" : "ĐĂNG NHẬP"}
-                    </button>
+                    {view === 'forgot' && (
+                        <>
+                            <p style={{ marginBottom: 15, fontSize: 14, color: '#666' }}>Nhập email đã đăng ký để nhận mã OTP.</p>
+                            <div className="nhom-input" style={{ marginBottom: 20 }}>
+                                <input type="email" placeholder="Email của bạn" value={resetData.email} onChange={e => setResetData({ ...resetData, email: e.target.value })} />
+                            </div>
+                            <button className="nut-dang-nhap-chinh" onClick={sendResetOtp}>GỬI MÃ OTP</button>
+                            <button className="btn soft" style={{ width: '100%', marginTop: 10 }} onClick={() => setView('login')}>Quay lại</button>
+                        </>
+                    )}
 
-                    <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
-                        {isRegister ? (
-                            <span>Bạn đã có tài khoản? <span onClick={() => setIsRegister(false)} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer', marginLeft: '5px' }}>Đăng nhập</span></span>
-                        ) : (
-                            <span>Bạn chưa có tài khoản? <span onClick={() => setIsRegister(true)} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer', marginLeft: '5px' }}>Đăng ký ngay</span></span>
-                        )}
-                    </div>
+                    {view === 'reset' && (
+                        <>
+                            <div className="nhom-input" style={{ marginBottom: 15 }}>
+                                <input placeholder="Mã OTP 6 số" value={resetData.otp} onChange={e => setResetData({ ...resetData, otp: e.target.value })} />
+                            </div>
+                            <div className="nhom-input" style={{ marginBottom: 20 }}>
+                                <input type="password" placeholder="Mật khẩu mới" value={resetData.newPassword} onChange={e => setResetData({ ...resetData, newPassword: e.target.value })} />
+                            </div>
+                            <button className="nut-dang-nhap-chinh" onClick={confirmResetPass}>XÁC NHẬN ĐỔI</button>
+                        </>
+                    )}
+
                 </div>
             </div>
         </div>

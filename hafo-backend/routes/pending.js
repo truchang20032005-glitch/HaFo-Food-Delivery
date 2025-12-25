@@ -163,8 +163,8 @@ router.get('/all', async (req, res) => {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'happyfoodcskh2025@gmail.com',
-        pass: 'qnil utqp shhx gttv'
+        user: process.env.EMAIL_USER, // Đọc từ .env
+        pass: process.env.EMAIL_PASS  // Đọc từ .env
     }
 });
 

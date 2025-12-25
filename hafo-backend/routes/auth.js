@@ -2,112 +2,197 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const User = require('../models/User');
+const Otp = require('../models/Otp');
+require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_nay_phai_giau';
 
-// ========================================
-// 1. API ĐĂNG KÝ (Register) - ĐÃ SỬA
-// ========================================
-router.post('/register', async (req, res) => {
-    const { username, password, fullName, role, targetRole } = req.body;
-
-    // 1. Validate đầu vào cơ bản
-    if (!username || !password || !fullName) {
-        return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin!' });
+// --- CẤU HÌNH GỬI MAIL (NODEMAILER) ---
+// Bạn nhớ thay bằng email và mật khẩu ứng dụng thật của bạn
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER, // Đọc từ .env
+        pass: process.env.EMAIL_PASS  // Đọc từ .env
     }
+});
 
-    // ✅ 2. THÊM: Validate role hợp lệ
-    const validRoles = ['customer', 'pending_merchant', 'pending_shipper'];
-    if (role && !validRoles.includes(role)) {
-        return res.status(400).json({ message: 'Vai trò không hợp lệ!' });
+// Helper: Tạo mã OTP ngẫu nhiên 6 số
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+// ================= API GỬI OTP (Cho Đăng ký & Quên MK) =================
+router.post('/send-otp', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Vui lòng nhập email!' });
+
+    try {
+        const otp = generateOTP();
+
+        // Lưu OTP vào DB (Ghi đè nếu cũ)
+        await Otp.deleteMany({ email });
+        await new Otp({ email, otp }).save();
+
+        // Gửi mail
+        await transporter.sendMail({
+            from: '"HaFo Support" <happyfoodcskh2025@gmail.com>',
+            to: email,
+            subject: 'Mã xác thực OTP - HaFo Food',
+            text: `Mã OTP của bạn là: ${otp}. Mã có hiệu lực trong 5 phút.`
+        });
+
+        res.json({ message: 'Đã gửi mã OTP về email!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Lỗi gửi email: ' + err.message });
+    }
+});
+
+// =============================================================
+// ✅ API ĐĂNG NHẬP MẠNG XÃ HỘI (GOOGLE / FACEBOOK)
+// Logic: Nhận email từ Frontend -> Nếu có rồi thì Login -> Chưa có thì Tự tạo User rồi Login
+// =============================================================
+router.post('/social-login', async (req, res) => {
+    const { email, fullName, avatar, providerId } = req.body;
+
+    if (!email) return res.status(400).json({ message: 'Không lấy được email từ mạng xã hội!' });
+
+    try {
+        // 1. Kiểm tra xem user đã tồn tại chưa
+        let user = await User.findOne({ email });
+
+        if (user) {
+            // A. NẾU ĐÃ CÓ USER
+            // Kiểm tra nếu tài khoản bị khóa
+            if (user.status === 'locked') {
+                return res.status(403).json({ message: 'Tài khoản bị khóa', reason: user.lockReason });
+            }
+
+            // Cập nhật lại avatar nếu user chưa có (hoặc muốn đồng bộ luôn)
+            if (!user.avatar && avatar) {
+                user.avatar = avatar;
+                await user.save();
+            }
+
+        } else {
+            // B. NẾU CHƯA CÓ -> TẠO MỚI (AUTO REGISTER)
+            // Tạo mật khẩu ngẫu nhiên (Vì login bằng Google ko cần pass)
+            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+            // Tạo username từ email (bỏ phần @gmail.com) + số ngẫu nhiên để tránh trùng
+            const randomUsername = email.split('@')[0] + Math.floor(Math.random() * 1000);
+
+            user = new User({
+                username: randomUsername,
+                password: hashedPassword,
+                fullName: fullName || 'Người dùng HaFo',
+                email: email,
+                avatar: avatar || '',
+                role: 'customer', // Mặc định là khách hàng
+                addresses: []
+            });
+
+            await user.save();
+        }
+
+        // 2. Tạo Token JWT (Giống hệt API login thường)
+        const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+
+        res.json({
+            message: 'Đăng nhập mạng xã hội thành công',
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                role: user.role,
+                fullName: user.fullName,
+                email: user.email,
+                avatar: user.avatar || ''
+            }
+        });
+
+    } catch (err) {
+        console.error("Lỗi Social Login:", err);
+        res.status(500).json({ message: 'Lỗi server: ' + err.message });
+    }
+});
+
+// ================= API ĐĂNG KÝ (Nâng cấp) =================
+router.post('/register', async (req, res) => {
+    const {
+        username, password, fullName,
+        email, phone, gender, birthday, address, // Các trường mới
+        otp, role, targetRole
+    } = req.body;
+
+    // 1. Validate cơ bản
+    if (!username || !password || !fullName || !email || !otp) {
+        return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin bắt buộc!' });
     }
 
     try {
-        // 3. Kiểm tra user tồn tại
-        const existingUser = await User.findOne({ username });
+        // 2. Kiểm tra OTP
+        const validOtp = await Otp.findOne({ email, otp });
+        if (!validOtp) {
+            return res.status(400).json({ message: 'Mã OTP không đúng hoặc đã hết hạn!' });
+        }
+
+        // 3. Kiểm tra User tồn tại
+        const existingUser = await User.findOne({ $or: [{ username }, { email }] });
         if (existingUser) {
-            return res.status(400).json({ message: 'Tài khoản này đã tồn tại!' });
+            return res.status(400).json({ message: 'Tài khoản hoặc Email đã tồn tại!' });
         }
 
         // 4. Mã hóa mật khẩu
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // ✅ 5. THÊM: Xác định approvalStatus dựa trên role
-        let approvalStatus = 'none';
-        if (role === 'pending_merchant' || role === 'pending_shipper') {
-            approvalStatus = 'pending'; // Đánh dấu đang chờ duyệt
-        }
-
-        // 6. Tạo user mới
+        // 5. Tạo User mới
         const newUser = new User({
             username,
             password: hashedPassword,
             fullName,
-            role: role || 'customer',        // ✅ Nhận role từ frontend
-            approvalStatus: approvalStatus,   // ✅ Set trạng thái
-            targetRole: targetRole || '' // <-- LƯU Ý ĐỊNH VÀO DB
+            email,
+            phone,
+            gender,
+            birthday,
+            addresses: address ? [{ label: 'Mặc định', value: address }] : [], // Lưu địa chỉ vào mảng
+            role: role || 'customer',
+            targetRole: targetRole || null,
+            approvalStatus: (role === 'pending_merchant' || role === 'pending_shipper') ? 'pending' : 'none'
         });
 
         await newUser.save();
 
-        // ✅ 7. THÊM: Trả về thêm role và approvalStatus
-        res.status(201).json({
-            message: 'Đăng ký thành công!',
-            userId: newUser._id,
-            role: newUser.role,              // ✅ Để frontend biết role
-            approvalStatus: newUser.approvalStatus // ✅ Để frontend biết trạng thái
-        });
+        // Xóa OTP sau khi dùng xong
+        await Otp.deleteMany({ email });
 
-    } catch (error) {
-        console.error('❌ Lỗi đăng ký:', error);
-        res.status(500).json({ message: 'Lỗi server: ' + error.message });
+        res.status(201).json({ message: 'Đăng ký thành công! Vui lòng đăng nhập.' });
+
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi server: ' + err.message });
     }
 });
 
-// ========================================
-// 2. API ĐĂNG NHẬP (Login) - ĐÃ SỬA
-// ========================================
+// ================= API ĐĂNG NHẬP (Giữ nguyên logic cũ) =================
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
-
-    // 1. Validate đầu vào
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Vui lòng nhập tài khoản và mật khẩu!' });
-    }
-
     try {
+        const user = await User.findOne({ username });
+        if (!user) return res.status(400).json({ message: 'Sai tên đăng nhập hoặc mật khẩu!' });
 
-        // 2. Tìm user trong DB
-        const user = await User.findOne({ username })
-            .populate('restaurant')
-            .populate('shipper');
-        if (!user) {
-            return res.status(400).json({ message: 'Sai tài khoản hoặc mật khẩu' });
-        }
-
-        // 3. So sánh mật khẩu
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Sai tài khoản hoặc mật khẩu' });
-        }
+        if (!isMatch) return res.status(400).json({ message: 'Sai tên đăng nhập hoặc mật khẩu!' });
 
         if (user.status === 'locked') {
-            return res.status(403).json({
-                message: 'Tài khoản của bạn đã bị khóa!',
-                reason: user.lockReason // Trả về lý do cho Frontend hiện
-            });
+            return res.status(403).json({ message: 'Tài khoản bị khóa', reason: user.lockReason });
         }
 
-        // 4. Tạo Token
-        const token = jwt.sign(
-            { userId: user._id, role: user.role },
-            JWT_SECRET,
-            { expiresIn: '1d' }
-        );
+        const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 
-        // ✅ 5. THÊM: Trả về thêm approvalStatus để frontend điều hướng
         res.json({
             message: 'Đăng nhập thành công',
             token,
@@ -116,62 +201,50 @@ router.post('/login', async (req, res) => {
                 username: user.username,
                 role: user.role,
                 fullName: user.fullName,
-                approvalStatus: user.approvalStatus, // ✅ QUAN TRỌNG: Frontend cần để điều hướng
-                targetRole: user.targetRole,
-                restaurant: user.restaurant || null,  // ← THÊM
-                shipper: user.shipper || null         // ← THÊM
+                email: user.email,
+                avatar: user.avatar || ''
             }
         });
-
-    } catch (error) {
-        console.error('❌ Lỗi đăng nhập:', error);
-        res.status(500).json({ message: 'Lỗi server: ' + error.message });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 
-// ========================================
-// 3. API LẤY THÔNG TIN USER - THÊM MỚI (OPTIONAL)
-// ========================================
-// Dùng để frontend check lại thông tin user sau khi đăng nhập
+// ================= API QUÊN MẬT KHẨU (Reset Password) =================
+router.post('/reset-password', async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+
+    try {
+        // Check OTP
+        const validOtp = await Otp.findOne({ email, otp });
+        if (!validOtp) return res.status(400).json({ message: 'Mã OTP không hợp lệ!' });
+
+        // Tìm User
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'Email chưa được đăng ký!' });
+
+        // Đổi pass
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        await user.save();
+
+        await Otp.deleteMany({ email }); // Xóa OTP
+
+        res.json({ message: 'Đổi mật khẩu thành công! Hãy đăng nhập lại.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// API Lấy thông tin user (Cho checkout/profile...)
 router.get('/me/:userId', async (req, res) => {
     try {
         const user = await User.findById(req.params.userId).select('-password');
-        if (!user) {
-            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
-        }
+        if (!user) return res.status(404).json({ message: 'User not found' });
         res.json(user);
     } catch (error) {
-        console.error('❌ Lỗi lấy thông tin user:', error);
-        res.status(500).json({ message: 'Lỗi server: ' + error.message });
+        res.status(500).json({ message: error.message });
     }
 });
-
-// --- 4. API ĐỔI MẬT KHẨU ---
-router.post('/change-password', async (req, res) => {
-    const { userId, oldPass, newPass } = req.body;
-
-    try {
-        // 1. Tìm user
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
-
-        // 2. Kiểm tra mật khẩu cũ
-        const isMatch = await bcrypt.compare(oldPass, user.password);
-        if (!isMatch) return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng!' });
-
-        // 3. Mã hóa mật khẩu mới
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPass, salt);
-
-        // 4. Cập nhật vào DB
-        user.password = hashedPassword;
-        await user.save();
-
-        res.json({ message: 'Đổi mật khẩu thành công!' });
-    } catch (error) {
-        res.status(500).json({ message: 'Lỗi server: ' + error.message });
-    }
-});
-
 
 module.exports = router;

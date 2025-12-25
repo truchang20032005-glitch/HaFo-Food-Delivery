@@ -28,7 +28,7 @@ const OrderSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     status: {
         type: String,
-        enum: ['new', 'prep', 'pickup', 'done', 'cancel'],
+        enum: ['new', 'prep', 'ready', 'pickup', 'done', 'cancel'],
         default: 'new'
     },
 

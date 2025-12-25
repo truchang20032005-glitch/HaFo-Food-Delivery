@@ -1,170 +1,225 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
-const toVND = (n) => n?.toLocaleString('vi-VN');
+// --- STYLES ĐÃ FIX LỖI TRÀN NÚT TRÊN MÀN HÌNH TO ---
+const styles = {
+    container: {
+        background: '#f3f4f6',
+        minHeight: '100vh',
+        paddingBottom: '100px',
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        // --- THÊM: Căn giữa giao diện App trên màn hình to ---
+        maxWidth: '500px',
+        margin: '0 auto',
+        boxShadow: '0 0 15px rgba(0,0,0,0.05)' // Thêm bóng cho đẹp
+    },
+    header: {
+        background: 'white',
+        padding: '12px 15px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 20
+    },
+    backBtn: {
+        background: 'none', border: 'none', fontSize: '22px', color: '#333', cursor: 'pointer', padding: '5px'
+    },
+    statusBanner: (status) => ({
+        background: status === 'pickup' ? '#8B5CF6' : (status === 'ready' ? '#F59E0B' : '#10B981'),
+        color: 'white',
+        padding: '12px',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: '15px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+    }),
+    section: {
+        background: 'white', marginTop: '10px', padding: '15px',
+        borderTop: '1px solid #eee', borderBottom: '1px solid #eee'
+    },
+    sectionHeader: {
+        fontSize: '13px', color: '#6B7280', fontWeight: '700', textTransform: 'uppercase',
+        marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px'
+    },
+    bigText: { fontSize: '17px', fontWeight: '700', color: '#111827', lineHeight: '1.3' },
+    subText: { fontSize: '14px', color: '#4B5563', marginTop: '4px' },
+    callBtn: {
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: '#EFF6FF', color: '#2563EB', borderRadius: '50px',
+        padding: '6px 12px', textDecoration: 'none', fontSize: '13px', fontWeight: '600',
+        marginTop: '8px', border: '1px solid #BFDBFE'
+    },
+    itemRow: { display: 'flex', gap: '12px', padding: '10px 0', borderBottom: '1px dashed #eee' },
+    itemImg: { width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover', background: '#eee' },
+
+    // --- KHU VỰC SỬA LỖI TRÀN NÚT (QUAN TRỌNG) ---
+    fixedBottom: {
+        position: 'fixed',
+        bottom: 0, // Nằm sát đáy
+
+        // Căn giữa và giới hạn chiều rộng
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '100%',
+        maxWidth: '500px',
+
+        background: 'white',
+        padding: '12px 15px',
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+        display: 'flex',
+        gap: '10px',
+
+        // 🔥 QUAN TRỌNG: Tăng zIndex lên 9999 để đè lên thanh Menu dưới
+        zIndex: 9999
+    },
+    btn: (variant) => ({
+        flex: 1,
+        padding: '12px',
+        borderRadius: '10px',
+        border: 'none',
+        fontSize: '15px',
+        fontWeight: 'bold',
+        color: 'white', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: '6px',
+        whiteSpace: 'nowrap',
+        background: variant === 'primary' ? '#F97350' : (variant === 'success' ? '#10B981' : '#EF4444'),
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+    })
+};
 
 function ShipperOrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
+    const timerRef = useRef(null);
 
-    // Gọi API lấy chi tiết đơn
     const fetchOrder = async () => {
         try {
-            //const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
             const res = await api.get(`/orders/${id}`);
             setOrder(res.data);
-        } catch (err) {
-            alert("Lỗi tải đơn hàng");
-        }
+        } catch (err) { console.error("Lỗi load đơn:", err); }
     };
 
     useEffect(() => {
         fetchOrder();
+        timerRef.current = setInterval(fetchOrder, 5000);
+        return () => clearInterval(timerRef.current);
     }, [id]);
 
-    // Xử lý: Đã lấy hàng (Chuyển sang trạng thái đang giao)
-    const handlePickedUp = async () => {
+    const updateStatus = async (status, reason = '') => {
         try {
-            // Ở đây logic đơn giản: prep -> pickup (đang giao)
-            // Thực tế có thể chia nhỏ hơn: arriving -> picked_up -> delivering
-            //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'pickup' });
-            await api.put(`/orders/${id}`, { status: 'pickup' });
-            alert("Đã xác nhận lấy món! Bắt đầu đi giao.");
-            fetchOrder();
-        } catch (err) {
-            alert("Lỗi: " + err.message);
-        }
-    };
-
-    // Xử lý: Giao thành công
-    const handleDelivered = async () => {
-        if (window.confirm("Xác nhận đã giao hàng thành công và nhận tiền?")) {
-            try {
-                //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'done' });
-                await api.put(`/orders/${id}`, { status: 'done' });
-                alert("Chúc mừng! Bạn đã hoàn thành đơn hàng.");
-                navigate('/shipper/dashboard'); // Quay về săn đơn tiếp
-            } catch (err) {
-                alert("Lỗi: " + err.message);
+            const res = await api.put(`/orders/${id}`, { status, reason });
+            setOrder(res.data);
+            if (status === 'done') {
+                alert("🎉 Đã giao hàng thành công!");
+                navigate('/shipper');
             }
-        }
+        } catch (err) { alert("Lỗi: " + err.message); }
     };
 
-    // Xử lý: Hủy đơn (Sự cố)
-    const handleCancel = async () => {
-        const reason = prompt("Nhập lý do hủy đơn:");
-        if (reason) {
-            try {
-                //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'cancel' });
-                await api.put(`/orders/${id}`, { status: 'cancel' });
-                alert("Đã hủy đơn.");
-                navigate('/shipper/dashboard');
-            } catch (err) {
-                alert("Lỗi: " + err.message);
-            }
-        }
-    };
+    if (!order) return <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>Đang tải dữ liệu...</div>;
 
-    if (!order) return <div style={{ padding: 20, textAlign: 'center' }}>Đang tải thông tin...</div>;
+    const restaurant = order.restaurantId || {};
+    const customerParts = order.customer ? order.customer.split(' | ') : [];
+    const custName = customerParts[0] || "Khách hàng";
+    const custPhone = customerParts[1] ? customerParts[1].replace('SĐT: ', '') : "";
+    const custAddr = customerParts[2] ? customerParts[2].replace('Địa chỉ: ', '') : "";
+
+    const isReady = order.status === 'ready';
+    const isPickup = order.status === 'pickup';
 
     return (
-        <div style={{ paddingBottom: '20px' }}>
-            {/* Nút quay lại */}
-            <Link to="/shipper/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#666', marginBottom: '15px', fontWeight: '600' }}>
-                <i className="fa-solid fa-arrow-left"></i> Quay lại danh sách
-            </Link>
-
-            {/* Card thông tin chính */}
-            <div className="ship-card" style={{ margin: '0 0 15px 0' }}>
-                <h2 style={{ margin: '0 0 5px', fontSize: '18px', color: '#333' }}>Đơn #{order._id.slice(-6).toUpperCase()}</h2>
-                <div style={{ color: '#22C55E', fontWeight: 'bold', marginBottom: '10px' }}>
-                    {order.status === 'pickup' ? 'ĐANG GIAO HÀNG...' : 'ĐANG LẤY HÀNG...'}
+        <div style={styles.container}>
+            {/* Header & Back */}
+            <div style={styles.header}>
+                <button style={styles.backBtn} onClick={() => navigate('/shipper')}>
+                    <i className="fa-solid fa-chevron-left"></i>
+                </button>
+                <div style={{ fontWeight: 'bold', fontSize: '17px', flex: 1, textAlign: 'center', marginRight: '30px' }}>
+                    Đơn #{order._id.slice(-6).toUpperCase()}
                 </div>
+            </div>
 
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                        <i className="fa-solid fa-store" style={{ color: '#F97350', fontSize: '20px' }}></i>
-                        <div style={{ width: '2px', height: '30px', background: '#eee' }}></div>
-                        <i className="fa-solid fa-location-dot" style={{ color: '#22C55E', fontSize: '20px' }}></i>
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <div>
-                            <div style={{ fontWeight: 'bold' }}>Bún Bò Mỹ Huệ</div>
-                            <div style={{ fontSize: '13px', color: '#666' }}>393 Trần Hưng Đạo, Q1</div>
-                        </div>
-                        <div style={{ marginTop: '15px' }}>
-                            {/* Tên khách hàng & Địa chỉ */}
-                            <div style={{ fontWeight: 'bold' }}>{order.customer.split('|')[0] || 'Khách hàng'}</div>
-                            <div style={{ fontSize: '13px', color: '#666' }}>{order.customer.split('|')[2] || 'Địa chỉ giao hàng'}</div>
-                        </div>
-                    </div>
-                </div>
+            {/* Status Banner */}
+            <div style={styles.statusBanner(order.status)}>
+                {isPickup ? <><i className="fa-solid fa-motorcycle"></i> ĐANG GIAO HÀNG</> :
+                    isReady ? <><i className="fa-solid fa-check-circle"></i> QUÁN ĐÃ XONG MÓN</> :
+                        <><i className="fa-solid fa-fire-burner"></i> QUÁN ĐANG CHUẨN BỊ</>}
+            </div>
 
-                {/* Nút gọi điện nhanh */}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <a href={`tel:${order.customer.split('|')[1]}`} className="ship-btn soft" style={{ textDecoration: 'none', flex: 1 }}>
-                        <i className="fa-solid fa-phone"></i> Gọi khách
+            {/* 1. ĐIỂM LẤY */}
+            <div style={styles.section}>
+                <div style={styles.sectionHeader}><i className="fa-solid fa-store" style={{ color: '#F97350' }}></i> ĐIỂM LẤY HÀNG</div>
+                <div style={styles.bigText}>{restaurant.name || "Đang tải tên quán..."}</div>
+                <div style={styles.subText}>{restaurant.address || "..."}</div>
+                {restaurant.phone && (
+                    <a href={`tel:${restaurant.phone}`} style={styles.callBtn}>
+                        <i className="fa-solid fa-phone"></i> Gọi quán: {restaurant.phone}
                     </a>
-                    <button className="ship-btn soft" style={{ flex: 1 }}>
-                        <i className="fa-regular fa-message"></i> Nhắn tin
-                    </button>
+                )}
+            </div>
+
+            {/* 2. ĐIỂM GIAO */}
+            <div style={styles.section}>
+                <div style={styles.sectionHeader}><i className="fa-solid fa-location-dot" style={{ color: '#8B5CF6' }}></i> ĐIỂM GIAO HÀNG</div>
+                <div style={styles.bigText}>{custName}</div>
+                <div style={styles.subText}>{custAddr}</div>
+                {order.note && (
+                    <div style={{ marginTop: 8, background: '#FFF7ED', padding: 8, borderRadius: 6, color: '#C2410C', fontSize: 13 }}>
+                        <b><i className="fa-regular fa-note-sticky"></i> Ghi chú:</b> {order.note}
+                    </div>
+                )}
+                {custPhone && (
+                    <a href={`tel:${custPhone}`} style={styles.callBtn}>
+                        <i className="fa-solid fa-phone"></i> Gọi khách: {custPhone}
+                    </a>
+                )}
+            </div>
+
+            {/* 3. CHI TIẾT ĐƠN */}
+            <div style={styles.section}>
+                <div style={styles.sectionHeader}><i className="fa-solid fa-receipt"></i> CHI TIẾT ({Array.isArray(order.items) ? order.items.length : 0} MÓN)</div>
+                <div>
+                    {Array.isArray(order.items) ? order.items.map((item, idx) => (
+                        <div key={idx} style={styles.itemRow}>
+                            <img src={item.image ? `http://localhost:5000/${item.image}` : "https://via.placeholder.com/50"}
+                                style={styles.itemImg} onError={(e) => e.target.src = 'https://via.placeholder.com/50'} alt="" />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: '600', color: '#333', fontSize: '14px' }}>{item.name}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>x{item.quantity} {item.options ? `(${item.options})` : ''}</div>
+                            </div>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{(item.price * item.quantity).toLocaleString()}đ</div>
+                        </div>
+                    )) : (<div style={{ padding: 10, fontSize: 13 }}>{order.items}</div>)}
+                </div>
+                <div style={{ marginTop: 15, paddingTop: 15, borderTop: '2px dashed #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '15px', color: '#666', fontWeight: '600' }}>TỔNG THU KHÁCH:</div>
+                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#F97350' }}>{order.total ? order.total.toLocaleString() : 0}đ</div>
                 </div>
             </div>
 
-            {/* Chi tiết món ăn */}
-            <div className="ship-card" style={{ margin: '0 0 15px 0' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '10px', borderBottom: '1px dashed #eee', paddingBottom: '8px' }}>Chi tiết đơn hàng</div>
-                <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#444' }}>
-                    {Array.isArray(order.items) ? (
-                        <ul style={{ paddingLeft: '20px', margin: 0 }}>
-                            {order.items.map((item, idx) => (
-                                <li key={idx} style={{ marginBottom: '4px' }}>
-                                    <b>{item.quantity}x</b> {item.name}
-                                    {item.options && <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>{item.options}</div>}
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        order.items
-                    )}
-                </div>
-                <div className="ship-money">
-                    <span>Thu tiền khách (COD):</span>
-                    <span style={{ fontSize: '18px', color: '#F97350' }}>{toVND(order.total)}</span>
-                </div>
-            </div>
-
-            {/* ACTIONS: CÁC NÚT BẤM THEO TRẠNG THÁI */}
-            <div style={{ position: 'fixed', bottom: '80px', left: '0', right: '0', padding: '0 15px', maxWidth: '480px', margin: '0 auto' }}>
-                {order.status === 'prep' && (
-                    <button
-                        onClick={handlePickedUp}
-                        className="ship-btn primary"
-                        style={{ boxShadow: '0 4px 15px rgba(249, 115, 80, 0.4)' }}
-                    >
-                        ĐÃ LẤY MÓN - BẮT ĐẦU GIAO
+            {/* --- THANH NÚT BẤM CỐ ĐỊNH (ĐÃ FIX: CĂN GIỮA + GIỚI HẠN WIDTH) --- */}
+            <div style={styles.fixedBottom}>
+                {(order.status === 'prep' || order.status === 'ready') && (
+                    <button style={styles.btn('primary')} onClick={() => { if (window.confirm("Xác nhận đã nhận món?")) updateStatus('pickup'); }}>
+                        <i className="fa-solid fa-box"></i> {isReady ? 'ĐÃ LẤY MÓN' : 'LẤY MÓN SỚM'}
                     </button>
                 )}
 
-                {order.status === 'pickup' && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            onClick={handleCancel}
-                            className="ship-btn soft"
-                            style={{ background: '#fee2e2', color: '#ef4444', border: 'none', flex: 1 }}
-                        >
-                            Báo sự cố
+                {isPickup && (
+                    <>
+                        <button style={{ ...styles.btn('danger'), flex: 0.35 }} onClick={() => { const r = prompt("Lý do sự cố:"); if (r) updateStatus('cancel', r); }}>
+                            <i className="fa-solid fa-triangle-exclamation"></i> SỰ CỐ
                         </button>
-                        <button
-                            onClick={handleDelivered}
-                            className="ship-btn primary"
-                            style={{ flex: 2, background: '#22C55E', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)' }}
-                        >
-                            GIAO THÀNH CÔNG
+                        <button style={styles.btn('success')} onClick={() => { if (window.confirm("Xác nhận đã giao thành công?")) updateStatus('done'); }}>
+                            <i className="fa-solid fa-check-double"></i> HOÀN TẤT ĐƠN
                         </button>
-                    </div>
+                    </>
                 )}
             </div>
         </div>

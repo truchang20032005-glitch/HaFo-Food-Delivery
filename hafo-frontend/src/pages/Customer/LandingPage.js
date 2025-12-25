@@ -251,6 +251,10 @@ function LandingPage() {
             <LoginModal
                 isOpen={showLogin}
                 onClose={() => setShowLogin(false)}
+                onOpenRegister={() => {
+                    setShowLogin(false); // Tắt hộp Login
+                    setShowRegister(true); // Mở hộp Register
+                }}
             />
         </div>
     );

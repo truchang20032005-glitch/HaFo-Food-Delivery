@@ -47,7 +47,8 @@ function Orders() {
         switch (status) {
             case 'new': return <span className="tag blue">Mới</span>;
             case 'prep': return <span className="tag orange">Đang làm</span>;
-            case 'pickup': return <span className="tag purple">Shipper lấy</span>;
+            case 'ready': return <span className="tag yellow">Chờ lấy</span>;
+            case 'pickup': return <span className="tag purple">Đang giao</span>;
             case 'done': return <span className="tag green">Hoàn tất</span>;
             case 'cancel': return <span className="tag red">Đã hủy</span>;
             default: return <span className="tag gray">{status}</span>;
@@ -117,9 +118,12 @@ function Orders() {
                                                 </button>
                                             )}
                                             {order.status === 'prep' && (
-                                                <button className="btn small success" onClick={() => handleStatusChange(order._id, 'pickup')} style={{ background: '#22C55E', color: 'white' }}>
+                                                <button className="btn small success" onClick={() => handleStatusChange(order._id, 'ready')} style={{ background: '#22C55E', color: 'white' }}>
                                                     Đã xong món
                                                 </button>
+                                            )}
+                                            {order.status === 'ready' && (
+                                                <span style={{ fontSize: '12px', color: '#d97706', fontStyle: 'italic' }}>Đợi shipper...</span>
                                             )}
                                         </div>
                                     </td>
