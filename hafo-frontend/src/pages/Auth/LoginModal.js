@@ -6,31 +6,27 @@ import { useAuth } from '../../context/AuthContext';
 function LoginModal({ isOpen, onClose, targetRole }) {
     const navigate = useNavigate();
     const { login } = useAuth();
-    // 1. Quản lý trạng thái: Đăng nhập (false) hay Đăng ký (true)
     const [isRegister, setIsRegister] = useState(false);
 
-    // 2. Quản lý dữ liệu nhập vào
+    // State cho Modal bị khóa
+    const [lockedData, setLockedData] = useState(null); // { message, reason }
+
     const [formData, setFormData] = useState({
         username: '',
         password: '',
-        confirmPassword: '', // Dùng cho đăng ký
-        fullName: ''         // Dùng cho đăng ký
+        confirmPassword: '',
+        fullName: ''
     });
 
-    // Hàm cập nhật dữ liệu khi gõ phím
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // 3. HÀM GỬI DỮ LIỆU LÊN SERVER (QUAN TRỌNG)
     const handleSubmit = async () => {
-        // Validate cơ bản
         if (!formData.username || !formData.password) {
             alert("Vui lòng nhập đầy đủ thông tin!");
             return;
         }
-
-        // Kiểm tra mật khẩu nhập lại (khi đăng ký)
         if (isRegister && formData.password !== formData.confirmPassword) {
             alert("Mật khẩu xác nhận không khớp!");
             return;
@@ -38,7 +34,6 @@ function LoginModal({ isOpen, onClose, targetRole }) {
 
         try {
             const endpoint = isRegister ? '/register' : '/login';
-            // Logic gửi role khi đăng ký (giữ nguyên)
             let payload = { ...formData };
             if (isRegister) {
                 if (targetRole === 'merchant') payload.role = 'pending_merchant';
@@ -46,57 +41,67 @@ function LoginModal({ isOpen, onClose, targetRole }) {
                 payload.targetRole = targetRole;
             }
 
-            //const response = await axios.post(`http://localhost:5000/api/auth${endpoint}`, payload);
             const response = await api.post(`/auth${endpoint}`, payload);
 
             if (isRegister) {
                 alert('Đăng ký thành công! Vui lòng đăng nhập.');
                 setIsRegister(false);
             } else {
-                alert('Đăng nhập thành công!');
+                // Đăng nhập thành công
                 const user = response.data.user;
                 const token = response.data.token;
-
-                // GỌI HÀM LOGIN CỦA CONTEXT -> APP SẼ TỰ RE-RENDER NGAY LẬP TỨC
                 login(user, token);
                 onClose();
 
-                // --- LOGIC ĐIỀU HƯỚNG MỚI (CHECK KỸ HƠN) ---
-
-                // 1. Nếu đã bị TỪ CHỐI
-                if (user.approvalStatus === 'rejected') {
-                    alert("Hồ sơ của bạn đã bị từ chối. Vui lòng liên hệ Admin.");
-                    return;
-                }
-
-                // 2. Nếu đang CHỜ DUYỆT (Đã nộp đơn rồi)
-                if (user.approvalStatus === 'pending') {
-                    navigate('/pending-approval');
-                    return;
-                }
-
-                // 3. Nếu CHƯA NỘP ĐƠN (pending_... nhưng status là none)
-                if (user.role === 'pending_merchant') {
-                    navigate('/register/merchant');
-                    return;
-                }
-                if (user.role === 'pending_shipper') {
-                    navigate('/register/shipper');
-                    return;
-                }
-
-                // 4. Các role chính thức
+                // Logic điều hướng (giữ nguyên code cũ của bạn)
+                if (user.approvalStatus === 'rejected') { alert("Hồ sơ đã bị từ chối."); return; }
+                if (user.approvalStatus === 'pending') { navigate('/pending-approval'); return; }
+                if (user.role === 'pending_merchant') { navigate('/register/merchant'); return; }
+                if (user.role === 'pending_shipper') { navigate('/register/shipper'); return; }
                 if (user.role === 'merchant') navigate('/merchant/dashboard');
                 else if (user.role === 'shipper') navigate('/shipper/dashboard');
                 else if (user.role === 'admin') navigate('/admin/dashboard');
             }
         } catch (error) {
-            alert(error.response?.data?.message || "Có lỗi xảy ra!");
+            // XỬ LÝ RIÊNG LỖI BỊ KHÓA (403)
+            if (error.response && error.response.status === 403) {
+                // Backend trả về: { message: "...", reason: "..." }
+                setLockedData(error.response.data);
+            } else {
+                alert(error.response?.data?.message || "Có lỗi xảy ra!");
+            }
         }
     };
 
     if (!isOpen) return null;
 
+    // --- GIAO DIỆN HIỂN THỊ KHI BỊ KHÓA ---
+    if (lockedData) {
+        return (
+            <div className="lop-phu">
+                <div className="hop-dang-nhap" style={{ textAlign: 'center', padding: '30px' }}>
+                    <div style={{ fontSize: '50px', marginBottom: '10px' }}>🔒</div>
+                    <h2 style={{ color: '#EF4444', margin: '0 0 10px 0' }}>Tài khoản bị khóa</h2>
+                    <p style={{ color: '#333', fontSize: '16px', fontWeight: 'bold' }}>
+                        {lockedData.message}
+                    </p>
+                    <div style={{ background: '#FFF5F5', padding: '15px', borderRadius: '8px', margin: '20px 0', border: '1px dashed #EF4444', textAlign: 'left' }}>
+                        <div style={{ fontSize: '13px', color: '#EF4444', fontWeight: 'bold', marginBottom: '5px' }}>LÝ DO:</div>
+                        <div style={{ color: '#333' }}>{lockedData.reason || "Không có lý do cụ thể."}</div>
+                    </div>
+                    <button
+                        className="nut-dang-nhap-chinh"
+                        onClick={() => { setLockedData(null); onClose(); }} // Đóng modal
+                        style={{ background: '#666' }}
+                    >
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- GIAO DIỆN ĐĂNG NHẬP BÌNH THƯỜNG ---
     return (
         <div className="lop-phu">
             <div className="hop-dang-nhap">
@@ -106,78 +111,32 @@ function LoginModal({ isOpen, onClose, targetRole }) {
                 </div>
 
                 <div className="hdn__than">
-                    {/* Form nhập liệu */}
                     {isRegister && (
                         <div className="nhom-input">
-                            <input
-                                type="text"
-                                name="fullName"
-                                placeholder="Họ và tên hiển thị"
-                                value={formData.fullName}
-                                onChange={handleChange}
-                            />
+                            <input type="text" name="fullName" placeholder="Họ và tên hiển thị" value={formData.fullName} onChange={handleChange} />
+                        </div>
+                    )}
+                    <div className="nhom-input">
+                        <input type="text" name="username" placeholder="Tên đăng nhập" value={formData.username} onChange={handleChange} />
+                    </div>
+                    <div className="nhom-input">
+                        <input type="password" name="password" placeholder="Mật khẩu" value={formData.password} onChange={handleChange} />
+                    </div>
+                    {isRegister && (
+                        <div className="nhom-input">
+                            <input type="password" name="confirmPassword" placeholder="Nhập lại mật khẩu" value={formData.confirmPassword} onChange={handleChange} />
                         </div>
                     )}
 
-                    <div className="nhom-input">
-                        <input
-                            type="text"
-                            name="username"
-                            placeholder="Tên đăng nhập"
-                            value={formData.username}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <div className="nhom-input">
-                        <input
-                            type="password"
-                            name="password"
-                            placeholder="Mật khẩu"
-                            value={formData.password}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    {isRegister && (
-                        <div className="nhom-input">
-                            <input
-                                type="password"
-                                name="confirmPassword"
-                                placeholder="Nhập lại mật khẩu"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                            />
-                        </div>
-                    )}
-
-                    {/* Nút bấm gọi hàm handleSubmit */}
                     <button className="nut-dang-nhap-chinh" onClick={handleSubmit}>
                         {isRegister ? "ĐĂNG KÝ NGAY" : "ĐĂNG NHẬP"}
                     </button>
 
-                    {/* Chuyển đổi qua lại giữa Đăng nhập/Đăng ký */}
                     <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
                         {isRegister ? (
-                            <span>
-                                Bạn đã có tài khoản?
-                                <span
-                                    onClick={() => setIsRegister(false)}
-                                    style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer', marginLeft: '5px' }}
-                                >
-                                    Đăng nhập
-                                </span>
-                            </span>
+                            <span>Bạn đã có tài khoản? <span onClick={() => setIsRegister(false)} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer', marginLeft: '5px' }}>Đăng nhập</span></span>
                         ) : (
-                            <span>
-                                Bạn chưa có tài khoản?
-                                <span
-                                    onClick={() => setIsRegister(true)}
-                                    style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer', marginLeft: '5px' }}
-                                >
-                                    Đăng ký ngay
-                                </span>
-                            </span>
+                            <span>Bạn chưa có tài khoản? <span onClick={() => setIsRegister(true)} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer', marginLeft: '5px' }}>Đăng ký ngay</span></span>
                         )}
                     </div>
                 </div>

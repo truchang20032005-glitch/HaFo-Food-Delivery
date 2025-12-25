@@ -5,7 +5,7 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true },
     fullName: { type: String, required: true },
 
-    // ✅ ĐÃ SỬA: Thêm 2 role pending
+    // Thêm 2 role pending
     role: {
         type: String,
         enum: [
@@ -13,13 +13,22 @@ const UserSchema = new mongoose.Schema({
             'merchant',
             'shipper',
             'admin',
-            'pending_merchant',  // ✅ THÊM - Merchant chờ duyệt
-            'pending_shipper'    // ✅ THÊM - Shipper chờ duyệt
+            'pending_merchant',  // THÊM - Merchant chờ duyệt
+            'pending_shipper'    // THÊM - Shipper chờ duyệt
         ],
         default: 'customer'
     },
 
-    // ✅ THÊM MỚI: Trạng thái duyệt
+    // status để phục vụ chức năng khóa/mở khóa của admin
+    status: {
+        type: String,
+        enum: ['active', 'locked'],
+        default: 'active'
+    },
+    // lí do admin khóa tài khoản
+    lockReason: { type: String, default: '' },
+
+    // THÊM MỚI: Trạng thái duyệt
     approvalStatus: {
         type: String,
         enum: ['none', 'pending', 'approved', 'rejected'],

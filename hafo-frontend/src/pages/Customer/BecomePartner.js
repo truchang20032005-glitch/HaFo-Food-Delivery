@@ -1,8 +1,8 @@
 import React, { useState } from 'react'; // Đã thêm useState
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
-import RegisterModal from '../Auth/RegisterModal'; 
-import LoginModal from '../Auth/LoginModal';       
+import RegisterModal from '../Auth/RegisterModal';
+import LoginModal from '../Auth/LoginModal';
 
 function BecomePartner() {
     const navigate = useNavigate();
@@ -26,26 +26,26 @@ function BecomePartner() {
 
             {/* --- HERO SECTION (BANNER RỘNG) --- */}
             <div className="partner-hero" style={heroWrapperStyle}>
-                <img 
-                    src="/images/partner.png" 
-                    alt="HaFo Partners" 
-                    style={heroImageStyle} 
+                <img
+                    src="/images/partner.png"
+                    alt="HaFo Partners"
+                    style={heroImageStyle}
                 />
-                
+
                 <div style={heroOverlayStyle}></div>
 
                 <div style={heroContentBoxStyle}>
                     <h1 style={heroTitleStyle}>
-                        Trở thành đối tác <span style={{color: '#ff7a00'}}>HaFo</span>
+                        Trở thành đối tác <span style={{ color: '#ff7a00' }}>HaFo</span>
                     </h1>
-                    
+
                     <div style={heroDividerStyle}></div>
 
                     <p style={heroTextStyle}>
                         Cùng nhau phát triển, mang ẩm thực tới mọi nhà. Làm chủ thời gian và gia tăng thu nhập đột phá ngay hôm nay.
                     </p>
-                    
-                    <button 
+
+                    <button
                         style={registerMainBtnStyle}
                         onClick={() => {
                             const section = document.getElementById('registration-section');
@@ -60,7 +60,7 @@ function BecomePartner() {
             {/* --- BENEFITS SECTION --- */}
             <div className="benefits-section" style={sectionWrapperStyle}>
                 <h2 style={sectionTitleStyle}>Lợi ích vượt trội khi đồng hành cùng HaFo</h2>
-                
+
                 <div style={benefitsGridStyle}>
                     <div className="benefit-card" style={benefitCardStyle}>
                         <div style={benefitIconStyle}>📈</div>
@@ -105,15 +105,15 @@ function BecomePartner() {
                 <div style={ctaInnerStyle}>
                     <h2 style={{ margin: 0, fontSize: '24px' }}>Sẵn sàng hợp tác cùng HaFo?</h2>
                     <div style={{ display: 'flex', gap: '15px' }}>
-                        <button 
-                            style={ctaBtnStyle} 
+                        <button
+                            style={ctaBtnStyle}
                             onClick={() => handleOpenRegister('merchant')}
                         >
                             Đăng ký Nhà hàng
                         </button>
 
-                        <button 
-                            style={{ ...ctaBtnStyle, backgroundColor: '#333' }} 
+                        <button
+                            style={{ ...ctaBtnStyle, backgroundColor: '#18922bff' }}
                             onClick={() => handleOpenRegister('shipper')}
                         >
                             Đăng ký Tài xế
@@ -145,8 +145,8 @@ function BecomePartner() {
 const heroWrapperStyle = {
     position: 'relative',
     width: '100%',
-    height: '550px', 
-    display: 'flex', 
+    height: '550px',
+    display: 'flex',
     alignItems: 'center',
     overflow: 'hidden',
     backgroundColor: '#000'
@@ -158,7 +158,7 @@ const heroImageStyle = {
     left: 0,
     width: '100%',
     height: '100%',
-    objectFit: 'cover', 
+    objectFit: 'cover',
     objectPosition: 'right center', // Đẩy nhân vật sang phải để không bị chữ che
     zIndex: 1,
     opacity: '0.8'
@@ -174,11 +174,11 @@ const heroOverlayStyle = {
     zIndex: 2
 };
 
-const heroContentBoxStyle = { 
-    position: 'relative', 
-    zIndex: 3, 
-    marginLeft: '8%', 
-    maxWidth: '550px', 
+const heroContentBoxStyle = {
+    position: 'relative',
+    zIndex: 3,
+    marginLeft: '8%',
+    maxWidth: '550px',
     color: '#fff',
     padding: '30px'
 };
@@ -221,8 +221,8 @@ const benefitIconStyle = { fontSize: '35px', marginBottom: '15px' };
 const benefitNameStyle = { display: 'block', fontSize: '18px', marginBottom: '10px', color: '#333' };
 const benefitDetailStyle = { fontSize: '14px', color: '#888', lineHeight: '1.5', margin: 0 };
 
-const ctaWrapperStyle = { backgroundColor: '#ff7a00', padding: '50px 0', marginTop: '80px', color: '#fff' };
+const ctaWrapperStyle = { backgroundColor: '#db7822ff', padding: '50px 0', marginTop: '80px', color: '#fff' };
 const ctaInnerStyle = { maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' };
-const ctaBtnStyle = { padding: '14px 30px', backgroundColor: '#fff', color: '#ff7a00', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' };
+const ctaBtnStyle = { padding: '14px 30px', backgroundColor: '#fff', color: '#f07408ff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' };
 
 export default BecomePartner;

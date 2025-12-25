@@ -93,6 +93,13 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Sai tài khoản hoặc mật khẩu' });
         }
 
+        if (user.status === 'locked') {
+            return res.status(403).json({
+                message: 'Tài khoản của bạn đã bị khóa!',
+                reason: user.lockReason // Trả về lý do cho Frontend hiện
+            });
+        }
+
         // 4. Tạo Token
         const token = jwt.sign(
             { userId: user._id, role: user.role },

@@ -110,8 +110,6 @@ function Pending() {
 
     return (
         <div>
-            <h3 style={{ marginTop: 0 }}>Danh sách chờ xét duyệt</h3>
-
             <div className="table-wrap">
                 <table>
                     <thead>
@@ -140,7 +138,7 @@ function Pending() {
                                     <td><span className="badge pending">Chờ duyệt</span></td>
                                     <td>
                                         <button className="btn" onClick={() => openDetail(req)}>
-                                            Xem chi tiết
+                                            <i className="fa-solid fa-eye"></i> Xem
                                         </button>
                                     </td>
                                 </tr>

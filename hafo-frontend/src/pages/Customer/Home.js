@@ -6,129 +6,189 @@ import Navbar from '../../components/Navbar';
 function Home() {
     const [restaurants, setRestaurants] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedArea, setSelectedArea] = useState("Tất cả");
-    const [selectedType, setSelectedType] = useState("Tất cả");
 
-    // GỌI API LẤY DANH SÁCH QUÁN THẬT TỪ BACKEND
+    // State cho bộ lọc
+    const [selectedDistrict, setSelectedDistrict] = useState("Tất cả");
+    const [selectedCuisine, setSelectedCuisine] = useState("Tất cả");
+
+    // State danh sách các option cho bộ lọc (Tự động lấy từ DB)
+    const [districts, setDistricts] = useState([]);
+    const [cuisines, setCuisines] = useState([]);
+
+    const toVND = (n) => n?.toLocaleString('vi-VN');
+
+    // 1. GỌI API LẤY DANH SÁCH QUÁN THẬT TỪ BACKEND
     useEffect(() => {
-        //axios.get('http://localhost:5000/api/restaurants')
-        api.get('/restaurants')
-            .then(res => setRestaurants(res.data))
-            .catch(err => console.error("Lỗi lấy quán:", err));
-    }, []);
-    const uniqueAreas = ["Tất cả", ...new Set(restaurants.map(res => {
-        if (!res.address) return null;
-        const parts = res.address.split(','); // Giả sử địa chỉ ngăn cách bằng dấu phẩy
-        return parts[parts.length - 1].trim(); // Lấy phần cuối cùng (thường là Quận/Thành phố)
-    }).filter(Boolean))];
+        const fetchRestaurants = async () => {
+            try {
+                const res = await api.get('/restaurants');
+                const data = res.data;
+                setRestaurants(data);
 
-    // Logic lọc tổng hợp: Tìm kiếm + Khu vực + Loại món (Array)
+                // --- XỬ LÝ DỮ LIỆU ĐỂ TẠO BỘ LỌC ĐỘNG ---
+
+                // A. Lấy danh sách Quận/Huyện duy nhất từ dữ liệu thật
+                const uniqueDistricts = ["Tất cả", ...new Set(data.map(r => r.district).filter(Boolean))];
+                setDistricts(uniqueDistricts);
+
+                // B. Lấy danh sách Loại món duy nhất (Flatten mảng cuisine)
+                // data.map(r => r.cuisine) sẽ ra mảng lồng nhau: [['Cơm'], ['Phở', 'Bún'], ...]
+                // .flat() sẽ làm phẳng thành: ['Cơm', 'Phở', 'Bún', ...]
+                const uniqueCuisines = ["Tất cả", ...new Set(data.map(r => r.cuisine).flat().filter(Boolean))];
+                setCuisines(uniqueCuisines);
+
+            } catch (err) {
+                console.error("Lỗi lấy quán:", err);
+            }
+        };
+
+        fetchRestaurants();
+    }, []);
+
+    // 2. LOGIC LỌC TỔNG HỢP (Real-time Filtering)
     const filteredRestaurants = restaurants.filter(res => {
-        // 1. Lọc theo tên quán (searchTerm)
+        // a. Lọc theo tên quán (searchTerm)
         const matchesSearch = !searchTerm ||
             res.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-        // 2. Lọc theo khu vực:
-        // Nếu chọn "Tất cả", kết quả luôn là true.
-        // Nếu chọn khu vực cụ thể, phải có res.area và nó phải khớp chính xác.
-        // Thay thế dòng matchesArea cũ bằng dòng này:
-        const matchesArea = selectedArea === "Tất cả" ||
-            (res.area && res.area === selectedArea) ||
-            (res.address && res.address.includes(selectedArea));
+        // b. Lọc theo Khu vực (Dựa vào field 'district' trong DB)
+        const matchesDistrict = selectedDistrict === "Tất cả" ||
+            (res.district && res.district === selectedDistrict);
 
-        // 3. Lọc theo loại món:
-        // Nếu chọn "Tất cả", kết quả luôn là true.
-        // Nếu chọn loại món cụ thể, mảng res.cuisine phải chứa loại món đó.
-        const matchesType = selectedType === "Tất cả" ||
-            (Array.isArray(res.cuisine) && res.cuisine.includes(selectedType));
+        // c. Lọc theo Loại món (Dựa vào mảng 'cuisine' trong DB)
+        // Kiểm tra xem mảng cuisine của quán có chứa loại món đang chọn không
+        const matchesCuisine = selectedCuisine === "Tất cả" ||
+            (res.cuisine && res.cuisine.includes(selectedCuisine));
 
-        // Quán phải thỏa mãn đồng thời cả 3 điều kiện
-        return matchesSearch && matchesArea && matchesType;
+        // Quán phải thỏa mãn TẤT CẢ điều kiện
+        return matchesSearch && matchesDistrict && matchesCuisine;
     });
-
-    // Debug để kiểm tra dữ liệu trong Console
-    if (restaurants.length > 0) {
-        console.log("Dữ liệu quán đầu tiên:", restaurants[0]);
-    }
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>
             <Navbar onSearch={setSearchTerm} />
 
             {/* Subbar: Khu vực chứa các bộ lọc */}
-            <div className="subbar" style={{ background: '#fff', padding: '10px 0', borderBottom: '1px solid #e9e4d8' }}>
-                <div className="hop" style={{ display: 'flex', gap: '15px', overflowX: 'auto', padding: '0 20px', maxWidth: '1200px', margin: '0 auto' }}>
+            <div className="subbar" style={{ background: '#fff', padding: '15px 0', borderBottom: '1px solid #e9e4d8', position: 'sticky', top: '64px', zIndex: 40 }}>
+                <div className="hop" style={{ display: 'flex', gap: '15px', overflowX: 'auto', padding: '0 20px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
 
-                    {/* Bộ lọc Khu vực */}
+                    <span style={{ fontWeight: 'bold', color: '#555', whiteSpace: 'nowrap' }}> <i className="fa-solid fa-filter"></i> Bộ lọc:</span>
+
+                    {/* Bộ lọc Khu vực (Dynamic) */}
                     <select
-                        style={btnStyle}
-                        value={selectedArea}
-                        onChange={(e) => setSelectedArea(e.target.value)}
+                        style={selectStyle}
+                        value={selectedDistrict}
+                        onChange={(e) => setSelectedDistrict(e.target.value)}
                     >
-                        {uniqueAreas.map((area) => (
-                            <option key={area} value={area}>
-                                {area === "Tất cả" ? "Khu vực: Tất cả" : area}
+                        {districts.map((dist) => (
+                            <option key={dist} value={dist}>
+                                {dist === "Tất cả" ? "Khu vực: Tất cả" : dist}
                             </option>
                         ))}
                     </select>
 
-                    {/* Bộ lọc Loại món */}
+                    {/* Bộ lọc Loại món (Dynamic) */}
                     <select
-                        style={btnStyle}
-                        value={selectedType}
-                        onChange={(e) => setSelectedType(e.target.value)}
+                        style={selectStyle}
+                        value={selectedCuisine}
+                        onChange={(e) => setSelectedCuisine(e.target.value)}
                     >
-                        <option value="Tất cả">Loại món: Tất cả</option>
-                        <option value="Cơm">Cơm</option>
-                        <option value="Bánh bao">Bánh bao</option>
-                        <option value="Bún/Phở">Bún/Phở</option>
-                        <option value="Chay">Chay</option>
-                        <option value="Đồ uống">Đồ uống</option>
-                        <option value="Món Á">Món Á</option>
-                        <option value="Món Âu">Món Âu</option>
-                        <option value="Ăn vặt">Ăn vặt</option>
-                        <option value="Bánh mì">Bánh mì</option>
+                        {cuisines.map((type) => (
+                            <option key={type} value={type}>
+                                {type === "Tất cả" ? "Loại món: Tất cả" : type}
+                            </option>
+                        ))}
                     </select>
+
+                    {/* Nút Reset nếu đang lọc */}
+                    {(selectedDistrict !== "Tất cả" || selectedCuisine !== "Tất cả" || searchTerm) && (
+                        <button
+                            onClick={() => { setSelectedDistrict("Tất cả"); setSelectedCuisine("Tất cả"); setSearchTerm("") }}
+                            style={{ ...btnResetStyle }}
+                        >
+                            Xóa lọc ✕
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <main className="hop" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-                <h2 style={{ marginBottom: '20px', color: '#F97350' }}>
+            <main className="hop" style={{ padding: '30px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+                <h2 style={{ marginBottom: '20px', color: '#F97350', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {searchTerm ? `Kết quả cho "${searchTerm}"` : "Quán ngon quanh bạn 😋"}
+                    <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal', background: '#fff', padding: '2px 8px', borderRadius: '10px', border: '1px solid #ddd' }}>
+                        {filteredRestaurants.length} kết quả
+                    </span>
                 </h2>
 
                 {restaurants.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: 50 }}>Đang tải các quán ăn...</div>
+                    <div style={{ textAlign: 'center', padding: 50 }}>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 24, color: '#F97350' }}></i>
+                        <p>Đang tải dữ liệu quán...</p>
+                    </div>
                 ) : filteredRestaurants.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 50, color: '#666' }}>
-                        <p style={{ fontSize: '18px' }}>Không tìm thấy quán nào phù hợp với bộ lọc của bạn 😅</p>
+                        <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-state-2130362-1800926.png" alt="Empty" style={{ width: 200, opacity: 0.5 }} />
+                        <p style={{ fontSize: '18px', marginTop: 10 }}>Không tìm thấy quán nào phù hợp 😅</p>
                         <button
-                            onClick={() => { setSelectedArea("Tất cả"); setSelectedType("Tất cả"); setSearchTerm("") }}
-                            style={{ color: '#F97350', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', marginTop: '10px' }}
+                            onClick={() => { setSelectedDistrict("Tất cả"); setSelectedCuisine("Tất cả"); setSearchTerm("") }}
+                            style={{ color: '#F97350', background: 'none', border: '1px solid #F97350', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}
                         >
-                            Xóa tất cả bộ lọc
+                            Xem tất cả quán
                         </button>
                     </div>
                 ) : (
-                    <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+                    <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '25px' }}>
                         {filteredRestaurants.map(res => (
                             <Link to={`/restaurant/${res._id}`} key={res._id} style={{ textDecoration: 'none', color: 'inherit' }}>
                                 <div className="card" style={cardStyle}>
-                                    <div style={{ height: '150px', overflow: 'hidden', position: 'relative', background: '#eee' }}>
+                                    {/* Ảnh quán */}
+                                    <div style={{ height: '160px', overflow: 'hidden', position: 'relative', background: '#eee' }}>
                                         <img
-                                            src={res.image || 'https://via.placeholder.com/300x200?text=HaFo+Quan'}
+                                            src={
+                                                res.image
+                                                    ? (res.image.startsWith('http') ? res.image : `http://localhost:5000/${res.image}`)
+                                                    : 'https://via.placeholder.com/300x200?text=HaFo+Quan'
+                                            }
                                             alt={res.name}
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: '0.3s' }}
+                                            onError={(e) => e.target.src = 'https://via.placeholder.com/300x200?text=HaFo+App'}
                                         />
-                                    </div>
-                                    <div style={{ padding: '12px' }}>
-                                        <h3 style={{ margin: '0 0 5px', fontSize: '16px', color: '#333' }}>{res.name}</h3>
-                                        <div style={{ fontSize: '13px', color: '#666', marginBottom: '10px', height: '32px', overflow: 'hidden' }}>
-                                            {res.address}
+                                        {/* Badge trạng thái */}
+                                        <div style={{ position: 'absolute', top: 10, left: 10, background: res.isOpen ? '#22C55E' : '#999', color: '#fff', fontSize: 11, padding: '4px 8px', borderRadius: 4, fontWeight: 'bold' }}>
+                                            {res.isOpen ? 'Đang mở cửa' : 'Đóng cửa'}
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ color: '#F5C048', fontWeight: 'bold' }}>★ {res.rating || 0}</span>
-                                            <span style={{ color: '#F97350', fontWeight: 'bold', fontSize: '13px' }}>Xem Menu</span>
+                                    </div>
+
+                                    {/* Nội dung card */}
+                                    <div style={{ padding: '15px' }}>
+                                        <h3 style={{ margin: '0 0 8px', fontSize: '17px', color: '#333', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={res.name}>
+                                            {res.name}
+                                        </h3>
+
+                                        {/* Địa chỉ */}
+                                        <div style={{ fontSize: '13px', color: '#666', marginBottom: '12px', display: 'flex', alignItems: 'flex-start', gap: 5, height: '36px', overflow: 'hidden' }}>
+                                            <i className="fa-solid fa-location-dot" style={{ marginTop: 2 }}></i>
+                                            <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {res.address}, {res.district}
+                                            </span>
+                                        </div>
+
+                                        {/* Cuisine Tags */}
+                                        <div style={{ marginBottom: 10, display: 'flex', gap: 5, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                            {res.cuisine?.slice(0, 3).map((tag, idx) => (
+                                                <span key={idx} style={{ fontSize: 11, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, color: '#555' }}>
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+
+                                        <div style={{ borderTop: '1px solid #eee', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ color: '#F5C048', fontWeight: 'bold', fontSize: 14 }}>
+                                                <i className="fa-solid fa-star"></i> {res.rating || 5.0}
+                                            </span>
+                                            <span style={{ color: '#F97350', fontWeight: 'bold', fontSize: '13px', background: '#fff5f2', padding: '4px 10px', borderRadius: '20px' }}>
+                                                Xem Menu →
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -141,25 +201,50 @@ function Home() {
     );
 }
 
-const btnStyle = {
-    padding: '8px 15px',
+// --- CSS IN JS ---
+const selectStyle = {
+    padding: '6px 30px 6px 12px', // Giảm padding để thanh nhỏ hơn
     borderRadius: '20px',
     border: '1px solid #ddd',
     background: '#fff',
     cursor: 'pointer',
-    fontSize: '13px',
+    fontSize: '13px',            // Giảm cỡ chữ xuống 13px
     outline: 'none',
-    minWidth: '120px'
+    minWidth: '120px',            // Giảm chiều rộng tối thiểu (cũ là 140px)
+    maxWidth: '180px',            // Giới hạn chiều rộng tối đa
+    height: '36px',               // Cố định chiều cao cho cân đối
+    appearance: 'none',
+    backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 10px top 50%', // Chỉnh lại vị trí mũi tên
+    backgroundSize: '10px auto',
+    fontWeight: '600',            // Tăng độ đậm chữ lên một chút cho nét
+    color: '#444',
+    whiteSpace: 'nowrap',         // Ngăn xuống dòng
+    textOverflow: 'ellipsis',     // Nếu chữ quá dài thì hiện dấu ...
+    overflow: 'hidden'
+};
+
+const btnResetStyle = {
+    padding: '8px 12px',
+    borderRadius: '20px',
+    border: 'none',
+    background: '#fee2e2',
+    color: '#ef4444',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap'
 };
 
 const cardStyle = {
     background: '#fff',
-    borderRadius: '12px',
+    borderRadius: '16px',
     overflow: 'hidden',
     border: '1px solid #eee',
     height: '100%',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.03)',
     cursor: 'pointer'
 };
 

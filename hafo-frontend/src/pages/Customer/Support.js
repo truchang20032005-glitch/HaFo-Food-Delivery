@@ -121,7 +121,7 @@ function Support() {
                         <div style={contactBoxStyle}>
                             <div style={iconCircleStyle}>✉️</div>
                             <small style={{ fontWeight: '700', color: '#444', display: 'block' }}>Email</small>
-                            <span style={{ fontSize: '14px', color: '#ff7a00' }}>support@hafo.vn</span>
+                            <span style={{ fontSize: '14px', color: '#ff7a00' }}>happyfoodcskh2025@gmail.com</span>
                         </div>
                     </div>
                     <p style={{ color: '#bbb', fontSize: '13px', marginTop: '10px' }}>Thời gian phản hồi trung bình: 5 phút</p>

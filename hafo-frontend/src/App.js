@@ -45,7 +45,6 @@ import Users from './pages/Admin/Users';
 import Shops from './pages/Admin/Shops';
 import AdminShippers from './pages/Admin/Shippers';
 import AdminOrders from './pages/Admin/AdminOrders';
-import Complaints from './pages/Admin/Complaints';
 import Pending from './pages/Admin/Pending';
 import Settings from './pages/Admin/Settings';
 
@@ -130,7 +129,6 @@ function App() {
             <Route path="shops" element={<Shops />} />
             <Route path="shippers" element={<AdminShippers />} />
             <Route path="orders" element={<AdminOrders />} />
-            <Route path="complaints" element={<Complaints />} />
             <Route path="pending" element={<Pending />} />
             <Route path="settings" element={<Settings />} />
           </Route>
