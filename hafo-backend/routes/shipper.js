@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Shipper = require('../models/Shipper');
+const Order = require('../models/Order');
 
 // 1. ĐĂNG KÝ HỒ SƠ SHIPPER
 router.post('/', async (req, res) => {
@@ -13,14 +14,10 @@ router.post('/', async (req, res) => {
     }
 });
 
-// 2. LẤY THÔNG TIN SHIPPER THEO USER ID
-// LẤY HỒ SƠ SHIPPER THEO USER ID
-// GET /api/shippers/profile/:userId
+// 2. LẤY HỒ SƠ SHIPPER THEO USER ID
 router.get('/profile/:userId', async (req, res) => {
     try {
-        // Tìm hồ sơ Shipper gắn với User ID này
         const shipperProfile = await Shipper.findOne({ user: req.params.userId }).populate('user', 'fullName phone email');
-
         if (!shipperProfile) {
             return res.status(404).json({ message: "Chưa có hồ sơ shipper" });
         }
@@ -30,14 +27,30 @@ router.get('/profile/:userId', async (req, res) => {
     }
 });
 
-
-// 3. LẤY DANH SÁCH SHIPPER (Cho Admin)
+// 3. LẤY DANH SÁCH SHIPPER (Cho Admin - Kèm thống kê đơn)
 router.get('/', async (req, res) => {
     try {
-        // Populate để lấy luôn tên từ bảng User
+        // Lấy danh sách shipper và thông tin user tương ứng
         const shippers = await Shipper.find().populate('user', 'fullName phone email');
-        res.json(shippers);
+
+        // Tính toán số đơn hàng cho từng shipper
+        const result = await Promise.all(shippers.map(async (shipper) => {
+            // Đếm số đơn hàng đã hoàn thành (status: 'done') của shipper này
+            // ⚠️ Lỗi cũ nằm ở đây vì biến Order chưa được khai báo
+            const orderCount = await Order.countDocuments({
+                shipperId: shipper._id,
+                status: 'done'
+            });
+
+            return {
+                ...shipper.toObject(),
+                orders: orderCount
+            };
+        }));
+
+        res.json(result);
     } catch (err) {
+        console.error("Lỗi lấy shipper:", err); // Log lỗi ra console để dễ debug
         res.status(500).json({ error: err.message });
     }
 });

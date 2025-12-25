@@ -316,7 +316,6 @@ function MerchantPromos() {
                                             className="btn small danger"
                                             onClick={() => handleDelete(p._id)}
                                             style={{
-                                                //background: '#fee2e2',
                                                 border: 'none',
                                                 display: 'inline-flex',
                                                 alignItems: 'center',

@@ -133,6 +133,21 @@ router.post('/shipper', handleUpload([
     }
 });
 
+// API ĐẾM SỐ LƯỢNG CHỜ (Dùng cho Sidebar Badge)
+router.get('/count', async (req, res) => {
+    try {
+        // Đếm Merchant đang pending
+        const mCount = await PendingRestaurant.countDocuments({ status: 'pending' });
+        // Đếm Shipper đang pending
+        const sCount = await PendingShipper.countDocuments({ status: 'pending' });
+
+        // Trả về tổng số
+        res.json({ total: mCount + sCount });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ADMIN LẤY DANH SÁCH CHỜ (Chỉnh lại để lấy real data)
 router.get('/all', async (req, res) => {
     try {

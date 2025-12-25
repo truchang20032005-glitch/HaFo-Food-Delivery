@@ -73,4 +73,47 @@ router.get('/owner/:userId', async (req, res) => {
     }
 });
 
+// LẤY TẤT CẢ QUÁN (KÈM THỐNG KÊ DOANH THU CHO ADMIN)
+router.get('/', async (req, res) => {
+    try {
+        // Lấy danh sách quán và thông tin chủ sở hữu
+        const restaurants = await Restaurant.find().populate('owner', 'fullName email phone');
+
+        // Tính toán thống kê cho từng quán (Dùng Promise.all để chạy song song cho nhanh)
+        const result = await Promise.all(restaurants.map(async (rest) => {
+            // Tính tổng đơn và doanh thu từ bảng Order
+            const stats = await Order.aggregate([
+                {
+                    $match: {
+                        restaurantId: rest._id,
+                        status: 'done' // Chỉ tính đơn đã hoàn thành cho doanh thu
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalOrders: { $sum: 1 }, // Đếm số đơn
+                        totalRevenue: { $sum: '$total' } // Cộng tổng tiền
+                    }
+                }
+            ]);
+
+            // Lấy tổng đơn (kể cả chưa hoàn thành) để hiển thị số lượng order
+            const countAll = await Order.countDocuments({ restaurantId: rest._id });
+
+            const statData = stats[0] || { totalOrders: 0, totalRevenue: 0 };
+
+            return {
+                ...rest.toObject(),
+                orders: countAll, // Tổng số đơn đã đặt
+                revenue: statData.totalRevenue // Doanh thu thực tế (đã done)
+            };
+        }));
+
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

@@ -1,34 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../../services/api'; // Import axios instance
 
 function AdminOrders() {
-    // Mock Data
-    const MOCK_ORDERS = [
-        { id: 'HF-10293', customer: 'Nguyễn Văn A', shop: 'Cơm Tấm Ba Ghiền', shipper: 'Nguyễn Minh', date: '09/11/2025', total: 120000, status: 'done' },
-        { id: 'HF-10294', customer: 'Trần Thị B', shop: 'Bún Bò Hằng Nga', shipper: 'Phạm Khoa', date: '08/11/2025', total: 89000, status: 'pickup' },
-        { id: 'HF-10295', customer: 'Lê Hồng C', shop: 'Phở Thìn', shipper: 'Võ Đức Huy', date: '08/11/2025', total: 65000, status: 'prep' },
-        { id: 'HF-10296', customer: 'Phạm Văn D', shop: 'Trà Sữa Koi', shipper: '', date: '08/11/2025', total: 45000, status: 'cancel' },
-    ];
-
-    const [orders, setOrders] = useState(MOCK_ORDERS);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
     const [selectedOrder, setSelectedOrder] = useState(null);
 
-    const filteredOrders = orders.filter(o => !filterStatus || o.status === filterStatus);
+    // 1. GỌI API LẤY DANH SÁCH ĐƠN HÀNG
+    const fetchOrders = async () => {
+        try {
+            const res = await api.get('/orders'); // Gọi API Backend
+            setOrders(res.data);
+        } catch (err) {
+            console.error("Lỗi tải đơn hàng:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
+        fetchOrders();
+    }, []); // Chạy 1 lần khi vào trang
+
+    // Helper: Format tiền
+    const toVND = (n) => n?.toLocaleString('vi-VN');
+
+    // Helper: Format ngày tháng
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleString('vi-VN', {
+            hour: '2-digit', minute: '2-digit',
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+    };
+
+    // Helper: Badge trạng thái
     const getStatusBadge = (s) => {
         switch (s) {
             case 'done': return <span className="badge active">Hoàn thành</span>;
-            case 'pickup': return <span className="badge pending">Đang giao</span>;
-            case 'prep': return <span className="badge inactive" style={{ background: '#fff7ed', color: '#c2410c' }}>Đang xử lý</span>;
+            case 'pickup': return <span className="badge pending" style={{ background: '#dbeafe', color: '#1e40af' }}>Đang giao</span>;
+            case 'prep': return <span className="badge pending">Đang chuẩn bị</span>;
+            case 'new': return <span className="badge" style={{ background: '#f3f4f6', color: '#374151' }}>Mới đặt</span>;
             case 'cancel': return <span className="badge inactive">Đã hủy</span>;
             default: return <span className="badge">{s}</span>;
         }
     };
 
+    // Lọc đơn hàng theo trạng thái
+    const filteredOrders = orders.filter(o => !filterStatus || o.status === filterStatus);
+
     return (
         <div>
-            <h3 style={{ marginTop: 0 }}>Quản lý đơn hàng</h3>
-            <p style={{ color: '#666', fontSize: '14px' }}>Danh sách đơn hàng từ các cửa hàng và khách hàng trong hệ thống HaFo.</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button className="btn soft" onClick={fetchOrders} title="Tải lại">
+                    <i className="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
 
             {/* BỘ LỌC */}
             <div style={{ margin: '20px 0', display: 'flex', gap: '10px' }}>
@@ -38,6 +67,7 @@ function AdminOrders() {
                     onChange={(e) => setFilterStatus(e.target.value)}
                 >
                     <option value="">Tất cả trạng thái</option>
+                    <option value="new">Mới đặt</option>
                     <option value="prep">Đang xử lý</option>
                     <option value="pickup">Đang giao</option>
                     <option value="done">Hoàn thành</option>
@@ -46,7 +76,7 @@ function AdminOrders() {
                 <button className="btn primary">Lọc</button>
             </div>
 
-            {/* BẢNG */}
+            {/* BẢNG DỮ LIỆU */}
             <div className="table-wrap">
                 <table>
                     <thead>
@@ -54,55 +84,96 @@ function AdminOrders() {
                             <th>Mã đơn</th>
                             <th>Khách hàng</th>
                             <th>Cửa hàng</th>
-                            <th>Shipper</th>
-                            <th>Ngày đặt</th>
+                            <th>Thời gian</th>
                             <th>Tổng tiền</th>
                             <th>Trạng thái</th>
                             <th>Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredOrders.map(order => (
-                            <tr key={order.id}>
-                                <td><b>{order.id}</b></td>
-                                <td>{order.customer}</td>
-                                <td>{order.shop}</td>
-                                <td>{order.shipper || <i style={{ color: '#999' }}>Chưa có</i>}</td>
-                                <td>{order.date}</td>
-                                <td>{order.total.toLocaleString()}đ</td>
-                                <td>{getStatusBadge(order.status)}</td>
-                                <td>
-                                    <button className="btn view" onClick={() => setSelectedOrder(order)}>
-                                        <i className="fa-solid fa-eye"></i> Xem
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                        {loading ? (
+                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Đang tải dữ liệu...</td></tr>
+                        ) : filteredOrders.length === 0 ? (
+                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Không tìm thấy đơn hàng nào.</td></tr>
+                        ) : (
+                            filteredOrders.map(order => (
+                                <tr key={order._id}>
+                                    {/* Lấy 6 ký tự cuối của ID cho gọn */}
+                                    <td><b style={{ color: '#F97350' }}>#{order._id.slice(-6).toUpperCase()}</b></td>
+
+                                    {/* Parse chuỗi customer để lấy tên (vì format lưu là "Tên | SĐT | ĐC") */}
+                                    <td>
+                                        <div style={{ fontWeight: 'bold' }}>{order.customer.split('|')[0]}</div>
+                                        <div style={{ fontSize: '12px', color: '#888' }}>{order.customer.split('|')[1]}</div>
+                                    </td>
+
+                                    {/* Hiển thị tên quán (nếu đã populate) hoặc ID quán */}
+                                    <td>{order.restaurantId?.name || 'Không xác định'}</td>
+
+                                    <td>{formatDate(order.createdAt)}</td>
+
+                                    <td style={{ fontWeight: 'bold' }}>{toVND(order.total)}đ</td>
+
+                                    <td>{getStatusBadge(order.status)}</td>
+
+                                    <td>
+                                        <button className="btn view" onClick={() => setSelectedOrder(order)}>
+                                            <i className="fa-solid fa-eye"></i> Xem
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            {/* MODAL CHI TIẾT ĐƠN */}
+            {/* MODAL CHI TIẾT ĐƠN HÀNG (REAL DATA) */}
             {selectedOrder && (
                 <div className="modal-bg" onClick={() => setSelectedOrder(null)}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-                        <h3 style={{ color: '#F97350' }}>Chi tiết đơn hàng</h3>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px' }}>
+                        <h3 style={{ color: '#F97350', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                            Chi tiết đơn hàng #{selectedOrder._id.slice(-6).toUpperCase()}
+                        </h3>
 
-                        <div className="info-line"><b>Mã đơn:</b> {selectedOrder.id}</div>
-                        <div className="info-line"><b>Khách hàng:</b> {selectedOrder.customer}</div>
-                        <div className="info-line"><b>Cửa hàng:</b> {selectedOrder.shop}</div>
-                        <div className="info-line"><b>Shipper:</b> {selectedOrder.shipper}</div>
-                        <div className="info-line"><b>Ngày đặt:</b> {selectedOrder.date}</div>
-                        <div className="info-line"><b>Tổng tiền:</b> {selectedOrder.total.toLocaleString()} VND</div>
-                        <div className="info-line"><b>Trạng thái:</b> {getStatusBadge(selectedOrder.status)}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '15px' }}>
+                            <div>
+                                <div className="info-line"><b>Ngày đặt:</b> {formatDate(selectedOrder.createdAt)}</div>
+                                <div className="info-line"><b>Trạng thái:</b> {getStatusBadge(selectedOrder.status)}</div>
+                                <div className="info-line"><b>Cửa hàng:</b> {selectedOrder.restaurantId?.name}</div>
+                            </div>
+                            <div>
+                                <div className="info-line"><b>Khách hàng:</b> {selectedOrder.customer.split('|')[0]}</div>
+                                <div className="info-line"><b>SĐT:</b> {selectedOrder.customer.split('|')[1]}</div>
+                                <div className="info-line"><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</div>
+                            </div>
+                        </div>
 
-                        <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '15px 0' }} />
+                        <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
+                            <h4 style={{ marginTop: 0, marginBottom: '10px' }}>Danh sách món ăn:</h4>
+                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                {selectedOrder.items.map((item, index) => (
+                                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px dashed #eee', paddingBottom: '8px' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold' }}>
+                                                {item.quantity}x {item.name}
+                                            </div>
+                                            {item.options && (
+                                                <div style={{ fontSize: '12px', color: '#666' }}>
+                                                    Options: {item.options}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ fontWeight: 'bold' }}>{toVND(item.price * item.quantity)}đ</div>
+                                    </div>
+                                ))}
+                            </div>
 
-                        <h4>Chi tiết món ăn (Demo):</h4>
-                        <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
-                            <li>1x Cơm sườn trứng</li>
-                            <li>1x Canh chua cá lóc</li>
-                        </ul>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #ddd', fontSize: '18px', fontWeight: 'bold', color: '#F97350' }}>
+                                <span>Tổng tiền:</span>
+                                <span>{toVND(selectedOrder.total)}đ</span>
+                            </div>
+                        </div>
 
                         <button className="btn-close" onClick={() => setSelectedOrder(null)}>Đóng</button>
                     </div>

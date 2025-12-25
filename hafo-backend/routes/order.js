@@ -8,25 +8,20 @@ router.get('/', async (req, res) => {
         const { restaurantId, shipperId } = req.query;
         let query = {};
 
-        // Nếu có truyền restaurantId -> Chỉ lấy đơn của quán đó
-        if (restaurantId) {
-            query.restaurantId = restaurantId;
-        }
+        if (restaurantId) query.restaurantId = restaurantId;
 
-        // Nếu có truyền shipperId -> Chỉ lấy đơn của shipper đó
         if (shipperId) {
-            // Logic cho shipper: Đơn đã nhận (pickup/done)
-            // HOẶC có thể thêm logic lấy đơn 'prep' chưa có shipper nếu cần
             query.$or = [
                 { shipperId: shipperId },
-                // { status: 'prep', shipperId: null } // (Tùy chọn: Hiện cả đơn chờ nhận)
+                // { status: 'prep', shipperId: null } 
             ];
         }
 
-        const orders = await Order.find(query).sort({ createdAt: -1 });
+        // --- SỬA Ở ĐÂY: Thêm .populate('restaurantId', 'name') ---
+        const orders = await Order.find(query)
+            .populate('restaurantId', 'name') // Lấy tên quán từ ID quán
+            .sort({ createdAt: -1 });
 
-        // Format dữ liệu items nếu cần (tuy nhiên frontend giờ đã lưu object)
-        // Mình sẽ trả về nguyên object để frontend tự xử lý hiển thị
         res.json(orders);
 
     } catch (error) {

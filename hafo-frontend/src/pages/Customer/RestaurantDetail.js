@@ -17,13 +17,11 @@ function RestaurantDetail() {
 
     useEffect(() => {
         // 1. Lấy thông tin quán
-        //axios.get(`http://localhost:5000/api/restaurants/${id}`)
         api.get(`/restaurants/${id}`)
-            .then(res => setRestaurant(res.data))
+            .then(res => setRestaurant(res.data.restaurant || res.data)) // Fix phòng trường hợp API trả về cấu trúc khác
             .catch(err => console.error("Lỗi lấy quán:", err));
 
         // 2. Lấy Menu của quán
-        //axios.get(`http://localhost:5000/api/restaurants/${id}/menu`)
         api.get(`/restaurants/${id}/menu`)
             .then(res => setFoods(res.data))
             .catch(err => console.error("Lỗi lấy menu:", err));
@@ -34,34 +32,47 @@ function RestaurantDetail() {
         setShowModal(true);
     };
 
+    // --- HÀM XỬ LÝ ĐƯỜNG DẪN ẢNH ---
+    const getImageUrl = (path) => {
+        if (!path) return 'https://via.placeholder.com/300x200?text=No+Image';
+        // Nếu là link ảnh online (http...) thì giữ nguyên
+        if (path.startsWith('http')) return path;
+        // Nếu là ảnh upload (uploads/...) thì thêm domain server vào trước
+        return `http://localhost:5000/${path.replace(/\\/g, "/")}`; // .replace để sửa lỗi đường dẫn Windows
+    };
+
     if (!restaurant) return <div style={{ padding: 50, textAlign: 'center' }}>Đang tải dữ liệu quán...</div>;
 
     return (
-        <div style={{ background: 'var(--kem)', minHeight: '100vh' }}>
+        <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>
             <Navbar />
 
             <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
                 <div className="crumb" style={{ fontSize: '13px', color: '#7a6f65', margin: '14px 0' }}>
-                    <Link to="/">Trang chủ</Link> <span className="sep">›</span> {restaurant.name}
+                    <Link to="/" style={{ textDecoration: 'none', color: '#7a6f65' }}>Trang chủ</Link> <span className="sep">›</span> {restaurant.name}
                 </div>
 
                 {/* THÔNG TIN QUÁN */}
                 <div className="top" style={{ display: 'grid', gridTemplateColumns: '520px 1fr', gap: '24px', alignItems: 'start' }}>
                     <div className="thumb" style={{ height: '300px', background: '#ddd', borderRadius: '12px', overflow: 'hidden' }}>
                         <img
-                            src={restaurant.cover || restaurant.image || '[https://via.placeholder.com/800x400?text=Cover](https://via.placeholder.com/800x400?text=Cover)'}
+                            // ✅ SỬA Ở ĐÂY: Dùng hàm getImageUrl
+                            src={getImageUrl(restaurant.coverImage || restaurant.image)}
                             alt="Cover"
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => e.target.src = 'https://via.placeholder.com/800x400?text=Error'}
                         />
                     </div>
                     <div className="info">
-                        <h1 style={{ margin: '0 0 6px', fontSize: '26px', color: 'var(--chu)' }}>{restaurant.name}</h1>
+                        <h1 style={{ margin: '0 0 6px', fontSize: '26px', color: '#3A2E2E' }}>{restaurant.name}</h1>
                         <div className="addr" style={{ fontSize: '14px', color: '#6e655d', marginBottom: '8px' }}>
                             {restaurant.address}
                         </div>
                         <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 700 }}>
                             <div className="rating" style={{ color: '#F5C048' }}>★ {restaurant.rating || 5.0}</div>
-                            <div className="price" style={{ color: '#6e655d' }}>{restaurant.openTime} - {restaurant.closeTime}</div>
+                            <div className="price" style={{ color: '#6e655d' }}>
+                                {restaurant.openTime || '07:00'} - {restaurant.closeTime || '22:00'}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -71,15 +82,17 @@ function RestaurantDetail() {
                     <h3 style={{ marginTop: 0, borderBottom: '2px solid #F97350', display: 'inline-block', paddingBottom: '5px' }}>Thực đơn</h3>
 
                     {foods.length === 0 ? (
-                        <p style={{ color: '#999' }}>Quán này chưa đăng món nào.</p>
+                        <p style={{ color: '#999', textAlign: 'center', padding: '20px' }}>Quán này chưa đăng món nào.</p>
                     ) : (
                         <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             {foods.map((food) => (
-                                <div key={food._id} style={{ display: 'flex', gap: '15px', border: '1px solid #eee', padding: '10px', borderRadius: '8px' }}>
+                                <div key={food._id} style={{ display: 'flex', gap: '15px', border: '1px solid #eee', padding: '10px', borderRadius: '8px', background: '#fff' }}>
                                     <img
-                                        src={food.image || '[https://via.placeholder.com/80?text=Mon](https://via.placeholder.com/80?text=Mon)'}
-                                        alt=""
-                                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
+                                        // ✅ SỬA Ở ĐÂY: Dùng hàm getImageUrl cho món ăn luôn
+                                        src={getImageUrl(food.image)}
+                                        alt={food.name}
+                                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #eee' }}
+                                        onError={(e) => e.target.src = 'https://via.placeholder.com/80?text=Food'}
                                     />
                                     <div style={{ flex: 1 }}>
                                         <h4 style={{ margin: '0 0 5px' }}>{food.name}</h4>
@@ -88,7 +101,7 @@ function RestaurantDetail() {
                                             <span style={{ fontWeight: 'bold', color: '#F97350' }}>{food.price.toLocaleString()}đ</span>
                                             <button
                                                 onClick={() => handleOpenModal(food)}
-                                                style={{ background: '#F97350', color: 'white', border: 'none', width: '24px', height: '24px', borderRadius: '4px', cursor: 'pointer' }}
+                                                style={{ background: '#F97350', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             >+</button>
                                         </div>
                                     </div>

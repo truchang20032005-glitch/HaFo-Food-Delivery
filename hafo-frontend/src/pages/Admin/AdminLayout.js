@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import './Admin.css';
 
 function AdminLayout() {
@@ -8,15 +9,48 @@ function AdminLayout() {
     const [showMenu, setShowMenu] = useState(false);
     const [user, setUser] = useState({ fullName: 'Admin', role: 'Quản trị viên' });
 
-    // Lấy thông tin User từ localStorage
+    // State lưu số lượng chờ duyệt thực tế
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        const savedConfig = localStorage.getItem('adminConfig');
+        if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            if (config.theme === 'dark') {
+                document.body.classList.add('dark');
+            } else {
+                document.body.classList.remove('dark');
+            }
+        }
+    }, []);
+
+    // Lấy thông tin User & Số lượng pending
     useEffect(() => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if (storedUser) {
             setUser(storedUser);
         }
+
+        // --- GỌI API ĐẾM SỐ LƯỢNG ---
+        const fetchPendingCount = async () => {
+            try {
+                // Gọi endpoint /count vừa tạo ở backend
+                const res = await api.get('/pending/count');
+                setPendingCount(res.data.total);
+            } catch (err) {
+                console.error("Lỗi lấy số lượng chờ:", err);
+            }
+        };
+
+        fetchPendingCount();
+
+        // (Tùy chọn) Có thể set interval để tự động cập nhật mỗi 30s
+        const interval = setInterval(fetchPendingCount, 30000);
+        return () => clearInterval(interval);
+
     }, []);
 
-    // Logic xác định tiêu đề trang dựa trên URL
+    // Logic tiêu đề trang
     const getPageTitle = (path) => {
         if (path.includes('/dashboard')) return 'Tổng quan hệ thống';
         if (path.includes('/users')) return 'Quản lý người dùng';
@@ -74,9 +108,16 @@ function AdminLayout() {
                 <div className="nav-group">
                     <small>HỆ THỐNG</small>
                     <Link to="/admin/pending" className={`nav-item ${isActive('pending')}`}>
-                        <i className="fa-solid fa-clock"></i> Xét duyệt
-                        {/* Badge demo số lượng chờ */}
-                        <span className="nav-badge">3</span>
+                        {/* Wrapper để định vị badge */}
+                        <div style={{ position: 'relative', display: 'flex' }}>
+                            <i className="fa-solid fa-clock"></i>
+
+                            {/* CHỈ HIỂN THỊ KHI CÓ ĐƠN CHỜ (>0) */}
+                            {pendingCount > 0 && (
+                                <span className="badge-on-icon">{pendingCount}</span>
+                            )}
+                        </div>
+                        <span style={{ marginLeft: '12px' }}>Xét duyệt</span>
                     </Link>
                     <Link to="/admin/settings" className={`nav-item ${isActive('settings')}`}>
                         <i className="fa-solid fa-sliders"></i> Cấu hình
@@ -84,27 +125,24 @@ function AdminLayout() {
                 </div>
             </aside>
 
-            {/* MAIN CONTENT */}
+            {/* MAIN CONTENT (Giữ nguyên phần Header đẹp đã làm ở câu trước) */}
             <div className="main-content">
-                {/* --- HEADER HIỆN ĐẠI --- */}
                 <header className="header">
-                    {/* Bên trái: Tiêu đề & Breadcrumb */}
                     <div className="header-left">
                         <div className="page-title">{currentTitle}</div>
                         <div className="breadcrumb">Admin / {currentTitle}</div>
                     </div>
 
-                    {/* Ở giữa: Thanh tìm kiếm */}
                     <div className="header-search">
                         <i className="fa-solid fa-magnifying-glass"></i>
                         <input type="text" placeholder="Tìm kiếm đơn hàng, user..." />
                     </div>
 
-                    {/* Bên phải: Thông báo & Profile */}
                     <div className="header-right">
                         <div className="icon-btn">
                             <i className="fa-regular fa-bell"></i>
-                            <span className="dot"></span>
+                            {/* Logic thông báo giả định, sau này có thể thay bằng pendingCount */}
+                            {pendingCount > 0 && <span className="dot"></span>}
                         </div>
 
                         <div className="profile-box" onClick={() => setShowMenu(!showMenu)}>
@@ -117,7 +155,6 @@ function AdminLayout() {
                             </div>
                         </div>
 
-                        {/* Dropdown Menu */}
                         <div className={`logout-menu ${showMenu ? 'show' : ''}`}>
                             <button onClick={handleLogout}>
                                 <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
