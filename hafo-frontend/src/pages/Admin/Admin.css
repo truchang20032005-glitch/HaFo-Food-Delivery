@@ -16,110 +16,276 @@
     min-height: 100vh;
 }
 
-/* SIDEBAR */
+/* ============================
+   1. SIDEBAR (CỐ ĐỊNH TRÁI)
+   ============================ */
 .sidebar {
     width: 240px;
+    /* Rộng hơn xíu cho thoáng */
     background: #fff;
     border-right: 1px solid var(--line);
     display: flex;
     flex-direction: column;
-    padding: 14px;
+    padding: 20px 14px;
     position: fixed;
     top: 0;
     bottom: 0;
     left: 0;
     z-index: 100;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.02);
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     color: var(--cam);
     font-weight: 800;
-    font-size: 20px;
-    margin-bottom: 24px;
+    font-size: 24px;
+    margin-bottom: 30px;
     text-decoration: none;
+    padding-left: 10px;
+}
+
+/* Nhóm menu (CHÍNH, QUẢN LÝ...) */
+.nav-group small {
+    display: block;
+    padding: 15px 14px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #aaa;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
     font-weight: 600;
-    color: var(--chu);
+    color: #555;
     cursor: pointer;
     transition: all .2s;
     text-decoration: none;
-    margin-bottom: 4px;
+    font-size: 14px;
+    margin-bottom: 2px;
 }
 
-.nav-item:hover,
+.nav-item i {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.nav-item:hover {
+    background: #fff8f6;
+    color: var(--cam);
+}
+
 .nav-item.active {
     background: var(--cam);
     color: #fff;
+    box-shadow: 0 4px 12px rgba(249, 115, 80, 0.25);
 }
 
-/* MAIN CONTENT */
+/* Badge số lượng (VD: số đơn chờ duyệt) */
+.nav-badge {
+    margin-left: auto;
+    background: var(--do);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 7px;
+    border-radius: 6px;
+}
+
+/* ============================
+   2. MAIN CONTENT & HEADER
+   ============================ */
 .main-content {
     flex: 1;
     margin-left: 240px;
+    /* Bằng width sidebar */
     display: flex;
     flex-direction: column;
     background: var(--kem);
 }
 
-/* HEADER */
+.content-pad {
+    padding: 30px;
+}
+
+/* HEADER HIỆN ĐẠI */
 .header {
-    height: 60px;
-    background: #fff;
-    border-bottom: 1px solid var(--line);
+    height: 80px;
+    background: rgba(255, 255, 255, 0.85);
+    /* Kính mờ */
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
+    padding: 0 30px;
     position: sticky;
     top: 0;
     z-index: 90;
+    transition: all 0.3s ease;
 }
 
-.header .right {
+/* Left: Title & Breadcrumb */
+.header-left .page-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--chu);
+    line-height: 1.2;
+}
+
+.header-left .breadcrumb {
+    font-size: 13px;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* Center: Search Bar */
+.header-search {
+    position: relative;
+    width: 400px;
+}
+
+.header-search input {
+    width: 100%;
+    height: 45px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 0 15px 0 45px;
+    font-size: 14px;
+    color: #333;
+    transition: all 0.2s;
+}
+
+.header-search input:focus {
+    background: #fff;
+    border-color: var(--vang);
+    box-shadow: 0 0 0 4px rgba(250, 208, 108, 0.15);
+    outline: none;
+}
+
+.header-search i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+/* Right: Tools & Profile */
+.header-right {
     display: flex;
     align-items: center;
     gap: 20px;
     position: relative;
 }
 
-.header .avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 2px solid var(--vang);
+/* Nút thông báo */
+.icon-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    background: #fff;
+    border: 1px solid #eee;
+    position: relative;
+    transition: 0.2s;
+    color: #666;
 }
 
-.header .avatar img {
+.icon-btn:hover {
+    background: #fff8f6;
+    color: var(--cam);
+    border-color: #ffdacc;
+}
+
+.icon-btn .dot {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    background: var(--do);
+    border-radius: 50%;
+    border: 1px solid #fff;
+}
+
+/* Hộp Profile */
+.profile-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 6px 8px 6px 16px;
+    border-radius: 50px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid transparent;
+    transition: 0.2s;
+}
+
+.profile-box:hover {
+    background: #fff;
+    border-color: #eee;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.profile-box .info {
+    text-align: right;
+}
+
+.profile-box .name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--chu);
+}
+
+.profile-box .role {
+    font-size: 11px;
+    color: #888;
+    font-weight: 600;
+}
+
+.profile-box .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-box .avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-/* DROPDOWN MENU */
+/* Menu Đăng xuất (Dropdown) */
 .logout-menu {
     position: absolute;
-    top: 50px;
+    top: 60px;
     right: 0;
     background: #fff;
-    border: 1px solid var(--line);
+    border: 1px solid #eee;
     border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     padding: 8px;
     display: none;
     z-index: 999;
-    min-width: 160px;
+    min-width: 180px;
+    animation: slideDown 0.2s ease-out;
 }
 
 .logout-menu.show {
@@ -131,14 +297,15 @@
     border: none;
     width: 100%;
     text-align: left;
-    padding: 10px;
+    padding: 10px 12px;
     font-size: 14px;
     color: #333;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     border-radius: 8px;
+    font-weight: 500;
 }
 
 .logout-menu button:hover {
@@ -146,71 +313,90 @@
     color: var(--cam);
 }
 
-/* DASHBOARD CARDS */
-.content-pad {
-    padding: 24px;
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
+/* ============================
+   3. DASHBOARD ELEMENTS (Cards, Charts)
+   ============================ */
+/* Cards thống kê */
 .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
     margin-bottom: 24px;
 }
 
 .card-stat {
     background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    border: 1px solid #e9e4d8;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .card-stat .label {
-    font-weight: 600;
-    color: #6E655D;
     font-size: 14px;
+    color: #888;
+    font-weight: 600;
 }
 
 .card-stat .big {
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 800;
-    margin-top: 6px;
+    color: var(--chu);
+    letter-spacing: -0.5px;
 }
 
-/* CHARTS */
+/* Khu vực biểu đồ */
 .chart-wrapper {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 20px;
+    grid-template-columns: 2fr 1fr;
+    /* Cột trái to hơn */
+    gap: 24px;
+    margin-bottom: 24px;
 }
 
-@media (max-width: 900px) {
-    .chart-wrapper {
-        grid-template-columns: 1fr;
-    }
-}
-
-.chart-container {
+.chart-card {
     background: #fff;
     border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    border: 1px solid var(--line);
+    padding: 24px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    border: 1px solid #e9e4d8;
+    display: flex;
+    flex-direction: column;
 }
 
-.chart-container h4 {
+.chart-card h4 {
     margin-top: 0;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* TABLE */
+/* Bảng dữ liệu */
 .table-wrap {
     overflow-x: auto;
     background: #fff;
-    border-radius: 12px;
-    border: 1px solid var(--line);
+    border-radius: 16px;
+    border: 1px solid #e9e4d8;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
 
 table {
@@ -220,30 +406,37 @@ table {
 
 th,
 td {
-    padding: 12px 10px;
+    padding: 16px 20px;
     border-bottom: 1px solid #f0e8d9;
     text-align: left;
 }
 
 th {
-    background: #FFFCF5;
+    background: #fffcf5;
     font-weight: 700;
     font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
 }
 
 td {
     font-size: 14px;
+    font-weight: 500;
 }
 
-/* =========================
-   ADMIN MODAL & ELEMENTS
-   ========================= */
+tr:last-child td {
+    border-bottom: none;
+}
 
-/* BADGES TRẠNG THÁI */
+/* ============================
+   4. MODALS & UTILITIES
+   ============================ */
+
+/* Badges trạng thái */
 .badge {
-    padding: 4px 8px;
-    border-radius: 99px;
-    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
     font-weight: 700;
     display: inline-block;
 }
@@ -263,11 +456,12 @@ td {
     color: #92400E;
 }
 
-/* MODAL POPUP */
+/* Modal nền đen */
 .modal-bg {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, .4);
+    background: rgba(0, 0, 0, .5);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -275,13 +469,14 @@ td {
     animation: fadeIn 0.2s;
 }
 
+/* Modal nội dung */
 .admin-modal {
     background: #fff;
-    padding: 24px;
-    border-radius: 16px;
+    padding: 30px;
+    border-radius: 20px;
     width: 100%;
-    max-width: 500px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 550px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
     position: relative;
     max-height: 90vh;
     overflow-y: auto;
@@ -289,19 +484,22 @@ td {
 
 .admin-modal h3 {
     margin-top: 0;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     color: var(--cam);
-    font-size: 20px;
+    font-size: 22px;
     text-align: center;
+    font-weight: 800;
 }
 
+/* Avatar lớn trong modal */
 .avatar-big {
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
     overflow: hidden;
-    margin: 0 auto 15px;
-    border: 3px solid var(--vang);
+    margin: 0 auto 20px;
+    border: 4px solid var(--vang);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .avatar-big img {
@@ -310,31 +508,57 @@ td {
     object-fit: cover;
 }
 
+/* Các dòng thông tin */
 .info-line {
-    margin-bottom: 10px;
-    font-size: 14px;
+    margin-bottom: 12px;
+    font-size: 15px;
     border-bottom: 1px dashed #eee;
-    padding-bottom: 8px;
+    padding-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
 }
 
 .info-line b {
     color: #555;
-    margin-right: 6px;
+}
+
+/* Nút đóng/action */
+.btn {
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.btn.primary {
+    background: var(--cam);
+    color: white;
+    box-shadow: 0 4px 10px rgba(249, 115, 80, 0.3);
+}
+
+.btn.primary:hover {
+    background: #e05d3a;
+    transform: translateY(-2px);
+}
+
+.btn.danger {
+    background: #fee2e2;
+    color: var(--do);
 }
 
 .btn-close {
-    margin-top: 20px;
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    background: #fff;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
+    padding: 12px;
+    background: #f4f4f5;
+    color: #666;
+    margin-top: 20px;
 }
 
 .btn-close:hover {
-    background: #f5f5f5;
+    background: #e4e4e7;
 }
 
 @keyframes fadeIn {
@@ -347,46 +571,42 @@ td {
     }
 }
 
-/* =========================
-   PENDING MODAL STYLES
-   ========================= */
+/* Detail Table trong modal */
 .detail-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
+    margin-top: 15px;
     font-size: 14px;
+    background: #f9fafb;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 .detail-table th {
-    text-align: left;
-    width: 35%;
-    padding: 8px 10px;
-    color: #555;
-    background: #f9f9f9;
-    border-bottom: 1px solid #eee;
+    background: #f3f4f6;
+    color: #374151;
+    padding: 10px 15px;
 }
 
 .detail-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid #eee;
-    color: #333;
-    font-weight: 500;
+    padding: 10px 15px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
+/* Checklist */
 .checklist {
     list-style: none;
-    padding: 0;
-    margin: 15px 0;
+    padding: 15px;
+    margin: 20px 0;
     background: #fffdf7;
     border: 1px dashed #eadfcd;
-    border-radius: 8px;
-    padding: 10px;
+    border-radius: 12px;
 }
 
 .checklist li {
-    padding: 6px 0;
+    padding: 8px 0;
     font-size: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
