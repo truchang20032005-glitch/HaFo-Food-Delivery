@@ -12,11 +12,11 @@ function ShipperDashboard() {
     const fetchOrders = async () => {
         try {
             //const res = await axios.get('http://localhost:5000/api/orders');
-            const res = await api.get('api/orders');
+            const res = await api.get('/orders');
             // LỌC ĐƠN CHUẨN: Trạng thái 'prep' VÀ chưa có shipperId
             // (Lưu ý: Backend trả về tất cả đơn, ta lọc ở client cho nhanh)
             const availableOrders = res.data.filter(o =>
-                o.status === 'prep' && !o.shipperId
+                (o.status === 'prep' || o.status === 'ready') && !o.shipperId
             );
             setOrders(availableOrders);
         } catch (err) {
@@ -40,7 +40,6 @@ function ShipperDashboard() {
                     shipperId: user.id
                 });*/
                 await api.put(`/orders/${id}`, {
-                    status: 'pickup',
                     shipperId: user.id
                 });
 

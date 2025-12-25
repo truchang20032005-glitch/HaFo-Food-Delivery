@@ -64,15 +64,16 @@ function OrderTracking() {
 
     let currentStepIndex = 0;
     if (order.status === 'new') currentStepIndex = 0;
-    if (order.status === 'prep') currentStepIndex = 2; // Nhảy qua bước xác nhận
-    if (order.status === 'pickup') currentStepIndex = 4; // Nhảy qua bước TX nhận
+    if (order.status === 'prep') currentStepIndex = 2;
+    if (order.status === 'ready') currentStepIndex = 3;
+    if (order.status === 'pickup') currentStepIndex = 4;
     if (order.status === 'done') currentStepIndex = 5;
 
     const steps = [
         { title: 'Đã nhận đơn', icon: 'fa-check', note: 'Chờ nhà hàng xác nhận' },
         { title: 'Nhà hàng xác nhận', icon: 'fa-store', note: 'Đang chuẩn bị món' },
         { title: 'Đang chuẩn bị', icon: 'fa-fire-burner', note: 'Bếp đang nấu' },
-        { title: 'Tìm tài xế', icon: 'fa-user-clock', note: 'Đang tìm tài xế gần bạn' },
+        { title: 'Chờ lấy món', icon: 'fa-box', note: 'Món đã xong, chờ Shipper' },
         { title: 'Đang giao hàng', icon: 'fa-motorcycle', note: 'Tài xế đang đến' },
         { title: 'Giao thành công', icon: 'fa-flag-checkered', note: 'Bạn đã nhận món' }
     ];
