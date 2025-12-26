@@ -38,7 +38,12 @@ function ShipperProfile() {
             <div className="profile-body">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                     <div className="ship-avatar" style={{ width: '64px', height: '64px' }}>
-                        <img src="/images/shipper.jpg" alt="" onError={(e) => e.target.src = 'https://via.placeholder.com/64'} />
+                        <img
+                            src={profile.user.avatar || "/images/shipper.jpg"}
+                            alt="Avatar"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                            onError={(e) => e.target.src = 'https://via.placeholder.com/64'}
+                        />
                     </div>
                     <div>
                         <div style={{ fontWeight: '800', fontSize: '18px' }}>{profile.user.fullName}</div>

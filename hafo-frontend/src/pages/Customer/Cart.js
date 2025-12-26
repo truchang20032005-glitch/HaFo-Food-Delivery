@@ -10,8 +10,7 @@ function Cart() {
     // Hàm xử lý ảnh (Fix lỗi không hiện ảnh)
     const getImageUrl = (path) => {
         if (!path) return 'https://via.placeholder.com/100?text=Food';
-        if (path.startsWith('http')) return path;
-        return `http://localhost:5000/${path.replace(/\\/g, "/")}`;
+        return path; // Link Cloudinary đã là URL đầy đủ rồi
     };
 
     return (

@@ -151,7 +151,7 @@ function AdminLayout() {
                                 <div className="role">Admin</div>
                             </div>
                             <div className="avatar">
-                                <img src="/images/admin.png" alt="Admin" onError={(e) => e.target.src = 'https://via.placeholder.com/40'} />
+                                <img src={user.avatar || "/images/admin.png"} alt="Admin" onError={(e) => e.target.src = 'https://via.placeholder.com/40'} />
                             </div>
                         </div>
 

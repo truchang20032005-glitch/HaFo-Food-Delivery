@@ -144,11 +144,7 @@ function Home() {
                                     {/* Ảnh quán */}
                                     <div style={{ height: '160px', overflow: 'hidden', position: 'relative', background: '#eee' }}>
                                         <img
-                                            src={
-                                                res.image
-                                                    ? (res.image.startsWith('http') ? res.image : `http://localhost:5000/${res.image}`)
-                                                    : 'https://via.placeholder.com/300x200?text=HaFo+Quan'
-                                            }
+                                            src={res.image || 'https://via.placeholder.com/300x200?text=HaFo+Quan'}
                                             alt={res.name}
                                             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: '0.3s' }}
                                             onError={(e) => e.target.src = 'https://via.placeholder.com/300x200?text=HaFo+App'}

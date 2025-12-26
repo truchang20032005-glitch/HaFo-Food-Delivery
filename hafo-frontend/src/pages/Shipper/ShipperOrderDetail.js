@@ -187,8 +187,11 @@ function ShipperOrderDetail() {
                 <div>
                     {Array.isArray(order.items) ? order.items.map((item, idx) => (
                         <div key={idx} style={styles.itemRow}>
-                            <img src={item.image ? `http://localhost:5000/${item.image}` : "https://via.placeholder.com/50"}
-                                style={styles.itemImg} onError={(e) => e.target.src = 'https://via.placeholder.com/50'} alt="" />
+                            <img
+                                src={item.image || "https://via.placeholder.com/60"}
+                                style={styles.foodImg}
+                                alt={item.name}
+                            />
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: '600', color: '#333', fontSize: '14px' }}>{item.name}</div>
                                 <div style={{ fontSize: '12px', color: '#666' }}>x{item.quantity} {item.options ? `(${item.options})` : ''}</div>
