@@ -170,7 +170,7 @@ function OrderTracking() {
                         {order.shipperId && shipper ? (
                             <>
                                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '10px' }}>
-                                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#ddd', backgroundImage: `url(${shipper.avatar || '/images/shipper.jpg'})`, backgroundSize: 'cover' }}></div>
+                                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#ddd', backgroundImage: `url(${shipper.avatar || '/images/shipper.jpg'})` }}></div>
                                     <div>
                                         <div style={{ fontWeight: '800' }}>{shipper.user?.fullName || 'Tài xế HaFo'}</div>
                                         <div style={{ fontSize: '12px', color: '#666' }}>{shipper.licensePlate} · {shipper.vehicleType}</div>

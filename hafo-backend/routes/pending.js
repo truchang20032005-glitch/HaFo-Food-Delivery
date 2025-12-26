@@ -4,29 +4,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+const uploadCloud = require('../config/cloudinary');
 
 const PendingRestaurant = require('../models/PendingRestaurant');
 const PendingShipper = require('../models/PendingShipper');
 const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const User = require('../models/User');
-
-// CẤU HÌNH MULTER ---
-const uploadDir = 'uploads';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        // Xử lý tên file an toàn
-        const cleanFileName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "_");
-        cb(null, Date.now() + '-' + cleanFileName);
-    }
-});
 
 const fileFilter = (req, file, cb) => {
     // Chấp nhận ảnh và PDF
@@ -39,16 +23,10 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // Giới hạn 5MB
-});
-
 // MIDDLEWARE XỬ LÝ LỖI UPLOAD (QUAN TRỌNG ĐỂ FIX LỖI 500) ---
 const handleUpload = (fields) => {
     return (req, res, next) => {
-        const uploadFn = upload.fields(fields);
+        const uploadFn = uploadCloud.fields(fields);
         uploadFn(req, res, (err) => {
             if (err instanceof multer.MulterError) {
                 // Lỗi do Multer (VD: File quá lớn, sai tên trường...)
@@ -79,10 +57,10 @@ router.post('/merchant', handleUpload([
 
         const newReq = new PendingRestaurant({
             ...req.body,
-            avatar: files.avatar ? files.avatar[0].path.replace(/\\/g, "/") : '',
-            idCardFront: files.idCardFront ? files.idCardFront[0].path.replace(/\\/g, "/") : '',
-            idCardBack: files.idCardBack ? files.idCardBack[0].path.replace(/\\/g, "/") : '',
-            businessLicense: files.businessLicense ? files.businessLicense[0].path.replace(/\\/g, "/") : '',
+            avatar: files.avatar ? files.avatar[0].path : '',
+            idCardFront: files.idCardFront ? files.idCardFront[0].path : '',
+            idCardBack: files.idCardBack ? files.idCardBack[0].path : '',
+            businessLicense: files.businessLicense ? files.businessLicense[0].path : '',
 
             // Xử lý mảng cuisine an toàn
             cuisine: req.body.cuisine ? (Array.isArray(req.body.cuisine) ? req.body.cuisine : [req.body.cuisine]) : []
@@ -113,11 +91,11 @@ router.post('/shipper', handleUpload([
 
         const newReq = new PendingShipper({
             ...req.body,
-            cccdFront: files.cccdFront ? files.cccdFront[0].path.replace(/\\/g, "/") : '',
-            cccdBack: files.cccdBack ? files.cccdBack[0].path.replace(/\\/g, "/") : '',
-            licenseImage: files.licenseImage ? files.licenseImage[0].path.replace(/\\/g, "/") : '',
-            vehicleRegImage: files.vehicleRegImage ? files.vehicleRegImage[0].path.replace(/\\/g, "/") : '',
-            avatar: files.avatar ? files.avatar[0].path.replace(/\\/g, "/") : ''
+            cccdFront: files.cccdFront ? files.cccdFront[0].path : '',
+            cccdBack: files.cccdBack ? files.cccdBack[0].path : '',
+            licenseImage: files.licenseImage ? files.licenseImage[0].path : '',
+            vehicleRegImage: files.vehicleRegImage ? files.vehicleRegImage[0].path : '',
+            avatar: files.avatar ? files.avatar[0].path : ''
         });
 
         await newReq.save();

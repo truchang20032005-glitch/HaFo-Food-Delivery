@@ -33,11 +33,7 @@ function ChatBot() {
         try {
             // Gửi tin nhắn lên Backend
             // const res = await axios.post('http://localhost:5000/api/chat'
-            const res = await api.post(('/chat')
-                , {
-                    message: input,
-                    history: messages // Gửi kèm lịch sử để AI hiểu ngữ cảnh
-                });
+            const res = await api.post('/chat', { message: input, history: messages });
 
             // Backend trả về: reply (text) và foods (mảng món ăn gợi ý)
             const botMsg = {

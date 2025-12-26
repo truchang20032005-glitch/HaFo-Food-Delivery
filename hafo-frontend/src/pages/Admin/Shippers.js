@@ -31,9 +31,8 @@ function AdminShippers() {
 
     // Helper xử lý ảnh (nếu sau này có ảnh đại diện)
     const getAvatarUrl = (path) => {
-        if (!path) return 'https://via.placeholder.com/150'; // Ảnh mặc định
-        if (path.startsWith('http')) return path;
-        return `http://localhost:5000/${path}`;
+        if (!path) return 'https://via.placeholder.com/150';
+        return path; // Trả về luôn link Cloudinary
     };
 
     // Lọc danh sách (Client-side)

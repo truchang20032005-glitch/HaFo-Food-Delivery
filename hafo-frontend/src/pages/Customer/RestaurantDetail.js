@@ -47,7 +47,7 @@ function RestaurantDetail() {
     const getImageUrl = (path) => {
         if (!path) return 'https://via.placeholder.com/400x300?text=No+Image';
         if (path.startsWith('http')) return path;
-        return `http://localhost:5000/${path.replace(/\\/g, "/")}`;
+        return path;
     };
 
     if (!restaurant) return (
@@ -191,7 +191,7 @@ function RestaurantDetail() {
                                     {/* Ảnh món */}
                                     <div style={{ width: '100px', height: '100px', flexShrink: 0, borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
                                         <img
-                                            src={getImageUrl(food.image)}
+                                            src={food.image || "/images/default-food.png"}
                                             alt={food.name}
                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                             onError={(e) => e.target.src = 'https://via.placeholder.com/100?text=Food'}

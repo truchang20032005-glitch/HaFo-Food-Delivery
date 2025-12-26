@@ -88,7 +88,7 @@ function MerchantLayout() {
                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                         <img
                                             style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover' }}
-                                            src={myShop?.image || "[https://via.placeholder.com/150?text=No+Img](https://via.placeholder.com/150?text=No+Img)"}
+                                            src={myShop?.image || "https://via.placeholder.com/40?text=Shop"}
                                             alt=""
                                         />
                                         <div>

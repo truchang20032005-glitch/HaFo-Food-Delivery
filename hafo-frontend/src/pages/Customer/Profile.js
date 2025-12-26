@@ -33,9 +33,8 @@ function Profile() {
 
     // Helper: Lấy URL ảnh
     const getAvatarUrl = (path) => {
-        if (!path) return '/images/default-avatar.png'; // Ảnh mặc định nếu chưa có
-        if (path.startsWith('http')) return path;
-        return `http://localhost:5000/${path}`;
+        if (!path) return '/images/default-avatar.png';
+        return path; // Trả về link Cloudinary trực tiếp
     };
 
     // 1. TẢI DỮ LIỆU USER THẬT

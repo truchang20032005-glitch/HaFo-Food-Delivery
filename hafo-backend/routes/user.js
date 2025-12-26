@@ -1,38 +1,10 @@
+const uploadCloud = require('../config/cloudinary');
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const User = require('../models/User');
-
-// --- CẤU HÌNH UPLOAD ẢNH (MULTER) ---
-const uploadDir = 'uploads/avatars';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        // Đặt tên file: user_timestamp.jpg
-        const uniqueName = `user-${Date.now()}${path.extname(file.originalname)}`;
-        cb(null, uniqueName);
-    }
-});
-
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn 5MB
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Chỉ chấp nhận file ảnh!'), false);
-        }
-    }
-});
 
 // 1. LẤY THÔNG TIN PROFILE
 router.get('/:id', async (req, res) => {
@@ -46,9 +18,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // 2. CẬP NHẬT PROFILE (CÓ UPLOAD AVATAR)
-router.put('/:id', upload.single('avatar'), async (req, res) => {
+router.put('/:id', uploadCloud.single('avatar'), async (req, res) => {
     try {
-        // Lấy các dữ liệu text
+        // Lấy các dữ liệu text từ FormData
         const { fullName, phone, email, gender, birthday, addresses } = req.body;
 
         const updateData = {
@@ -59,19 +31,21 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
             birthday
         };
 
-        // Xử lý Addresses (Vì gửi qua FormData nên nó là chuỗi JSON, cần parse lại)
-        if (addresses) {
-            try {
-                updateData.addresses = JSON.parse(addresses);
-            } catch (e) {
-                console.error("Lỗi parse địa chỉ:", e);
-            }
+        // 1. SỬA LẠI: Nếu có file ảnh thì lưu vào AVATAR (chứ không phải addresses)
+        if (req.file) {
+            updateData.avatar = req.file.path;
         }
 
-        // Xử lý Avatar (Nếu có upload file mới)
-        if (req.file) {
-            // Lưu đường dẫn file vào DB (convert dấu \ thành / cho window)
-            updateData.avatar = req.file.path.replace(/\\/g, "/");
+        // 2. SỬA LẠI: Xử lý Addresses
+        // Vì FormData gửi mảng dưới dạng chuỗi JSON, nên phải parse ra
+        if (addresses) {
+            try {
+                // Parse chuỗi JSON thành mảng object gốc
+                updateData.addresses = JSON.parse(addresses);
+            } catch (e) {
+                console.error("Lỗi parse addresses:", e);
+                // Nếu lỗi parse, có thể giữ nguyên hoặc bỏ qua
+            }
         }
 
         const updatedUser = await User.findByIdAndUpdate(

@@ -94,8 +94,8 @@ function Menu() {
                             <tr key={food._id} style={{ borderBottom: '1px dashed #efe2cc' }}>
                                 <td style={{ padding: '10px' }}>
                                     <img
-                                        src={food.image ? `http://localhost:5000/${food.image}` : 'https://via.placeholder.com/40'}
-                                        alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }}
+                                        src={food.image || "https://via.placeholder.com/50"} // Thay đổi tùy theo biến món ăn của bạn
+                                        style={{ width: 50, height: 50, borderRadius: 8, objectFit: 'cover' }}
                                     />
                                 </td>
                                 <td>

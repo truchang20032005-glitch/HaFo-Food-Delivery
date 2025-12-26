@@ -27,8 +27,15 @@ function ShipperRegister() {
 
     // Tự động lưu nháp mỗi khi nhập liệu (trừ file ảnh)
     useEffect(() => {
-        const dataToSave = { ...data, avatar: null, idCardFront: null, idCardBack: null, businessLicense: null };
-        localStorage.setItem('merchant_draft', JSON.stringify(dataToSave));
+        const dataToSave = {
+            ...data,
+            avatar: null,
+            vehicleRegImage: null,
+            licenseImage: null,
+            cccdFront: null,
+            cccdBack: null
+        };
+        localStorage.setItem('shipper_draft', JSON.stringify(dataToSave));
     }, [data]);
 
     // Kiểm tra User & Trạng thái duyệt khi vào trang
@@ -120,25 +127,35 @@ function ShipperRegister() {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return alert("Vui lòng đăng nhập!");
 
-            /*await axios.post('http://localhost:5000/api/pending/shipper', {
-                ...data,
-                userId: user.id
-            });*/
-            await api.post('/pending/shipper', {
-                ...data,
-                userId: user.id
+            // --- SỬA LẠI ĐOẠN NÀY ĐỂ GỬI ẢNH (FORM DATA) ---
+            const formData = new FormData();
+            formData.append('userId', user.id || user._id);
+
+            // Duyệt qua state data để append vào formData
+            Object.keys(data).forEach(key => {
+                // Nếu là file ảnh hoặc dữ liệu text bình thường (không null) thì gửi đi
+                if (data[key] !== null) {
+                    formData.append(key, data[key]);
+                }
             });
+
+            // Gửi API với header multipart/form-data
+            await api.post('/pending/shipper', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            // -----------------------------------------------
+
             // Xóa bản nháp sau khi gửi thành công
-            localStorage.removeItem('merchant_draft');
+            localStorage.removeItem('shipper_draft'); // Lưu ý: sửa key này cho đúng với useEffect dòng 31 (đang là merchant_draft)
 
             // Cập nhật trạng thái user ở localStorage để chuyển trang
             const updatedUser = { ...user, approvalStatus: 'pending' };
             localStorage.setItem('user', JSON.stringify(updatedUser));
 
-            alert("Gửi hồ sơ Shipper thành công! Vui lòng chờ duyệt.");
-            navigate('/');
+            setIsSuccess(true); // Hiện màn hình thông báo thành công
+            window.scrollTo(0, 0); // Cuộn lên đầu trang
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alert("Lỗi: " + (err.response?.data?.message || err.message));
         }
     };
 
@@ -150,12 +167,33 @@ function ShipperRegister() {
         "ACB", "Eximbank", "SHB", "OceanBank", "TPBank", "VPBank", "HDBank", "SeABank"
     ];
 
-    const renderPreview = (file, label) => (
-        <div style={{ marginBottom: 10, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{label}</div>
-            {file ? <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 70, borderRadius: 6, border: '1px solid #ddd' }} /> : <div style={{ fontSize: 11, color: '#d00' }}>Thiếu</div>}
-        </div>
-    );
+    const renderPreview = (file, label) => {
+        // Check nếu là file PDF
+        const isPdf = file?.type === 'application/pdf';
+
+        return (
+            <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{label}</div>
+                {file ? (
+                    isPdf ? (
+                        // Nếu là PDF thì hiện Icon hoặc Box text
+                        <div style={{
+                            height: 80, borderRadius: 8, border: '1px solid #ddd',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '12px', color: '#F97350', fontWeight: 'bold'
+                        }}>
+                            <i className="fa-solid fa-file-pdf" style={{ marginRight: 5 }}></i> PDF File
+                        </div>
+                    ) : (
+                        // Nếu là Ảnh thì hiện như cũ
+                        <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 80, borderRadius: 8, border: '1px solid #ddd' }} />
+                    )
+                ) : (
+                    <div style={{ fontSize: 12, color: 'red', fontStyle: 'italic' }}>Chưa tải lên</div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>

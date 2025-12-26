@@ -6,6 +6,7 @@ function ShipperLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const isActive = (path) => location.pathname.includes(path);
+    const user = JSON.parse(localStorage.getItem('user')) || {};
 
     // State bật tắt menu
     const [showMenu, setShowMenu] = useState(false);
@@ -40,7 +41,12 @@ function ShipperLayout() {
                     style={{ position: 'relative' }}
                     onClick={() => setShowMenu(!showMenu)} // Bấm vào để bật/tắt
                 >
-                    <img src="/images/shipper.jpg" alt="Shipper" onError={(e) => e.target.src = 'https://via.placeholder.com/40'} />
+                    <img
+                        src={user.avatar || "/images/shipper.jpg"}
+                        alt="Shipper"
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                        onError={(e) => e.target.src = 'https://via.placeholder.com/40'}
+                    />
 
                     {/* Menu Dropdown */}
                     {showMenu && (

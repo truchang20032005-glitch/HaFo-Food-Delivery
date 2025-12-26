@@ -40,11 +40,8 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
 
                 // Nếu có ảnh cũ thì hiện preview (ảnh online/local)
                 if (editFood.image) {
-                    setImagePreview(
-                        editFood.image.startsWith('http')
-                            ? editFood.image
-                            : `http://localhost:5000/${editFood.image}`
-                    );
+                    // Không cần check startsWith hay cộng localhost nữa
+                    setImagePreview(editFood.image);
                 } else {
                     setImagePreview('');
                 }

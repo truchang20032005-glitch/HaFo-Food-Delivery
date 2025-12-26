@@ -82,29 +82,18 @@ function Pending() {
     const renderImageRow = (label, path) => {
         if (!path) return null;
 
-        // 1. Chuẩn hóa đường dẫn (thay \ thành /)
-        const cleanPath = path.replace(/\\/g, "/");
-        // 2. Tạo URL đầy đủ
-        const fullPath = `http://localhost:5000/${cleanPath}`;
-
         return (
-            <tr>
-                <th>{label}</th>
-                <td>
-                    <a href={fullPath} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#F97350', fontWeight: 'bold' }}>
-                        <img
-                            src={fullPath}
-                            alt={label}
-                            style={{ width: '80px', height: '50px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }}
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = `${process.env.PUBLIC_URL}/image/errorimage.png`; // Ảnh thay thế khi lỗi
-                            }}
-                        />
-                        <span><i className="fa-solid fa-up-right-from-square"></i> Xem ảnh </span>
-                    </a>
-                </td>
-            </tr>
+            <div style={{ marginBottom: '15px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '13px' }}>{label}:</div>
+                <a href={path} target="_blank" rel="noreferrer">
+                    <img
+                        src={path}
+                        alt={label}
+                        style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        onError={(e) => e.target.src = 'https://via.placeholder.com/300?text=Lỗi+Ảnh'}
+                    />
+                </a>
+            </div>
         );
     };
 

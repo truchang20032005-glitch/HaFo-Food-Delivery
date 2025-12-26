@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Restaurant = require('../models/Restaurant');
 const Food = require('../models/Food');
+const uploadCloud = require('../config/cloudinary');
 
 // 1. TẠO QUÁN MỚI (Khi Merchant đăng ký thông tin quán)
 router.post('/', async (req, res) => {
@@ -113,6 +114,27 @@ router.get('/', async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// THÊM Route cập nhật thông tin quán (Bao gồm upload ảnh)
+router.put('/:id', uploadCloud.single('image'), async (req, res) => {
+    try {
+        const updateData = { ...req.body };
+
+        // Nếu có upload ảnh mới thì cập nhật link
+        if (req.file) {
+            updateData.image = req.file.path;
+        }
+
+        const updatedRestaurant = await Restaurant.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+        res.json(updatedRestaurant);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
     }
 });
 

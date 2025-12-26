@@ -17,9 +17,10 @@ function Navbar({ onOpenLogin, onSearch }) {
 
     // 3. Helper xử lý ảnh avatar (Giống bên Profile)
     const getAvatarUrl = (path) => {
-        if (!path) return '/images/user.png'; // Ảnh mặc định nếu không có avatar
-        if (path.startsWith('http')) return path; // Ảnh online (Google/Facebook...)
-        return `http://localhost:5000/${path.replace(/\\/g, "/")}`; // Ảnh upload từ server
+        // Nếu không có path -> trả về ảnh mặc định
+        if (!path) return '/images/user.png';
+        // Vì dùng Cloudinary, path luôn là URL (https://...), trả về luôn
+        return path;
     };
 
     useEffect(() => {

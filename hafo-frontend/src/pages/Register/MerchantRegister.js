@@ -157,7 +157,7 @@ function MerchantRegister() {
 
             // Tạo FormData để gửi file
             const formData = new FormData();
-            formData.append('userId', user.id);
+            formData.append('userId', user.id || user._id);
 
             // Duyệt qua state data để append vào formData
             Object.keys(data).forEach(key => {
@@ -194,16 +194,33 @@ function MerchantRegister() {
     const steps = ["Loại hình", "Thông tin", "Vận hành", "Pháp lý", "Ngân hàng", "Gửi"];
 
     // Helper hiển thị ảnh preview
-    const renderPreview = (file, label) => (
-        <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{label}</div>
-            {file ? (
-                <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 80, borderRadius: 8, border: '1px solid #ddd' }} />
-            ) : (
-                <div style={{ fontSize: 12, color: 'red', fontStyle: 'italic' }}>Chưa tải lên</div>
-            )}
-        </div>
-    );
+    const renderPreview = (file, label) => {
+        // Check nếu là file PDF
+        const isPdf = file?.type === 'application/pdf';
+
+        return (
+            <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{label}</div>
+                {file ? (
+                    isPdf ? (
+                        // Nếu là PDF thì hiện Icon hoặc Box text
+                        <div style={{
+                            height: 80, borderRadius: 8, border: '1px solid #ddd',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '12px', color: '#F97350', fontWeight: 'bold'
+                        }}>
+                            <i className="fa-solid fa-file-pdf" style={{ marginRight: 5 }}></i> PDF File
+                        </div>
+                    ) : (
+                        // Nếu là Ảnh thì hiện như cũ
+                        <img src={URL.createObjectURL(file)} alt="Preview" style={{ height: 80, borderRadius: 8, border: '1px solid #ddd' }} />
+                    )
+                ) : (
+                    <div style={{ fontSize: 12, color: 'red', fontStyle: 'italic' }}>Chưa tải lên</div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh', paddingBottom: 50 }}>

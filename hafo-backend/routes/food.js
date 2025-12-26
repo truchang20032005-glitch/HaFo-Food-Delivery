@@ -4,21 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Food = require('../models/Food');
-
-const uploadDir = 'uploads/foods';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-        cb(null, uniqueName);
-    }
-});
+const uploadCloud = require('../config/cloudinary');
 
 const fileFilter = (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
@@ -29,18 +15,12 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB
-});
-
 // ========== API THÊM MÓN ==========
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', uploadCloud.single('image'), async (req, res) => {
     // ... (Code cũ của bạn, đảm bảo có xử lý options/toppings)
     try {
         const { name, price, description, restaurantId, options, toppings } = req.body;
-        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : "";
+        const imagePath = req.file ? req.file.path : "";
 
         let parsedOptions = [];
         let parsedToppings = [];
@@ -65,7 +45,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // ========== API SỬA MÓN (MỚI) ==========
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', uploadCloud.single('image'), async (req, res) => {
     try {
         const { name, price, description, isAvailable, options, toppings } = req.body;
 
@@ -78,7 +58,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
         // Nếu có file ảnh mới thì cập nhật, không thì giữ nguyên
         if (req.file) {
-            updateData.image = req.file.path.replace(/\\/g, "/");
+            updateData.image = req.file.path;
         }
 
         // Cập nhật Options & Toppings

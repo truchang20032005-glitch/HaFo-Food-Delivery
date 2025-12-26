@@ -33,8 +33,7 @@ function History() {
     // Hàm xử lý ảnh (Để hiển thị ảnh đại diện cho đơn hàng)
     const getImageUrl = (path) => {
         if (!path) return 'https://via.placeholder.com/80?text=HaFo';
-        if (path.startsWith('http')) return path;
-        return `http://localhost:5000/${path.replace(/\\/g, "/")}`;
+        return path;
     };
 
     // Logic lọc tab
