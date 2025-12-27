@@ -7,50 +7,81 @@ function ShipperWallet() {
     const [profile, setProfile] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // ✅ State quản lý việc chỉnh sửa ngân hàng
+    const [isEditingBank, setIsEditingBank] = useState(false);
+    const [bankFormData, setBankFormData] = useState({
+        bankName: '',
+        bankAccount: '',
+        bankOwner: '',
+        bankBranch: ''
+    });
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
-            // 1. Lấy thông tin Shipper (Số dư, Ngân hàng)
-            //axios.get(`http://localhost:5000/api/shippers/profile/${user.id}`)
-            api.get(`/shippers/profile/${user.id}`)
-                .then(res => {
-                    setProfile(res.data);
-
-                    // 2. Lấy lịch sử đơn hàng để giả lập lịch sử giao dịch
-                    //return axios.get('http://localhost:5000/api/orders');
-                    return api.get('/orders');
-                })
-                .then(res => {
-                    if (res && res.data) {
-                        const myDoneOrders = res.data.filter(o =>
-                            o.shipperId === user.id && o.status === 'done'
-                        );
-                        // Giả lập mỗi đơn ship được 15.000đ cộng vào ví
-                        const history = myDoneOrders.map(o => ({
-                            id: o._id,
-                            date: o.createdAt,
-                            desc: `Thu nhập đơn #${o._id.slice(-6).toUpperCase()}`,
-                            amount: 15000,
-                            type: 'in' // Tiền vào
-                        }));
-                        setTransactions(history.reverse());
-                    }
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.error(err);
-                    setLoading(false);
-                });
+            fetchWalletData(user.id);
         }
     }, []);
+
+    const fetchWalletData = async (userId) => {
+        try {
+            // 1. Lấy thông tin Shipper
+            const profileRes = await api.get(`/shippers/profile/${userId}`);
+            const data = profileRes.data;
+            setProfile(data);
+
+            // Khởi tạo form data từ dữ liệu DB
+            setBankFormData({
+                bankName: data.bankName || '',
+                bankAccount: data.bankAccount || '',
+                bankOwner: data.bankOwner || data.user.fullName,
+                bankBranch: data.bankBranch || ''
+            });
+
+            // 2. Lấy lịch sử giao dịch (đơn hàng đã hoàn thành)
+            const ordersRes = await api.get('/orders');
+            if (ordersRes.data) {
+                const myDoneOrders = ordersRes.data.filter(o =>
+                    o.shipperId === userId && o.status === 'done'
+                );
+                const history = myDoneOrders.map(o => ({
+                    id: o._id,
+                    date: o.createdAt,
+                    desc: `Thu nhập đơn #${o._id.slice(-6).toUpperCase()}`,
+                    amount: 15000,
+                    type: 'in'
+                }));
+                setTransactions(history.reverse());
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ✅ Hàm lưu thông tin ngân hàng
+    const handleSaveBank = async () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        try {
+            setIsSaving(true);
+            // Gửi yêu cầu cập nhật hồ sơ
+            await api.put(`/shippers/profile/${user.id}`, bankFormData);
+            alert("Cập nhật thông tin ngân hàng thành công!");
+            setIsEditingBank(false);
+            fetchWalletData(user.id); // Tải lại dữ liệu mới
+        } catch (err) {
+            alert("Lỗi cập nhật: " + err.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     if (loading) return <div style={{ padding: 20, textAlign: 'center' }}>Đang tải ví...</div>;
     if (!profile) return <div style={{ padding: 20, textAlign: 'center' }}>Chưa có thông tin ví.</div>;
 
-    // Tính số dư thực tế (Giả sử số dư = Tổng tiền ship các đơn đã chạy)
-    // Nếu bạn đã lưu trường `income` trong DB thì dùng profile.income
-    // Ở đây mình tính nóng luôn cho chắc ăn khớp với lịch sử
     const realBalance = transactions.reduce((sum, t) => sum + t.amount, 0);
 
     return (
@@ -64,27 +95,94 @@ function ShipperWallet() {
                     <div className="kpi-label">Số dư khả dụng</div>
                     <div className="kpi-val" style={{ color: '#F97350', fontSize: '28px' }}>{toVND(realBalance)}đ</div>
                     <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>Doanh thu từ các đơn đã giao</div>
-                    <div style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                        <button className="ship-btn primary" style={{ padding: '10px', width: 'auto' }} onClick={() => alert("Yêu cầu rút tiền đã gửi!")}>Rút tiền</button>
+                    <div style={{ marginTop: '15px' }}>
+                        <button className="ship-btn primary" style={{ padding: '10px', width: 'auto' }} onClick={() => alert("Yêu cầu rút tiền đã gửi!")}>Rút tiền về ngân hàng</button>
                     </div>
                 </div>
 
-                {/* Tài khoản ngân hàng (Lấy từ DB thật) */}
-                <div className="info-row" style={{ border: 0 }}>
-                    <span className="info-label">Tài khoản nhận</span>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 'bold' }}>{profile.bankName || 'Chưa cập nhật'}</div>
-                        <div style={{ fontSize: '13px' }}>
-                            {profile.bankAccount} - {profile.bankOwner || profile.user.fullName}
+                {/* ✅ Tài khoản ngân hàng có chức năng sửa */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 'bold' }}>Thông tin thụ hưởng</div>
+                    {!isEditingBank ? (
+                        <button onClick={() => setIsEditingBank(true)} style={{ background: 'none', border: 'none', color: '#F97350', cursor: 'pointer', fontSize: '13px' }}>
+                            <i className="fa-solid fa-pen-to-square"></i> Chỉnh sửa
+                        </button>
+                    ) : (
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={handleSaveBank} disabled={isSaving} style={{ background: 'none', border: 'none', color: '#22C55E', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                                {isSaving ? 'Đang lưu...' : 'Lưu'}
+                            </button>
+                            <button onClick={() => setIsEditingBank(false)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '13px' }}>Hủy</button>
                         </div>
-                    </div>
+                    )}
+                </div>
+
+                <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px' }}>
+                    {isEditingBank ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div className="input-group">
+                                <label style={{ fontSize: '12px', color: '#666' }}>Tên ngân hàng</label>
+                                <input
+                                    style={inputStyle}
+                                    value={bankFormData.bankName}
+                                    onChange={(e) => setBankFormData({ ...bankFormData, bankName: e.target.value })}
+                                    placeholder="Ví dụ: Vietcombank"
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label style={{ fontSize: '12px', color: '#666' }}>Số tài khoản</label>
+                                <input
+                                    style={inputStyle}
+                                    value={bankFormData.bankAccount}
+                                    onChange={(e) => setBankFormData({ ...bankFormData, bankAccount: e.target.value })}
+                                    placeholder="Nhập số tài khoản"
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label style={{ fontSize: '12px', color: '#666' }}>Tên chủ tài khoản</label>
+                                <input
+                                    style={inputStyle}
+                                    value={bankFormData.bankOwner}
+                                    onChange={(e) => setBankFormData({ ...bankFormData, bankOwner: e.target.value })}
+                                    placeholder="Tên in trên thẻ (không dấu)"
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label style={{ fontSize: '12px', color: '#666' }}>Chi nhánh</label>
+                                <input
+                                    style={inputStyle}
+                                    value={bankFormData.bankBranch}
+                                    onChange={(e) => setBankFormData({ ...bankFormData, bankBranch: e.target.value })}
+                                    placeholder="Ví dụ: Chi nhánh TP.HCM"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div className="info-row-wallet">
+                                <span style={labelStyle}>Ngân hàng:</span>
+                                <span style={valueStyle}>{profile.bankName || 'Chưa cập nhật'}</span>
+                            </div>
+                            <div className="info-row-wallet">
+                                <span style={labelStyle}>Số tài khoản:</span>
+                                <span style={valueStyle}>{profile.bankAccount || 'Chưa cập nhật'}</span>
+                            </div>
+                            <div className="info-row-wallet">
+                                <span style={labelStyle}>Chủ tài khoản:</span>
+                                <span style={valueStyle}>{profile.bankOwner || 'Chưa cập nhật'}</span>
+                            </div>
+                            <div className="info-row-wallet">
+                                <span style={labelStyle}>Chi nhánh:</span>
+                                <span style={valueStyle}>{profile.bankBranch || 'Chưa cập nhật'}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div style={{ height: '1px', background: '#eee', margin: '15px 0' }}></div>
 
                 {/* Lịch sử giao dịch */}
                 <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Lịch sử biến động</div>
-
                 {transactions.length === 0 ? (
                     <div style={{ fontSize: '13px', color: '#999', textAlign: 'center' }}>Chưa có giao dịch nào.</div>
                 ) : (
@@ -111,5 +209,17 @@ function ShipperWallet() {
         </div>
     );
 }
+
+const inputStyle = {
+    width: '100%',
+    padding: '8px',
+    borderRadius: '6px',
+    border: '1px solid #ddd',
+    fontSize: '14px',
+    marginTop: '2px'
+};
+
+const labelStyle = { color: '#666', fontSize: '13px', width: '120px', display: 'inline-block' };
+const valueStyle = { fontWeight: 'bold', fontSize: '13px' };
 
 export default ShipperWallet;

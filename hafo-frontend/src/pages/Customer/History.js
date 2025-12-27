@@ -173,7 +173,7 @@ function History() {
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             {/* Nút hành động tùy theo trạng thái */}
                                             {['new', 'prep', 'pickup'].includes(order.status) && (
-                                                <Link to={`/tracking/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#e0f2fe', color: '#0070f3', fontSize: '13px', fontWeight: 'bold' }}>
+                                                <Link to={`/order-tracking/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#e0f2fe', color: '#0070f3', fontSize: '13px', fontWeight: 'bold' }}>
                                                     Theo dõi
                                                 </Link>
                                             )}

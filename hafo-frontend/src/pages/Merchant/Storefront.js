@@ -1,13 +1,47 @@
 import { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import api from '../../services/api';
+import 'leaflet/dist/leaflet.css';
+
+// Fix icon Marker Leaflet
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 function Storefront() {
     const [shop, setShop] = useState(null);
-    // Thêm state xử lý ảnh
+    const [owner, setOwner] = useState(null);
+
+    // Form Quán
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
+    const [formData, setFormData] = useState({ lat: 10.762, lng: 106.660 });
 
-    const [formData, setFormData] = useState({});
+    // Form Chủ quán
+    const [userFormData, setUserFormData] = useState({});
+    const [userAvatarFile, setUserAvatarFile] = useState(null);
+    const [userAvatarPreview, setUserAvatarPreview] = useState('');
+
+    const [loadingUser, setLoadingUser] = useState(false);
+    const [loadingShop, setLoadingShop] = useState(false);
+
+    // Bắt sự kiện Click Map
+    function LocationMarker() {
+        useMapEvents({
+            click(e) {
+                const { lat, lng } = e.latlng;
+                setFormData(prev => ({ ...prev, lat, lng }));
+            },
+        });
+        return formData.lat ? <Marker position={[formData.lat, formData.lng]} /> : null;
+    }
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
@@ -16,104 +50,175 @@ function Storefront() {
                 .then(res => {
                     setShop(res.data);
                     setFormData(res.data);
-                    // Nếu đã có ảnh từ DB thì hiện lên
                     if (res.data.image) setImagePreview(res.data.image);
+                    return api.get(`/users/${user.id}`);
+                })
+                .then(res => {
+                    setOwner(res.data);
+                    setUserFormData(res.data);
+                    if (res.data.avatar) setUserAvatarPreview(res.data.avatar);
                 })
                 .catch(err => console.error(err));
         }
     }, []);
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Lưu User
+    const handleSaveUser = async () => {
+        setLoadingUser(true);
+        try {
+            const data = new FormData();
+            data.append('fullName', userFormData.fullName);
+            data.append('phone', userFormData.phone);
+            data.append('email', userFormData.email);
+            if (userAvatarFile) data.append('avatar', userAvatarFile);
 
-    // Hàm xử lý khi chọn file ảnh mới
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-        }
+            const res = await api.put(`/users/${owner._id}`, data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setOwner(res.data);
+            alert("✅ Đã cập nhật thông tin chủ quán!");
+        } catch (err) { alert(err.message); }
+        finally { setLoadingUser(false); }
     };
 
-    const handleSave = async () => {
+    // Lưu Quán
+    const handleSaveShop = async () => {
+        setLoadingShop(true);
         try {
-            // CHUYỂN ĐỔI SANG FORM DATA ĐỂ GỬI ẢNH
             const data = new FormData();
             data.append('name', formData.name);
             data.append('address', formData.address);
             data.append('openTime', formData.openTime);
             data.append('closeTime', formData.closeTime);
-
-            // Nếu có chọn ảnh mới thì mới gửi lên
-            if (imageFile) {
-                data.append('image', imageFile);
-            }
+            data.append('lat', formData.lat);
+            data.append('lng', formData.lng);
+            if (imageFile) data.append('image', imageFile);
 
             await api.put(`/restaurants/${shop._id}`, data, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            alert("✅ Đã cập nhật thông tin quán thành công!");
-        } catch (err) {
-            alert("❌ Lỗi: " + err.message);
-        }
+            alert("✅ Đã cập nhật thông tin cửa hàng!");
+        } catch (err) { alert(err.message); }
+        finally { setLoadingShop(false); }
     };
 
-    if (!shop) return <div>Đang tải...</div>;
+    if (!shop || !owner) return <div style={{ padding: '20px' }}>Đang tải...</div>;
+
+    // CSS Nội bộ cho các thành phần đặc thù
+    const S = {
+        label: { display: 'block', fontWeight: '700', fontSize: '13px', color: '#64748b', marginBottom: '6px' },
+        avatarCircle: { width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #FFF1ED', margin: '0 auto 10px', background: '#f8fafc' },
+        uploadLink: { fontSize: '12px', color: '#F97350', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' }
+    };
 
     return (
-        <div className="card">
-            <div className="head">Thông tin cửa hàng</div>
-            <div className="body">
-                <div className="row" style={{ alignItems: 'flex-start' }}>
-                    {/* Cột bên trái: Ảnh đại diện */}
-                    <div style={{ width: '150px', marginRight: '20px', textAlign: 'center' }}>
-                        <div style={{
-                            width: '100%', height: '150px', borderRadius: '12px',
-                            overflow: 'hidden', border: '1px solid #ddd', marginBottom: '10px'
-                        }}>
-                            <img
-                                src={imagePreview || 'https://via.placeholder.com/150'}
-                                alt="Shop Preview"
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                        </div>
-                        <label htmlFor="shop-img" className="btn small soft" style={{ cursor: 'pointer', display: 'inline-block' }}>
-                            Đổi ảnh
-                        </label>
-                        <input
-                            id="shop-img"
-                            type="file"
-                            hidden
-                            onChange={handleImageChange}
-                            accept="image/*"
-                        />
+        <div className="storefront-container">
+
+            {/* PHẦN 1: THÔNG TIN CHỦ QUÁN - ĐỒNG BỘ PANEL */}
+            <section className="panel">
+                <div className="head">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className="fa-solid fa-user-gear" style={{ color: '#F97350' }}></i>
+                        <span>Thông tin chủ sở hữu</span>
                     </div>
-
-                    {/* Cột bên phải: Form nhập liệu */}
-                    <div style={{ flex: 1 }}>
-                        <label>Tên quán hiển thị</label>
-                        <input name="name" value={formData.name || ''} onChange={handleChange} />
-
-                        <label>Địa chỉ</label>
-                        <input name="address\" value={formData.address || ''} onChange={handleChange} />
-
-                        <div className="row" style={{ marginTop: '10px', gap: '15px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label>Giờ mở cửa</label>
-                                <input type="time" name="openTime" value={formData.openTime || ''} onChange={handleChange} />
+                    <button className="btn primary small" onClick={handleSaveUser} disabled={loadingUser}>
+                        {loadingUser ? 'Đang lưu...' : 'Cập nhật cá nhân'}
+                    </button>
+                </div>
+                <div className="body">
+                    <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center', width: '140px' }}>
+                            <div style={S.avatarCircle}>
+                                <img src={userAvatarPreview || 'https://via.placeholder.com/100'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Owner" />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label>Giờ đóng cửa</label>
-                                <input type="time" name="closeTime" value={formData.closeTime || ''} onChange={handleChange} />
+                            <label htmlFor="user-avatar" style={S.uploadLink}>Đổi ảnh đại diện</label>
+                            <input id="user-avatar" type="file" hidden onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) { setUserAvatarFile(file); setUserAvatarPreview(URL.createObjectURL(file)); }
+                            }} accept="image/*" />
+                        </div>
+                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div>
+                                <label style={S.label}>Họ và tên</label>
+                                <input className="f-input" value={userFormData.fullName || ''} onChange={e => setUserFormData({ ...userFormData, fullName: e.target.value })} />
+                            </div>
+                            <div>
+                                <label style={S.label}>Số điện thoại</label>
+                                <input className="f-input" value={userFormData.phone || ''} onChange={e => setUserFormData({ ...userFormData, phone: e.target.value })} />
+                            </div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label style={S.label}>Email liên hệ</label>
+                                <input className="f-input" value={userFormData.email || ''} onChange={e => setUserFormData({ ...userFormData, email: e.target.value })} />
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="hr"></div>
-                <div style={{ textAlign: 'right' }}>
-                    <button className="btn primary" onClick={handleSave}>Lưu thay đổi</button>
+            </section>
+
+            {/* PHẦN 2: THÔNG TIN CỬA HÀNG - ĐỒNG BỘ PANEL */}
+            <section className="panel">
+                <div className="head">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className="fa-solid fa-store" style={{ color: '#F97350' }}></i>
+                        <span>Thông tin cửa hàng</span>
+                    </div>
+                    <button className="btn primary small" onClick={handleSaveShop} disabled={loadingShop}>
+                        {loadingShop ? 'Đang lưu...' : 'Lưu thay đổi quán'}
+                    </button>
                 </div>
-            </div>
+                <div className="body">
+                    <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+                        <div style={{ width: '200px', textAlign: 'center' }}>
+                            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', border: '1.5px solid #e2e8f0', marginBottom: '10px' }}>
+                                <img src={imagePreview || 'https://via.placeholder.com/200'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Shop" />
+                            </div>
+                            <label htmlFor="shop-img" style={S.uploadLink}>Đổi ảnh bìa quán</label>
+                            <input id="shop-img" type="file" hidden onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) { setImageFile(file); setImagePreview(URL.createObjectURL(file)); }
+                            }} accept="image/*" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label style={S.label}>Tên quán hiển thị</label>
+                            <input className="f-input" name="name" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+
+                            <label style={{ ...S.label, marginTop: '15px' }}>Địa chỉ kinh doanh</label>
+                            <input className="f-input" name="address" value={formData.address || ''} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+
+                            <div style={{ display: 'flex', gap: '20px', marginTop: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={S.label}>Giờ mở cửa</label>
+                                    <input type="time" className="f-input" value={formData.openTime || ''} onChange={e => setFormData({ ...formData, openTime: e.target.value })} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={S.label}>Giờ đóng cửa</label>
+                                    <input type="time" className="f-input" value={formData.closeTime || ''} onChange={e => setFormData({ ...formData, closeTime: e.target.value })} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* MAP SECTION */}
+                    <div style={{ marginTop: '30px', borderTop: '1px dashed #e2e8f0', paddingTop: '20px' }}>
+                        <label style={S.label}>Vị trí GPS (Click vào bản đồ để cập nhật tọa độ chính xác)</label>
+                        <div style={{ height: '350px', borderRadius: '16px', overflow: 'hidden', border: '1.5px solid #e2e8f0', marginTop: '10px' }}>
+                            <MapContainer
+                                center={[formData.lat || 10.762, formData.lng || 106.660]}
+                                zoom={15}
+                                style={{ height: '100%', width: '100%' }}
+                            >
+                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                <LocationMarker />
+                            </MapContainer>
+                        </div>
+                        <div style={{ textAlign: 'right', marginTop: '8px', fontSize: '11px', color: '#94a3b8' }}>
+                            Tọa độ: {formData.lat?.toFixed(6)} , {formData.lng?.toFixed(6)}
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
     );
 }
+
 export default Storefront;

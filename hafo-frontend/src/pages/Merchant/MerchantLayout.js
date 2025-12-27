@@ -42,32 +42,36 @@ function MerchantLayout() {
             {/* HEADER */}
             <header className="top">
                 <div className="top-inner">
+                    {/* LOGO BÊN TRÁI */}
                     <div className="brand">
-                        <span>HaFo Merchant</span>
-                    </div>
-                    <div className="search">
-                        <input placeholder="Tìm đơn #, tên món..." />
-                        <button className="btn"><i className="fa-solid fa-magnifying-glass"></i> Tìm</button>
+                        <Link to="/merchant/dashboard" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <img src="/images/logo.png" alt="HaFo" style={{ width: '32px' }} />
+                            <span>HaFo Merchant</span>
+                        </Link>
                     </div>
 
-                    <div className="top-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        {/* Profile Avatar & Menu Dropdown */}
+                    {/* THANH TÌM KIẾM Ở GIỮA */}
+                    <div className="search">
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" placeholder="Tìm kiếm đơn hàng, món ăn..." />
+                    </div>
+
+                    {/* AVATAR BÊN PHẢI */}
+                    <div className="top-actions">
                         <div className="profile" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setShowProfileMenu(!showProfileMenu)}>
-                            {/* Hiển thị avatar quán thật, nếu chưa có thì dùng placeholder */}
                             <img
                                 className="avatar"
-                                src={myShop?.image || "[https://via.placeholder.com/40?text=Shop](https://via.placeholder.com/40?text=Shop)"}
+                                src={myShop?.image || "https://via.placeholder.com/40"}
                                 alt="Avatar"
-                                style={{ objectFit: 'cover' }}
+                                style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                             />
 
-                            {/* Menu Dropdown Đăng xuất */}
                             {showProfileMenu && (
-                                <div style={{ position: 'absolute', top: '120%', right: 0, background: '#fff', border: '1px solid #e5dfd2', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '180px', zIndex: 100, overflow: 'hidden' }}>
-                                    <div style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '13px', color: '#666', background: '#f9f9f9' }}>
-                                        Xin chào, <b>{myShop ? myShop.name : 'Đối tác mới'}</b>
+                                <div style={{ position: 'absolute', top: '120%', right: 0, background: '#fff', border: '1px solid #eee', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: '200px', zIndex: 1000, overflow: 'hidden' }}>
+                                    <div style={{ padding: '12px', borderBottom: '1px solid #f1f5f9', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
+                                        Quán: <b>{myShop?.name || 'Đối tác'}</b>
                                     </div>
-                                    <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '12px', background: 'none', border: 'none', color: '#d00', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '12px', background: 'none', border: 'none', color: '#ef4444', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
                                     </button>
                                 </div>

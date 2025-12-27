@@ -1,438 +1,230 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 
-// Thêm prop 'editFood' để nhận dữ liệu món cần sửa
 function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
-    const [formData, setFormData] = useState({
-        name: '',
-        price: '', // lưu dạng "45000" (raw digits) để dễ format
-        description: ''
-    });
-
+    const [formData, setFormData] = useState({ name: '', price: '', description: '' });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // State cho tùy chọn nâng cao
-    // price lưu dạng chuỗi digits (vd "0", "15000") để hiển thị format
     const [options, setOptions] = useState([{ name: 'Vừa', price: '0' }]);
     const [toppings, setToppings] = useState([]);
 
-    // ====== HELPER: format tiền 45.000 ======
+    // ====== LOGIC HELPERS ======
     const onlyDigits = (val) => String(val ?? '').replace(/\D/g, '');
     const formatVND = (val) => {
         const digits = onlyDigits(val);
-        if (!digits) return '';
-        // thêm dấu chấm phân tách nghìn
-        return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
     };
 
-    // --- EFFECT: ĐIỀN DỮ LIỆU CŨ NẾU LÀ SỬA ---
     useEffect(() => {
         if (isOpen) {
             if (editFood) {
-                // Chế độ Sửa: Fill data cũ
                 setFormData({
                     name: editFood.name || '',
-                    price: onlyDigits(editFood.price ?? ''), // raw digits
+                    price: onlyDigits(editFood.price ?? ''),
                     description: editFood.description || ''
                 });
-
-                // Nếu có ảnh cũ thì hiện preview (ảnh online/local)
-                if (editFood.image) {
-                    // Không cần check startsWith hay cộng localhost nữa
-                    setImagePreview(editFood.image);
-                } else {
-                    setImagePreview('');
-                }
-
-                // Fill options & toppings (nếu có) + convert price về digits string
-                if (editFood.options && editFood.options.length > 0) {
-                    setOptions(
-                        editFood.options.map((o) => ({
-                            name: o.name || '',
-                            price: onlyDigits(o.price ?? '0')
-                        }))
-                    );
-                } else {
-                    setOptions([{ name: 'Vừa', price: '0' }]);
-                }
-
-                if (editFood.toppings && editFood.toppings.length > 0) {
-                    setToppings(
-                        editFood.toppings.map((t) => ({
-                            name: t.name || '',
-                            price: onlyDigits(t.price ?? '0')
-                        }))
-                    );
-                } else {
-                    setToppings([]);
-                }
-
+                setImagePreview(editFood.image || '');
+                setOptions(editFood.options?.length ? editFood.options.map(o => ({ name: o.name, price: onlyDigits(o.price) })) : [{ name: 'Vừa', price: '0' }]);
+                setToppings(editFood.toppings?.length ? editFood.toppings.map(t => ({ name: t.name, price: onlyDigits(t.price) })) : []);
                 setImageFile(null);
             } else {
-                // Chế độ Thêm mới: Reset trắng
                 setFormData({ name: '', price: '', description: '' });
-                setImageFile(null);
                 setImagePreview('');
                 setOptions([{ name: 'Vừa', price: '0' }]);
                 setToppings([]);
+                setImageFile(null);
             }
         }
     }, [isOpen, editFood]);
 
-    // Text thường
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    // Giá gốc: gõ -> tự format (lưu raw digits)
-    const handleBasePriceChange = (e) => {
-        const digits = onlyDigits(e.target.value);
-        setFormData({ ...formData, price: digits });
-    };
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (!file.type.startsWith('image/')) return alert('Vui lòng chọn file ảnh!');
-            if (file.size > 5 * 1024 * 1024) return alert('Ảnh không được vượt quá 5MB!');
-
-            setImageFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => setImagePreview(reader.result);
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // --- QUẢN LÝ SIZE ---
-    const addOption = () => setOptions([...options, { name: '', price: '' }]);
-    const removeOption = (idx) => setOptions(options.filter((_, i) => i !== idx));
-
-    const updateOption = (idx, field, val) => {
-        const newOpts = [...options];
-        if (field === 'price') {
-            newOpts[idx][field] = onlyDigits(val); // lưu raw digits
-        } else {
-            newOpts[idx][field] = val;
-        }
-        setOptions(newOpts);
-    };
-
-    // --- QUẢN LÝ TOPPING ---
-    const addTopping = () => setToppings([...toppings, { name: '', price: '' }]);
-    const removeTopping = (idx) => setToppings(toppings.filter((_, i) => i !== idx));
-
-    const updateTopping = (idx, field, val) => {
-        const newTopps = [...toppings];
-        if (field === 'price') {
-            newTopps[idx][field] = onlyDigits(val);
-        } else {
-            newTopps[idx][field] = val;
-        }
-        setToppings(newTopps);
-    };
-
     const handleSave = async () => {
-        if (!formData.name || !formData.price) return alert("Nhập tên và giá gốc!");
-
+        if (!formData.name || !formData.price) return alert("Má ơi, nhập tên với giá món đã!");
         setLoading(true);
         try {
             const data = new FormData();
             data.append('name', formData.name);
-
-            // ✅ gửi lên backend là NUMBER (không có dấu chấm)
-            data.append('price', Number(formData.price || 0));
-
+            data.append('price', Number(formData.price));
             data.append('description', formData.description);
             if (imageFile) data.append('image', imageFile);
 
-            // ✅ options/toppings: convert price về number trước khi stringify
-            const optionsPayload = options.map((o) => ({
-                name: o.name,
-                price: Number(onlyDigits(o.price) || 0)
-            }));
-
-            const toppingsPayload = toppings.map((t) => ({
-                name: t.name,
-                price: Number(onlyDigits(t.price) || 0)
-            }));
+            const optionsPayload = options.filter(o => o.name.trim()).map(o => ({ name: o.name, price: Number(onlyDigits(o.price)) }));
+            const toppingsPayload = toppings.filter(t => t.name.trim()).map(t => ({ name: t.name, price: Number(onlyDigits(t.price)) }));
 
             data.append('options', JSON.stringify(optionsPayload));
             data.append('toppings', JSON.stringify(toppingsPayload));
 
             if (editFood) {
-                // --- GỌI API SỬA (PUT) ---
-                /*await axios.put(`http://localhost:5000/api/foods/${editFood._id}`, data, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });*/
-                await api.put(`/foods/${editFood._id}`, data, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-                alert("Cập nhật món thành công!");
+                await api.put(`/foods/${editFood._id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
             } else {
-                // --- GỌI API THÊM (POST) ---
-                if (!restaurantId) return alert("Lỗi ID quán!");
                 data.append('restaurantId', restaurantId);
-
-                /*await axios.post('http://localhost:5000/api/foods', data, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });*/
-                await api.post('api/foods', data, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-                alert("Thêm món thành công!");
+                await api.post('/foods', data, { headers: { 'Content-Type': 'multipart/form-data' } });
             }
-
-            onRefresh();
-            onClose();
+            onRefresh(); onClose();
         } catch (error) {
-            alert("Lỗi: " + (error.response?.data?.message || error.message));
-        } finally {
-            setLoading(false);
-        }
+            alert("Lỗi rồi má: " + (error.response?.data?.message || error.message));
+        } finally { setLoading(false); }
     };
 
     if (!isOpen) return null;
 
+    // ====== HỆ THỐNG STYLES NẰM TRONG FILE ======
+    const S = {
+        overlay: {
+            position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 9999, padding: '20px'
+        },
+        sheet: {
+            background: '#fff', width: '100%', maxWidth: '650px', borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex',
+            flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', position: 'relative'
+        },
+        header: {
+            padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex',
+            justifyContent: 'space-between', alignItems: 'center', background: '#fff'
+        },
+        body: { padding: '24px', overflowY: 'auto', background: '#f8fafc' },
+        card: {
+            background: '#fff', borderRadius: '16px', padding: '20px',
+            border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        },
+        label: { display: 'block', fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' },
+        input: {
+            width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0',
+            fontSize: '15px', outline: 'none', transition: 'all 0.2s', background: '#fff'
+        },
+        imageZone: {
+            width: '100%', height: '140px', borderRadius: '12px', border: '2px dashed #cbd5e1',
+            background: '#f1f5f9', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden'
+        }
+    };
+
     return (
-        <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 9999, opacity: 1, visibility: 'visible'
-        }}>
-            <div style={{
-                background: '#fff', width: '90%', maxWidth: '650px',
-                borderRadius: '16px', maxHeight: '90vh', display: 'flex',
-                flexDirection: 'column', boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
-            }}>
-                <div style={{
-                    padding: '16px 20px', borderBottom: '1px solid #eee',
-                    display: 'flex', justifyContent: 'space-between',
-                    alignItems: 'center', background: '#FFFCF5'
-                }}>
-                    <h3 style={{ margin: 0, fontSize: 18 }}>
-                        {editFood ? 'Chỉnh sửa món ăn' : 'Thêm món mới'}
-                    </h3>
-                    <button onClick={onClose} style={{
-                        border: 'none', background: 'transparent',
-                        fontSize: 24, cursor: 'pointer'
-                    }}>×</button>
+        <div style={S.overlay}>
+            <div style={S.sheet}>
+                {/* Header */}
+                <div style={S.header}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', background: '#FFF1ED', borderRadius: '10px', display: 'grid', placeItems: 'center' }}>
+                            <i className={`fa-solid ${editFood ? 'fa-pen-to-square' : 'fa-plus'}`} style={{ color: '#F97350' }}></i>
+                        </div>
+                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                            {editFood ? 'Cập nhật món ăn' : 'Thêm món ăn mới'}
+                        </h3>
+                    </div>
+                    <button onClick={onClose} style={{ border: 'none', background: '#f1f5f9', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '20px', color: '#64748b' }}>×</button>
                 </div>
 
-                <div style={{ padding: '20px', overflowY: 'auto' }}>
-                    <div className="sec">
-                        <h4 style={{ margin: '0 0 10px', fontSize: 14, color: '#666', textTransform: 'uppercase' }}>
-                            Thông tin cơ bản
-                        </h4>
-
-                        <div style={{ marginBottom: 15 }}>
-                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 5 }}>
-                                Tên món *
-                            </label>
-                            <input
-                                className="wiz-input"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                placeholder="VD: Bún Bò Huế"
-                                style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 8 }}
-                            />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15, marginBottom: 15 }}>
+                <div style={S.body}>
+                    {/* Thông tin cơ bản */}
+                    <div style={S.card}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px', marginBottom: '20px' }}>
                             <div>
-                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 5 }}>
-                                    Giá gốc (VNĐ) *
-                                </label>
-
-                                {/* ✅ input hiển thị 45.000 nhưng lưu raw digits */}
+                                <label style={S.label}>Tên món ăn *</label>
                                 <input
-                                    className="wiz-input"
-                                    type="text"
-                                    inputMode="numeric"
-                                    name="price"
-                                    value={formatVND(formData.price)}
-                                    onChange={handleBasePriceChange}
-                                    placeholder="45.000"
-                                    onWheel={(e) => e.currentTarget.blur()}
-                                    style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 8 }}
+                                    style={S.input}
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="VD: Phở Bò Tái Lăn"
                                 />
                             </div>
-
                             <div>
-                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 5 }}>
-                                    Ảnh món
-                                </label>
-                                <input type="file" accept="image/*" onChange={handleImageChange} style={{ width: '100%', padding: 8 }} />
+                                <label style={S.label}>Giá bán gốc *</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        style={{ ...S.input, textAlign: 'right', paddingRight: '35px' }}
+                                        value={formatVND(formData.price)}
+                                        onChange={(e) => setFormData({ ...formData, price: onlyDigits(e.target.value) })}
+                                        placeholder="0"
+                                    />
+                                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontWeight: 'bold', fontSize: '13px' }}>đ</span>
+                                </div>
                             </div>
                         </div>
 
-                        {imagePreview && (
-                            <div style={{ marginBottom: 15, textAlign: 'center' }}>
-                                <img src={imagePreview} alt="Preview" style={{ height: 100, borderRadius: 8, border: '1px solid #ddd' }} />
+                        {/* Upload Ảnh */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={S.label}>Hình ảnh món ăn</label>
+                            <div style={S.imageZone} onClick={() => document.getElementById('fileInput').click()}>
+                                {imagePreview ? (
+                                    <img src={imagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
+                                ) : (
+                                    <>
+                                        <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '24px', color: '#94a3b8', marginBottom: '8px' }}></i>
+                                        <span style={{ fontSize: '13px', color: '#64748b' }}>Nhấn để tải ảnh lên</span>
+                                    </>
+                                )}
+                                <input id="fileInput" type="file" hidden onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        setImageFile(file);
+                                        setImagePreview(URL.createObjectURL(file));
+                                    }
+                                }} />
                             </div>
-                        )}
+                        </div>
 
-                        <div style={{ marginBottom: 15 }}>
-                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 5 }}>
-                                Mô tả ngắn
-                            </label>
+                        <div>
+                            <label style={S.label}>Mô tả món</label>
                             <textarea
-                                className="note"
-                                name="description"
+                                style={{ ...S.input, minHeight: '80px', resize: 'none' }}
                                 value={formData.description}
-                                onChange={handleChange}
-                                placeholder="Mô tả thành phần..."
-                                style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 8, minHeight: 60 }}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Mô tả thành phần, hương vị..."
                             />
                         </div>
                     </div>
 
-                    <div style={{ borderTop: '1px dashed #eee', margin: '20px 0' }}></div>
-
-                    <div className="sec">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                            <h4 style={{ margin: 0, fontSize: 14, color: '#666', textTransform: 'uppercase' }}>
-                                Kích cỡ / Phân loại
-                            </h4>
-                            <button
-                                type="button"
-                                className="btn small soft"
-                                onClick={addOption}
-                                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-                            >
-                                + Thêm size
-                            </button>
+                    {/* Options & Toppings */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        {/* SIZE */}
+                        <div style={{ ...S.card, marginBottom: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <span style={{ fontWeight: '800', fontSize: '14px', color: '#1e293b' }}>KÍCH CỠ</span>
+                                <button onClick={() => setOptions([...options, { name: '', price: '' }])} style={{ border: 'none', background: '#FFF1ED', color: '#F97350', fontSize: '11px', fontWeight: '800', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}>+ THÊM</button>
+                            </div>
+                            {options.map((opt, i) => (
+                                <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                    <input style={{ ...S.input, padding: '8px 12px', fontSize: '13px' }} placeholder="Size" value={opt.name} onChange={(e) => { const n = [...options]; n[i].name = e.target.value; setOptions(n); }} />
+                                    <input style={{ ...S.input, padding: '8px 12px', width: '80px', fontSize: '13px', textAlign: 'right' }} placeholder="+0" value={formatVND(opt.price)} onChange={(e) => { const n = [...options]; n[i].price = onlyDigits(e.target.value); setOptions(n); }} />
+                                    <button onClick={() => setOptions(options.filter((_, idx) => idx !== i))} style={{ border: 'none', background: '#fee2e2', color: '#ef4444', width: '32px', borderRadius: '8px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
+                                </div>
+                            ))}
                         </div>
 
-                        {options.map((opt, idx) => (
-                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 10, marginBottom: 10 }}>
-                                <input
-                                    placeholder="Tên (VD: Lớn)"
-                                    value={opt.name}
-                                    onChange={(e) => updateOption(idx, 'name', e.target.value)}
-                                    style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
-                                />
-
-                                {/* ✅ Giá size: hiển thị format */}
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="Giá thêm"
-                                    value={formatVND(opt.price)}
-                                    onChange={(e) => updateOption(idx, 'price', e.target.value)}
-                                    onWheel={(e) => e.currentTarget.blur()}
-                                    style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
-                                />
-
-                                <button
-                                    className="btn danger small"
-                                    onClick={() => removeOption(idx)}
-                                    style={{
-                                        //background: '#fee2e2',
-                                        border: 'none',
-                                        borderRadius: 6,
-                                        width: 30,
-                                        height: 30,
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: 0
-                                    }}
-                                >
-                                    <img
-                                        src="/images/remove.png"
-                                        alt="Xóa"
-                                        style={{ width: 20, height: 20 }}
-                                    />
-                                </button>
+                        {/* TOPPING */}
+                        <div style={{ ...S.card, marginBottom: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <span style={{ fontWeight: '800', fontSize: '14px', color: '#1e293b' }}>TOPPING</span>
+                                <button onClick={() => setToppings([...toppings, { name: '', price: '' }])} style={{ border: 'none', background: '#F0FDF4', color: '#16a34a', fontSize: '11px', fontWeight: '800', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}>+ THÊM</button>
                             </div>
-                        ))}
-                    </div>
-
-                    <div style={{ borderTop: '1px dashed #eee', margin: '20px 0', paddingTop: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                            <h4 style={{ margin: 0, fontSize: 14, color: '#666' }}>TOPPING MÓN THÊM</h4>
-                            <button
-                                type="button"
-                                className="btn small soft"
-                                onClick={addTopping}
-                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-                            >
-                                + Thêm
-                            </button>
+                            {toppings.map((top, i) => (
+                                <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                    <input style={{ ...S.input, padding: '8px 12px', fontSize: '13px' }} placeholder="Tên" value={top.name} onChange={(e) => { const n = [...toppings]; n[i].name = e.target.value; setToppings(n); }} />
+                                    <input style={{ ...S.input, padding: '8px 12px', width: '80px', fontSize: '13px', textAlign: 'right' }} placeholder="0" value={formatVND(top.price)} onChange={(e) => { const n = [...toppings]; n[i].price = onlyDigits(e.target.value); setToppings(n); }} />
+                                    <button onClick={() => setToppings(toppings.filter((_, idx) => idx !== i))} style={{ border: 'none', background: '#fee2e2', color: '#ef4444', width: '32px', borderRadius: '8px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
+                                </div>
+                            ))}
                         </div>
-
-                        {toppings.map((top, idx) => (
-                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 10, marginBottom: 10 }}>
-                                <input
-                                    placeholder="Tên (VD: Chả)"
-                                    value={top.name}
-                                    onChange={(e) => updateTopping(idx, 'name', e.target.value)}
-                                    style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
-                                />
-
-                                {/* ✅ Giá topping: hiển thị format */}
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="Giá bán"
-                                    value={formatVND(top.price)}
-                                    onChange={(e) => updateTopping(idx, 'price', e.target.value)}
-                                    onWheel={(e) => e.currentTarget.blur()}
-                                    style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
-                                />
-
-                                <button
-                                    className="btn danger small"
-                                    onClick={() => removeTopping(idx)}
-                                    style={{
-                                        //background: '#fee2e2',
-                                        border: 'none',
-                                        borderRadius: 6,
-                                        width: 30,
-                                        height: 30,
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: 0
-                                    }}
-                                >
-                                    <img
-                                        src="/images/remove.png"
-                                        alt="Xóa"
-                                        style={{ width: 20, height: 20 }}
-                                    />
-                                </button>
-                            </div>
-                        ))}
                     </div>
                 </div>
 
-                <div style={{
-                    padding: '16px 20px', borderTop: '1px solid #eee',
-                    display: 'flex', justifyContent: 'flex-end', gap: 10, background: '#fff'
-                }}>
-                    <button onClick={onClose} style={{
-                        padding: '10px 20px', borderRadius: 8, border: '1px solid #ddd',
-                        background: '#fff', cursor: 'pointer'
-                    }}>
-                        Hủy
-                    </button>
-
+                {/* Footer Action */}
+                <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#fff' }}>
+                    <button onClick={onClose} style={{ border: 'none', background: 'none', color: '#64748b', fontWeight: '700', cursor: 'pointer', padding: '12px 20px' }}>Hủy bỏ</button>
                     <button
-                        className="btn primary"
                         onClick={handleSave}
                         disabled={loading}
                         style={{
-                            padding: '10px 20px', borderRadius: 8, border: 'none',
-                            background: '#F97350', color: '#fff', fontWeight: 'bold', cursor: 'pointer'
+                            background: '#F97350', color: '#fff', border: 'none',
+                            padding: '12px 32px', borderRadius: '14px', fontWeight: '800',
+                            cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                            boxShadow: '0 4px 12px rgba(249, 115, 80, 0.3)'
                         }}
                     >
-                        {loading ? 'Đang lưu...' : (editFood ? 'Cập nhật món' : 'Lưu món ăn')}
+                        {loading ? 'Đang lưu...' : (editFood ? 'Cập nhật món' : 'Thêm vào menu')}
                     </button>
                 </div>
             </div>

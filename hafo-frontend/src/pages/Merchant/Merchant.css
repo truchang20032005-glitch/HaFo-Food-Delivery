@@ -39,12 +39,15 @@ header.top {
 }
 
 .top-inner {
-    max-width: 1260px;
+    max-width: 1200px;
+    /* Thu hẹp lại để các thành phần gần nhau hơn */
     margin: 0 auto;
     display: flex;
-    gap: 12px;
+    justify-content: space-between;
+    /* Đẩy logo qua trái, avatar qua phải */
     align-items: center;
-    padding: 12px 16px
+    padding: 12px 24px;
+    gap: 20px;
 }
 
 .brand {
@@ -61,16 +64,56 @@ header.top {
 }
 
 .search {
-    flex: 1;
+    position: relative;
+    /* Quan trọng để định vị icon */
+    width: 450px;
+    /* Độ dài cố định vừa phải */
     display: flex;
-    gap: 8px
+    align-items: center;
 }
 
 .search input {
-    flex: 1;
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: 10px
+    width: 100%;
+    padding: 10px 15px 10px 45px;
+    /* Chừa chỗ 45px cho icon bên trái */
+    border: 1.5px solid #e2e8f0;
+    /* Viền mỏng tinh tế */
+    border-radius: 25px;
+    /* Bo tròn kiểu hiện đại */
+    background: #f8fafc;
+    /* Nền xám nhạt cho sang */
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+/* --- SỬA LẠI ICON TRONG SEARCH --- */
+.search i {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    /* Màu icon xám nhạt */
+    font-size: 15px;
+    pointer-events: none;
+}
+
+.search input:focus {
+    outline: none;
+    border-color: var(--cam);
+    /* Đổi màu viền khi bấm vào */
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(249, 115, 80, 0.12);
+    /* Đổ bóng nhẹ */
+}
+
+/* --- ĐẢM BẢO AVATAR LUÔN Ở BÊN PHẢI --- */
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+    /* Không cho phần này bị co lại */
 }
 
 .btn {
@@ -151,15 +194,19 @@ header.top {
 }
 
 main.wrap {
-    max-width: 1260px;
-    margin: 18px auto 40px;
-    padding: 0 16px
+    max-width: 1200px;
+    /* GIẢM TỪ 1260px xuống 1100px để tổng thể gọn gàng */
+    margin: 20px auto 40px;
+    padding: 0 24px;
 }
 
 .grid {
     display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 16px
+    /* Giảm từ 280px xuống còn 220px hoặc 240px */
+    grid-template-columns: 80px 1fr;
+    /* Giảm gap nếu muốn sát hơn nữa */
+    gap: 10px;
+    align-items: start;
 }
 
 @media(max-width:1000px) {
@@ -170,11 +217,9 @@ main.wrap {
 
 aside {
     position: sticky;
-    top: 64px;
-    align-self: start;
-    display: flex;
-    flex-direction: column;
-    gap: 10px
+    top: 85px;
+    width: 240px;
+    /* Khớp với cột grid ở trên */
 }
 
 .panel {
@@ -182,14 +227,23 @@ aside {
     border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, .04);
-    overflow: hidden
+    overflow: hidden;
+    margin-bottom: 24px;
+    /* THÊM DÒNG NÀY: Để các khung cách nhau 24px */
 }
 
 .panel .head {
-    padding: 12px 14px;
-    background: #FFFCF5;
-    border-bottom: 1px solid #efe6d7;
-    font-weight: 800
+    padding: 16px 24px;
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+    font-weight: 800;
+    font-size: 17px;
+
+    /* HAI DÒNG QUAN TRỌNG NHẤT ĐỂ ĐẨY NÚT SANG PHẢI */
+    display: flex;
+    justify-content: space-between;
+
+    align-items: center;
 }
 
 .panel .body {
@@ -409,14 +463,26 @@ th {
 }
 
 .modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, .35);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    z-index: 40
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+
+    /* BỎ LÀM MỜ VÀ LÀM TỐI */
+    background: transparent !important;
+    /* Không dùng màu nền tối */
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: none !important;
+    /* Không làm nhòe nền đằng sau */
+
+    /* CĂN GIỮA TUYỆT ĐỐI */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    z-index: 99999 !important;
+    pointer-events: auto;
 }
 
 .modal.show {
@@ -424,10 +490,20 @@ th {
 }
 
 .sheet {
-    width: min(920px, 100%);
+    background: #fff;
+    width: 100%;
+    max-width: 700px;
     max-height: 90vh;
-    overflow: auto;
-    border-radius: 16px
+    border-radius: 24px;
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    /* Đảm bảo nó tự nằm giữa cái .modal */
+    margin: auto !important;
+    position: relative;
 }
 
 .sheet .head {
@@ -589,13 +665,43 @@ textarea:focus {
     .modal {
         padding: 0;
     }
-    
+
     .sheet {
         border-radius: 0;
         max-height: 100vh;
     }
-    
+
     .modal .sheet .body {
         max-height: calc(100vh - 60px);
+    }
+}
+
+.f-input {
+    width: 100%;
+    border: 1.5px solid #E2E8F0;
+    transition: all 0.3s ease;
+}
+
+.f-input:focus {
+    border-color: var(--cam);
+    background: #fff;
+    box-shadow: 0 0 0 4px var(--cam-nhat);
+    outline: none;
+}
+
+/* Hiệu ứng mượt cho modal */
+.modal.show {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

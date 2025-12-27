@@ -1,264 +1,225 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Thiết lập Icon
+const customerIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1239/1239525.png', iconSize: [35, 35], iconAnchor: [17, 35] });
+const shipperIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40], iconAnchor: [20, 40] });
+const restaurantIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448609.png', iconSize: [35, 35], iconAnchor: [17, 35] });
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 const toClock = (d) => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
 
 function OrderTracking() {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
     const [shipper, setShipper] = useState(null);
-    const [showModal, setShowModal] = useState(false); // Modal xác nhận
+    const [restaurant, setRestaurant] = useState(null);
+    const [showModal, setShowModal] = useState(false);
 
-    const fetchOrder = async () => {
+    const fetchData = useCallback(async () => {
         try {
-            //const res = await axios.get(`http://localhost:5000/api/orders/${id}`);
-            const res = await api.get(`/orders/${id}`);
-            setOrder(res.data);
-            if (res.data.shipperId) {
-                fetchShipperInfo(res.data.shipperId);
+            const resOrder = await api.get(`/orders/${id}`);
+            const orderData = resOrder.data;
+            setOrder(orderData);
+            if (orderData.restaurantId) {
+                const resRest = await api.get(`/restaurants/${orderData.restaurantId}`);
+                setRestaurant(resRest.data.restaurant || resRest.data);
             }
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const fetchShipperInfo = async (shipperId) => {
-        try {
-            //const res = await axios.get(`http://localhost:5000/api/shippers/profile/${shipperId}`);
-            const res = await api.get(`/shippers/profile/${shipperId}`);
-            setShipper(res.data);
-        } catch (err) {
-            console.error("Chưa tìm thấy thông tin tài xế");
-        }
-    };
-
-    useEffect(() => {
-        fetchOrder();
-        const interval = setInterval(fetchOrder, 3000); // Cập nhật nhanh hơn (3s)
-        return () => clearInterval(interval);
+            if (orderData.shipperId) {
+                const resShip = await api.get(`/shippers/profile/${orderData.shipperId}`);
+                setShipper(resShip.data);
+            }
+        } catch (err) { console.error("Lỗi đồng bộ:", err); }
     }, [id]);
 
-    // HÀM XỬ LÝ KHI BẤM "ĐÃ NHẬN HÀNG"
+    useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, 5000);
+        return () => clearInterval(interval);
+    }, [fetchData]);
+
+    const realStats = useMemo(() => {
+        if (!order) return { distance: 0, eta: 0 };
+        const fromLat = shipper?.lat || restaurant?.lat;
+        const fromLng = shipper?.lng || restaurant?.lng;
+        const dist = calculateDistance(fromLat, fromLng, order.lat, order.lng);
+        return { distance: dist.toFixed(1), eta: Math.ceil(dist * 4 + 3) };
+    }, [order, shipper, restaurant]);
+
     const handleReceiveOrder = async () => {
         try {
-            // Gọi API cập nhật trạng thái thành 'done'
-            //await axios.put(`http://localhost:5000/api/orders/${id}`, { status: 'done' });
             await api.put(`/orders/${id}`, { status: 'done' });
-            setShowModal(false); // Tắt modal
-            fetchOrder(); // Load lại dữ liệu mới
-            alert("Cảm ơn bạn đã mua hàng! Đơn hàng đã hoàn tất.");
-        } catch (err) {
-            alert("Lỗi cập nhật: " + err.message);
-        }
+            setShowModal(false); fetchData(); alert("🎉 Đã nhận đơn hàng!");
+        } catch (err) { alert(err.message); }
     };
 
-    if (!order) return <div style={{ padding: '50px', textAlign: 'center' }}>Đang tải...</div>;
+    if (!order) return <div style={{ padding: '80px', textAlign: 'center', background: '#F7F2E5', minHeight: '100vh' }}>Đang tải...</div>;
 
-    // --- LOGIC MAPPING 6 BƯỚC ---
-    // Backend status: new -> prep -> pickup -> done
-    // Timeline 6 bước: 
-    // 0: Đã nhận | 1: Xác nhận | 2: Chuẩn bị | 3: TX nhận | 4: Đang giao | 5: Đã giao
-
-    let currentStepIndex = 0;
-    if (order.status === 'new') currentStepIndex = 0;
-    if (order.status === 'prep') currentStepIndex = 2;
-    if (order.status === 'ready') currentStepIndex = 3;
-    if (order.status === 'pickup') currentStepIndex = 4;
-    if (order.status === 'done') currentStepIndex = 5;
-
+    const currentStepIndex = order.status === 'new' ? 0 : order.status === 'prep' ? 2 : order.status === 'ready' ? 3 : order.status === 'pickup' ? 4 : order.status === 'done' ? 5 : 0;
     const steps = [
-        { title: 'Đã nhận đơn', icon: 'fa-check', note: 'Chờ nhà hàng xác nhận' },
-        { title: 'Nhà hàng xác nhận', icon: 'fa-store', note: 'Đang chuẩn bị món' },
-        { title: 'Đang chuẩn bị', icon: 'fa-fire-burner', note: 'Bếp đang nấu' },
-        { title: 'Chờ lấy món', icon: 'fa-box', note: 'Món đã xong, chờ Shipper' },
-        { title: 'Đang giao hàng', icon: 'fa-motorcycle', note: 'Tài xế đang đến' },
-        { title: 'Giao thành công', icon: 'fa-flag-checkered', note: 'Bạn đã nhận món' }
+        { title: 'Đã nhận đơn', icon: 'fa-check' }, { title: 'Xác nhận', icon: 'fa-store' },
+        { title: 'Đang làm món', icon: 'fa-fire-burner' }, { title: 'Chờ shipper', icon: 'fa-box' },
+        { title: 'Đang giao hàng', icon: 'fa-motorcycle' }, { title: 'Hoàn tất đơn hàng', icon: 'fa-flag-checkered' }
     ];
 
-    // Nút nhận hàng chỉ sáng khi đang giao (pickup)
-    const canReceive = order.status === 'pickup';
+    // ✅ COPY 100% STYLE TỪ CHECKOUT.JS
+    const S = {
+        container: { background: '#F7F2E5', minHeight: '100vh', paddingBottom: '50px' },
+        wrapper: { maxWidth: '1200px', margin: '30px auto', padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 450px', gap: '30px', alignItems: 'start' },
+        card: { background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', overflow: 'hidden' },
+        header: { margin: '0 0 20px', fontSize: '18px', fontWeight: '700', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }
+    };
 
     return (
-        <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>
+        <div style={S.container}>
             <Navbar />
 
-            <header className="header" style={{ background: '#fff', borderBottom: '1px solid #e9e4d8', padding: '10px 0' }}>
-                <div className="container hop" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0 }}>Theo dõi đơn hàng</h3>
-                    <Link to="/" style={{ textDecoration: 'none', color: '#6b625d', fontWeight: 'bold' }}>← Về trang chủ</Link>
-                </div>
-            </header>
+            {/* Link quay lại cũng nằm trong khung 1200px */}
+            <div style={{ maxWidth: '1200px', margin: '20px auto 0', padding: '0 20px' }}>
+                <Link to="/" style={{ textDecoration: 'none', color: '#F97350', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-chevron-left"></i> Tiếp tục mua sắm
+                </Link>
+            </div>
 
-            <main className="hop" style={{ margin: '20px auto', display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
-
-                {/* CỘT TRÁI */}
-                <section>
-                    {/* Thẻ trạng thái chính */}
-                    <div className="status">
-                        <div className="badge-eta">
-                            <div style={{ fontSize: '20px', fontWeight: '900' }}>20</div>
-                            <small>phút</small>
+            <main style={S.wrapper}>
+                {/* CỘT TRÁI: TIẾN ĐỘ & BẢN ĐỒ */}
+                <section style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                    <div style={{ ...S.card, display: 'flex', alignItems: 'center', gap: '30px', background: 'linear-gradient(135deg, #fff 0%, #FFF8F5 100%)' }}>
+                        <div style={{ background: '#F97350', color: '#fff', padding: '18px 28px', borderRadius: '18px', textAlign: 'center' }}>
+                            <div style={{ fontSize: '32px', fontWeight: '900' }}>{realStats.eta}</div>
+                            <div style={{ fontSize: '11px', fontWeight: '800' }}>PHÚT</div>
                         </div>
                         <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <div><b>{steps[currentStepIndex].title}</b> <span style={{ color: '#666', fontSize: '13px' }}>| #{order._id.slice(-6).toUpperCase()}</span></div>
-                                <div style={{ fontSize: '12px' }}><i className="fa-solid fa-location-dot"></i> 2,1 km</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <b style={{ fontSize: '20px' }}>{steps[currentStepIndex].title}</b>
+                                <span style={{ color: '#F97350', fontWeight: '900' }}><i className="fa-solid fa-map-location-dot"></i> {realStats.distance} km</span>
                             </div>
-                            <div className="progress">
-                                <span style={{ width: `${(currentStepIndex / 5) * 100}%` }}></span>
+                            <div style={{ fontSize: '13px', color: '#888', marginTop: '6px' }}>Mã đơn: <span style={{ fontWeight: '700' }}>#{order._id.slice(-6).toUpperCase()}</span></div>
+                            <div style={{ marginTop: '18px', height: '10px', background: '#eee', borderRadius: '10px', overflow: 'hidden' }}>
+                                <div style={{ width: `${(currentStepIndex / 5) * 100}%`, height: '100%', background: '#F97350', transition: 'width 1s' }}></div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Bản đồ */}
-                    <div className="map-wrap" style={{ marginTop: '15px', borderRadius: '14px', overflow: 'hidden', border: '1px solid #e5dfd2', height: '220px' }}>
-                        <img src="/images/map.jpg" onError={(e) => e.target.src = 'https://via.placeholder.com/800x400?text=Map'} alt="Map" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ ...S.card, height: '400px', padding: 0 }}>
+                        <MapContainer center={[order.lat || 10.762, order.lng || 106.660]} zoom={15} style={{ height: '100%', width: '100%' }}>
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            {order.lat && <Marker position={[order.lat, order.lng]} icon={customerIcon} />}
+                            {shipper?.lat ? (
+                                <>
+                                    <Marker position={[shipper.lat, shipper.lng]} icon={shipperIcon} />
+                                    <Polyline positions={[[order.lat, order.lng], [shipper.lat, shipper.lng]]} color="#F97350" dashArray="10, 10" />
+                                </>
+                            ) : (restaurant?.lat && <Marker position={[restaurant.lat, restaurant.lng]} icon={restaurantIcon} />)}
+                        </MapContainer>
                     </div>
 
-                    {/* Timeline 6 Bước */}
-                    <div className="card" style={{ marginTop: '15px', background: '#fff', padding: '20px', borderRadius: '14px', border: '1px solid #eadfcd' }}>
-                        <h4 style={{ marginTop: 0, paddingBottom: '10px', borderBottom: '1px solid #eee' }}>Tiến trình chi tiết</h4>
+                    <div style={S.card}>
+                        <h4 style={{ ...S.header, margin: '0 0 20px', borderLeft: '4px solid #F97350', paddingLeft: '12px' }}>Tiến độ đơn hàng</h4>
                         <div className="timeline">
                             {steps.map((step, i) => (
                                 <div key={i} className={`step ${i < currentStepIndex ? 'done' : (i === currentStepIndex ? 'current' : '')}`}>
                                     <div className="dot"><i className={`fa-solid ${step.icon}`}></i></div>
-                                    <div>
-                                        <div className="title">{step.title}</div>
-                                        <div className="meta">{step.note}</div>
-                                    </div>
-                                    <div className="time">
-                                        {/* Giả lập thời gian: Hiện giờ thật cho bước 1 và bước hiện tại */}
-                                        {(i === 0 || i === currentStepIndex) ? toClock(order.createdAt) : ''}
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 'bold' }}>{step.title}</div>
+                                        <div style={{ fontSize: '12px', color: '#999' }}>{i <= currentStepIndex ? toClock(order.createdAt) : '--:--'}</div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
-
-                    {/* BANNER CẢM ƠN & ĐÁNH GIÁ */}
-                    {order.status === 'done' && (
-                        <div className="thank show" style={{ marginTop: '15px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <i className="fa-solid fa-circle-check" style={{ color: '#22C55E', fontSize: '24px' }}></i>
-                                <div>
-                                    <b>Đơn hàng đã hoàn tất! Cảm ơn bạn.</b>
-                                    <div style={{ fontSize: '13px', marginTop: '4px', color: '#666' }}>Hãy đánh giá để chúng tôi phục vụ tốt hơn.</div>
-                                </div>
-                            </div>
-                            <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
-                                <Link to={`/review/${order._id}`} className="btn primary" style={{ textDecoration: 'none', display: 'inline-block' }}>
-                                    Viết đánh giá
-                                </Link>
-                                <Link to="/" className="btn soft" style={{ textDecoration: 'none', display: 'inline-block' }}>
-                                    Về trang chủ
-                                </Link>
-                            </div>
-                        </div>
-                    )}
                 </section>
 
-                {/* CỘT PHẢI */}
-                <aside>
-                    {/* Tài xế */}
-                    {/* --- THÔNG TIN TÀI XẾ (Chỉ hiện khi có shipperId) --- */}
-                    <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd', marginBottom: '15px' }}>
-                        <h4 style={{ marginTop: 0 }}><i className="fa-solid fa-motorcycle"></i> Tài xế</h4>
-
-                        {order.shipperId && shipper ? (
-                            <>
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '10px' }}>
-                                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#ddd', backgroundImage: `url(${shipper.avatar || '/images/shipper.jpg'})` }}></div>
+                {/* CỘT PHẢI: CHI TIẾT ĐÚNG 450PX */}
+                <aside style={{ display: 'flex', flexDirection: 'column', gap: '25px', width: '450px' }}>
+                    <div style={S.card}>
+                        <h3 style={S.header}><i className="fa-solid fa-motorcycle" style={{ color: '#F97350' }}></i> Thông tin vận chuyển</h3>
+                        <div style={{ minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {order.shipperId && shipper ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%' }}>
+                                    <img src={shipper.user?.avatar || 'https://via.placeholder.com/75'} alt="Ava" style={{ width: '75px', height: '75px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #FFF1ED' }} />
                                     <div>
-                                        <div style={{ fontWeight: '800' }}>{shipper.user?.fullName || 'Tài xế HaFo'}</div>
-                                        <div style={{ fontSize: '12px', color: '#666' }}>{shipper.licensePlate} · {shipper.vehicleType}</div>
+                                        <div style={{ fontWeight: '900', fontSize: '18px' }}>{shipper.user?.fullName}</div>
+                                        <div style={{ fontSize: '14px', color: '#666' }}>{shipper.licensePlate} · {shipper.vehicleType}</div>
                                     </div>
                                 </div>
-                                <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                                    <button className="btn soft" style={{ flex: 1 }}>Gọi điện</button>
-                                    <button className="btn soft" style={{ flex: 1 }}>Nhắn tin</button>
+                            ) : (
+                                <div style={{ textAlign: 'center' }}>
+                                    {/* ✅ Vòng xoay Spinner má yêu cầu */}
+                                    <i className="fa-solid fa-spinner fa-spin" style={{ color: '#F97350', fontSize: '32px', marginBottom: '15px' }}></i>
+                                    <div style={{ fontSize: '15px', color: '#666', fontWeight: '700' }}>Đang tìm tài xế gần bạn...</div>
                                 </div>
-                            </>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '20px 0', color: '#666', fontSize: '13px' }}>
-                                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px', color: '#F97350' }}></i>
-                                <div>Đang tìm tài xế gần bạn...</div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* NÚT NHẬN HÀNG */}
-                    <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd', marginBottom: '15px' }}>
-                        <h4 style={{ marginTop: 0 }}><i className="fa-solid fa-bolt"></i> Trạng thái</h4>
-
-                        {/* Nếu status = done thì hiện đã nhận, ngược lại hiện nút bấm */}
-                        {order.status === 'done' ? (
-                            <button className="btn receive active" disabled style={{ cursor: 'default' }}>
-                                <i className="fa-solid fa-check-double"></i> Đã nhận hàng thành công
-                            </button>
-                        ) : (
-                            <button
-                                className={`btn receive ${canReceive ? 'active' : ''}`}
-                                disabled={!canReceive}
-                                onClick={() => setShowModal(true)}
-                            >
-                                <i className="fa-solid fa-box-open"></i> Xác nhận đã nhận hàng
-                            </button>
-                        )}
-
-                        <div style={{ fontSize: '12px', color: '#888', marginTop: '8px', textAlign: 'center' }}>
-                            {canReceive ? 'Chỉ bấm khi bạn đã cầm món trên tay.' : 'Nút sẽ sáng lên khi tài xế đến nơi.'}
+                            )}
                         </div>
                     </div>
 
-                    {/* Tóm tắt */}
-                    <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd' }}>
-                        <h4 style={{ marginTop: 0 }}>Tóm tắt đơn</h4>
-                        <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#333' }}>
-                            {/* SỬA ĐOẠN NÀY */}
-                            {Array.isArray(order.items) ? (
-                                <ul style={{ paddingLeft: 15, margin: 0 }}>
-                                    {order.items.map((it, i) => (
-                                        <li key={i}>{it.quantity}x {it.name} <small>{it.options}</small></li>
-                                    ))}
-                                </ul>
-                            ) : order.items}
+                    <div style={S.card}>
+                        <h3 style={S.header}><i className="fa-solid fa-basket-shopping" style={{ color: '#F97350' }}></i> Chi tiết món ăn</h3>
+                        <div style={{ maxHeight: '350px', overflowY: 'auto', scrollbarWidth: 'thin' }}>
+                            {order.items.map((it, i) => (
+                                <div key={i} style={{ display: 'flex', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #f5f5f5', paddingBottom: '15px' }}>
+                                    <img src={it.image || 'https://via.placeholder.com/65'} alt="food" style={{ width: '65px', height: '65px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #eee' }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800' }}>
+                                            <span>{it.quantity}x {it.name}</span>
+                                            <span style={{ color: '#F97350' }}>{toVND(it.price * it.quantity)}đ</span>
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>{it.options}</div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '15px 0' }} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '16px' }}>
-                            <span>Tổng cộng</span>
-                            <span>{toVND(order.total)}đ</span>
+                        <div style={{ padding: '20px 0 0', borderTop: '2px solid #F7F2E5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '800', fontSize: '18px' }}>TỔNG CỘNG</span>
+                            <span style={{ fontWeight: '900', fontSize: '26px', color: '#F97350' }}>{toVND(order.total)}đ</span>
                         </div>
                     </div>
+
+                    <button
+                        className={`btn-receive-big ${order.status === 'pickup' ? 'active' : ''}`}
+                        disabled={order.status !== 'pickup'}
+                        onClick={() => setShowModal(true)}
+                        style={{
+                            width: '100%', padding: '18px', borderRadius: '40px', border: 'none',
+                            fontSize: '17px', fontWeight: '900', cursor: order.status === 'pickup' ? 'pointer' : 'not-allowed',
+                            background: order.status === 'pickup' ? 'linear-gradient(to right, #22C55E, #16A34A)' : '#e2e8f0',
+                            color: order.status === 'pickup' ? '#fff' : '#94a3b8',
+                            boxShadow: order.status === 'pickup' ? '0 10px 25px rgba(34, 197, 94, 0.3)' : 'none'
+                        }}
+                    >
+                        {order.status === 'done' ? 'ĐƠN HÀNG ĐÃ HOÀN TẤT' : 'ĐÃ NHẬN ĐƯỢC HÀNG'}
+                    </button>
                 </aside>
             </main>
 
             {/* MODAL XÁC NHẬN */}
-            <div className={`overlay ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'flex' : 'none' }}>
-                <div className="modal-box">
-                    <div style={{ padding: '16px', background: '#FFFCF5', borderBottom: '1px solid #eee', fontWeight: 'bold' }}>
-                        Xác nhận đã nhận hàng
-                    </div>
-                    <div style={{ padding: '20px' }}>
-                        <div style={{ fontWeight: '700', marginBottom: '8px' }}>Bạn đã nhận đủ món từ tài xế?</div>
-                        <div style={{ fontSize: '13px', color: '#666' }}>Hành động này sẽ hoàn tất đơn hàng và thanh toán cho tài xế.</div>
-
-                        <div className="act-row">
-                            <button className="btn soft" onClick={() => setShowModal(false)} style={{ border: '1px solid #ddd', background: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Để sau</button>
-
-                            <button
-                                onClick={handleReceiveOrder}
-                                style={{ background: '#22C55E', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
-                            >
-                                <i className="fa-solid fa-circle-check"></i> Đã nhận hàng
-                            </button>
+            {showModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+                    <div style={{ background: '#fff', width: '420px', borderRadius: '32px', padding: '40px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '50px', marginBottom: '15px' }}>😋</div>
+                        <h3 style={{ marginTop: 0, fontSize: '22px', fontWeight: '900' }}>Đồ ăn đã tới nơi?</h3>
+                        <p style={{ color: '#666', fontSize: '14px', marginBottom: '30px' }}>Má hãy kiểm tra món và xác nhận cho shipper nha!</p>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button style={{ flex: 1, padding: '15px', borderRadius: '16px', border: '1px solid #eee', cursor: 'pointer' }} onClick={() => setShowModal(false)}>Chưa có</button>
+                            <button style={{ flex: 1, padding: '15px', borderRadius: '16px', border: 'none', background: '#22C55E', color: '#fff', fontWeight: '800', cursor: 'pointer' }} onClick={handleReceiveOrder}>Đã nhận rồi!</button>
                         </div>
                     </div>
                 </div>
-            </div>
-
+            )}
         </div>
     );
 }

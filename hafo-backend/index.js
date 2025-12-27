@@ -21,6 +21,11 @@ const chatRoutes = require('./routes/chat');
 const promoRoutes = require('./routes/promo');
 const userRoutes = require('./routes/user');
 
+// --- THÊM 2 ROUTE MỚI Ở ĐÂY ---
+const customerReviewRoutes = require('./routes/customerReview');
+const transactionRoutes = require('./routes/transaction');
+const reportRoutes = require('./routes/report');
+
 const app = express();
 const PORT = 5000;
 
@@ -65,6 +70,9 @@ app.use('/api', citiesRoute);
 app.use('/api/chat', chatRoutes);
 app.use('/api/promos', promoRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/customer-reviews', customerReviewRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/reports', reportRoutes);
 app.use("/api/health", (req, res) => {
     console.log('[PING]');
     res.status(200).send('OK');
