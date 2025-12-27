@@ -103,6 +103,10 @@ function AdminLayout() {
                     <Link to="/admin/shippers" className={`nav-item ${isActive('shippers')}`}>
                         <i className="fa-solid fa-motorcycle"></i> Shipper
                     </Link>
+                    <Link to="/admin/reports" className={`nav-item ${isActive('reports')}`}>
+                        <i className="fa-solid fa-triangle-exclamation"></i>
+                        <span>Báo cáo & Khiếu nại</span>
+                    </Link>
                 </div>
 
                 <div className="nav-group">
@@ -121,6 +125,11 @@ function AdminLayout() {
                     </Link>
                     <Link to="/admin/settings" className={`nav-item ${isActive('settings')}`}>
                         <i className="fa-solid fa-sliders"></i> Cấu hình
+                    </Link>
+                    {/* ✅ MỤC ĐỐI SOÁT MỚI */}
+                    <Link to="/admin/transactions" className={`nav-item ${isActive('transactions')}`}>
+                        <i className="fa-solid fa-money-bill-transfer"></i>
+                        <span>Đối soát & Rút tiền</span>
                     </Link>
                 </div>
             </aside>

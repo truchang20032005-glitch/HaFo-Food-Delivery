@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import 'leaflet/dist/leaflet.css';
 
 // Import Customer
 import LandingPage from './pages/Customer/LandingPage';
@@ -47,6 +48,8 @@ import AdminShippers from './pages/Admin/Shippers';
 import AdminOrders from './pages/Admin/AdminOrders';
 import Pending from './pages/Admin/Pending';
 import Settings from './pages/Admin/Settings';
+import AdminTransactions from './pages/Admin/AdminTransactions';
+import AdminReports from './pages/Admin/AdminReports';
 
 function App() {
   const { user, loading } = useAuth(); // Lấy thêm loading từ Context
@@ -131,6 +134,8 @@ function App() {
             <Route path="orders" element={<AdminOrders />} />
             <Route path="pending" element={<Pending />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="reports" element={<AdminReports />} />
           </Route>
         </Routes>
 

@@ -7,10 +7,9 @@ function AdminShippers() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedShipper, setSelectedShipper] = useState(null);
 
-    // 1. GỌI API LẤY DANH SÁCH SHIPPER THẬT
     const fetchShippers = async () => {
         try {
-            const res = await api.get('/shippers'); // Gọi API Backend vừa sửa
+            const res = await api.get('/shippers');
             setShippers(res.data);
         } catch (err) {
             console.error("Lỗi tải danh sách shipper:", err);
@@ -23,19 +22,17 @@ function AdminShippers() {
         fetchShippers();
     }, []);
 
-    // Helper hiển thị ngày
+    // Helper: Định dạng tiền không bị lỗi undefined
+    const toVND = (n) => {
+        if (typeof n !== 'number') return '0đ';
+        return n.toLocaleString('vi-VN') + 'đ';
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('vi-VN');
     };
 
-    // Helper xử lý ảnh (nếu sau này có ảnh đại diện)
-    const getAvatarUrl = (path) => {
-        if (!path) return 'https://via.placeholder.com/150';
-        return path; // Trả về luôn link Cloudinary
-    };
-
-    // Lọc danh sách (Client-side)
     const filteredShippers = shippers.filter(s => {
         const name = s.user?.fullName || '';
         const phone = s.user?.phone || '';
@@ -44,116 +41,138 @@ function AdminShippers() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontWeight: '900', color: '#1e293b' }}>Quản lý đội ngũ tài xế</h3>
                 <button className="btn soft" onClick={fetchShippers} title="Tải lại">
-                    <i className="fa-solid fa-rotate-right"></i>
+                    <i className="fa-solid fa-rotate-right"></i> Làm mới
                 </button>
             </div>
 
-            {/* Bộ lọc */}
             <div style={{ margin: '20px 0', display: 'flex', gap: '10px' }}>
-                <input
-                    placeholder="Tìm theo tên hoặc số điện thoại..."
-                    style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd', flex: 1 }}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {/* Có thể thêm dropdown lọc trạng thái nếu muốn */}
+                <div style={{ position: 'relative', flex: 1 }}>
+                    <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
+                    <input
+                        placeholder="Tìm tài xế theo tên hoặc số điện thoại..."
+                        style={{ padding: '12px 12px 12px 45px', borderRadius: '12px', border: '1px solid #e2e8f0', width: '100%', outline: 'none' }}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
             </div>
 
-            {/* Bảng dữ liệu */}
             <div className="table-wrap">
                 <table>
                     <thead>
                         <tr>
+                            <th>Ảnh</th>
                             <th>Họ tên</th>
                             <th>Số điện thoại</th>
                             <th>Phương tiện</th>
-                            <th>Biển số</th>
                             <th>Đánh giá</th>
-                            <th>Đơn xong</th>
+                            <th style={{ textAlign: 'center' }}>Đơn xong</th>
                             <th>Trạng thái</th>
                             <th>Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {loading ? (
-                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>Đang tải dữ liệu...</td></tr>
-                        ) : filteredShippers.length === 0 ? (
-                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>Không tìm thấy tài xế nào.</td></tr>
-                        ) : (
-                            filteredShippers.map(shipper => (
-                                <tr key={shipper._id}>
-                                    <td><b>{shipper.user?.fullName || 'Chưa cập nhật'}</b></td>
-                                    <td>{shipper.user?.phone || 'N/A'}</td>
-                                    <td>{shipper.vehicleType}</td>
-                                    <td><span style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>{shipper.licensePlate}</span></td>
-                                    <td><span style={{ color: '#F5A524' }}>★</span> {shipper.rating || 5.0}</td>
-                                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{shipper.orders}</td>
-                                    <td>
-                                        {shipper.isAvailable
-                                            ? <span className="badge active">Đang rảnh</span>
-                                            : <span className="badge pending">Đang bận</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <button className="btn view" onClick={() => setSelectedShipper(shipper)}>
-                                            <i className="fa-solid fa-eye"></i> Xem
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
+                        {filteredShippers.map(shipper => (
+                            <tr key={shipper._id}>
+                                <td>
+                                    <img
+                                        src={shipper.user?.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}
+                                        alt="Avatar"
+                                        style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #eee' }}
+                                    />
+                                </td>
+                                <td><b>{shipper.user?.fullName}</b></td>
+                                <td>{shipper.user?.phone}</td>
+                                <td>{shipper.vehicleType} <br /><small style={{ color: '#64748b' }}>{shipper.licensePlate}</small></td>
+                                <td><b style={{ color: '#F5A524' }}>★ {shipper.rating?.toFixed(1) || '5.0'}</b></td>
+
+                                {/* ✅ HIỂN THỊ SỐ ĐƠN THẬT TỪ BACKEND */}
+                                <td style={{ textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <span className="badge" style={{ background: '#F1F5F9', color: '#0F172A', fontWeight: '800', padding: '6px 12px', margin: 0 }}>
+                                            {shipper.orders} đơn
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {shipper.isAvailable
+                                        ? <span className="badge active">Sẵn sàng</span>
+                                        : <span className="badge pending">Đang bận</span>
+                                    }
+                                </td>
+                                <td>
+                                    <button className="btn view" onClick={() => setSelectedShipper(shipper)}>
+                                        <i className="fa-solid fa-eye"></i> Xem
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>
 
-            {/* MODAL CHI TIẾT SHIPPER */}
+            {/* MODAL CHI TIẾT SHIPPER - NÂNG CẤP DỮ LIỆU REAL */}
             {selectedShipper && (
-                <div className="modal-bg" onClick={() => setSelectedShipper(null)}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-                        <div className="avatar-big" style={{ border: '3px solid #F97350' }}>
-                            {/* Hiện tại chưa có trường ảnh avatar riêng cho shipper trong model, dùng tạm ảnh mặc định */}
-                            <img src="/images/shipper.jpg" alt="" onError={(e) => e.target.src = 'https://via.placeholder.com/150'} />
-                        </div>
-                        <h3 style={{ color: '#F97350', textAlign: 'center', marginTop: '10px' }}>
-                            {selectedShipper.user?.fullName}
-                        </h3>
+                <div className="modal-bg" onClick={() => setSelectedShipper(null)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%', borderRadius: '24px', padding: '30px' }}>
 
-                        <div style={{ marginTop: '20px' }}>
-                            <div className="info-line"><b>Email:</b> {selectedShipper.user?.email || 'N/A'}</div>
-                            <div className="info-line"><b>Số điện thoại:</b> {selectedShipper.user?.phone}</div>
-                            <div className="info-line"><b>Phương tiện:</b> {selectedShipper.vehicleType} - {selectedShipper.licensePlate}</div>
-                            <div className="info-line"><b>Khu vực hoạt động:</b> {selectedShipper.currentLocation}</div>
-
-                            <div style={{ display: 'flex', gap: '20px', marginTop: '15px', background: '#fff7ed', padding: '15px', borderRadius: '8px' }}>
-                                <div>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>Đánh giá</div>
-                                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#F5A524' }}>{selectedShipper.rating} ⭐</div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>Đơn hoàn thành</div>
-                                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#F97350' }}>{selectedShipper.orders} đơn</div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>Thu nhập ví</div>
-                                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#22C55E' }}>{selectedShipper.income?.toLocaleString()}đ</div>
-                                </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '25px' }}>
+                            <div className="avatar-big" style={{ border: '4px solid #FFF1ED', width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                {/* ✅ Sử dụng ảnh thực tế từ Backend */}
+                                <img
+                                    src={selectedShipper.user?.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}
+                                    alt="Shipper Avatar"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={(e) => e.target.src = 'https://via.placeholder.com/150'}
+                                />
                             </div>
-
-                            <div className="info-line" style={{ marginTop: '15px', border: 'none' }}>
-                                <b>Trạng thái:</b>
-                                {selectedShipper.isAvailable
-                                    ? <span className="badge active" style={{ marginLeft: '10px' }}>Đang sẵn sàng nhận đơn</span>
-                                    : <span className="badge pending" style={{ marginLeft: '10px' }}>Đang bận / Tạm nghỉ</span>
-                                }
-                            </div>
-                            <div className="info-line" style={{ border: 'none' }}>
-                                <b>Ngày tham gia:</b> {formatDate(selectedShipper.createdAt)}
-                            </div>
+                            <h3 style={{ color: '#1e293b', marginTop: '15px', fontSize: '22px', fontWeight: '900', marginBottom: '5px' }}>
+                                {selectedShipper.user?.fullName}
+                            </h3>
+                            <span className="badge active" style={{ fontSize: '11px', padding: '4px 12px' }}>TÀI XẾ ĐỐI TÁC</span>
                         </div>
 
-                        <button className="btn-close" onClick={() => setSelectedShipper(null)}>Đóng</button>
+                        <div style={{ background: '#F8FAFC', borderRadius: '20px', padding: '20px', marginBottom: '25px' }}>
+                            <div className="info-line"><b>Email:</b> <span>{selectedShipper.user?.email || 'N/A'}</span></div>
+                            <div className="info-line"><b>SĐT:</b> <span>{selectedShipper.user?.phone}</span></div>
+                            <div className="info-line"><b>Phương tiện:</b> <span>{selectedShipper.vehicleType} ({selectedShipper.licensePlate})</span></div>
+                            <div className="info-line"><b>Khu vực:</b> <span>{selectedShipper.currentLocation || 'Chưa xác định'}</span></div>
+                        </div>
+
+                        {/* Thống kê thu nhập & đánh giá */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', textAlign: 'center', background: '#FFF7ED', padding: '20px', borderRadius: '20px' }}>
+                            <div>
+                                <div style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700' }}>Đánh giá</div>
+                                <div style={{ fontSize: '18px', fontWeight: '900', color: '#F97350' }}>{selectedShipper.rating} ★</div>
+                            </div>
+                            <div style={{ borderLeft: '1px solid #FFEDD5', borderRight: '1px solid #FFEDD5' }}>
+                                <div style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700' }}>Đơn xong</div>
+                                <div style={{ fontSize: '18px', fontWeight: '900', color: '#F97350' }}>{selectedShipper.orders}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700' }}>Số dư ví</div>
+                                <div style={{ fontSize: '18px', fontWeight: '900', color: '#22C55E' }}>{toVND(selectedShipper.income)}</div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '20px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>
+                            Ngày gia nhập: {formatDate(selectedShipper.createdAt)}
+                        </div>
+
+                        {/* ✅ Nút đóng căn giữa tuyệt đối */}
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '30px' }}>
+                            <button
+                                className="btn primary"
+                                onClick={() => setSelectedShipper(null)}
+                                style={{ width: '180px', padding: '12px', borderRadius: '15px', fontWeight: '800', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                Đóng thông tin
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

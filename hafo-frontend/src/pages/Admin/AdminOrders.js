@@ -130,52 +130,102 @@ function AdminOrders() {
 
             {/* MODAL CHI TIẾT ĐƠN HÀNG (REAL DATA) */}
             {selectedOrder && (
-                <div className="modal-bg" onClick={() => setSelectedOrder(null)}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px' }}>
-                        <h3 style={{ color: '#F97350', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                            Chi tiết đơn hàng #{selectedOrder._id.slice(-6).toUpperCase()}
-                        </h3>
+                <div className="modal-bg" onClick={() => setSelectedOrder(null)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '90%', borderRadius: '24px', padding: '30px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '15px' }}>
-                            <div>
-                                <div className="info-line"><b>Ngày đặt:</b> {formatDate(selectedOrder.createdAt)}</div>
-                                <div className="info-line"><b>Trạng thái:</b> {getStatusBadge(selectedOrder.status)}</div>
-                                <div className="info-line"><b>Cửa hàng:</b> {selectedOrder.restaurantId?.name}</div>
+                        {/* Header Modal */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                            <h3 style={{ color: '#F97350', margin: 0, fontSize: '24px', fontWeight: '900' }}>
+                                Chi tiết đơn hàng #{selectedOrder._id.slice(-6).toUpperCase()}
+                            </h3>
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                style={{ border: 'none', background: '#f1f5f9', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '20px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        {/* Thông tin chung: Chia 2 cột */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '25px', marginBottom: '25px', padding: '20px', background: '#F8FAFC', borderRadius: '20px' }}>
+                            <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '15px' }}>
+                                <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Thông tin đơn</div>
+                                <div style={{ marginBottom: '6px' }}><b>Ngày đặt:</b> <span style={{ color: '#475569' }}>{formatDate(selectedOrder.createdAt)}</span></div>
+                                <div style={{ marginBottom: '6px' }}><b>Trạng thái:</b> {getStatusBadge(selectedOrder.status)}</div>
+                                <div><b>Cửa hàng:</b> <span style={{ color: '#475569' }}>{selectedOrder.restaurantId?.name}</span></div>
                             </div>
-                            <div>
-                                <div className="info-line"><b>Khách hàng:</b> {selectedOrder.customer.split('|')[0]}</div>
-                                <div className="info-line"><b>SĐT:</b> {selectedOrder.customer.split('|')[1]}</div>
-                                <div className="info-line"><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</div>
+                            <div style={{ paddingLeft: '5px' }}>
+                                <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>Thông tin khách hàng</div>
+                                <div style={{ marginBottom: '6px' }}><b>Khách:</b> <span style={{ color: '#475569' }}>{selectedOrder.customer.split('|')[0]}</span></div>
+                                <div style={{ marginBottom: '6px' }}><b>SĐT:</b> <span style={{ color: '#475569' }}>{selectedOrder.customer.split('|')[1]}</span></div>
+                                <div style={{ fontSize: '13px', lineHeight: '1.4' }}><b>Địa chỉ:</b> <span style={{ color: '#475569' }}>{selectedOrder.customer.split('|')[2]}</span></div>
                             </div>
                         </div>
 
-                        <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
-                            <h4 style={{ marginTop: 0, marginBottom: '10px' }}>Danh sách món ăn:</h4>
-                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {/* Danh sách món ăn có hình ảnh & thanh cuộn */}
+                        <div style={{ border: '1px solid #f1f5f9', borderRadius: '20px', padding: '20px' }}>
+                            <h4 style={{ marginTop: 0, marginBottom: '15px', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <i className="fa-solid fa-utensils" style={{ color: '#F97350' }}></i> Danh sách món ăn:
+                            </h4>
+
+                            <div style={{ maxHeight: '320px', overflowY: 'auto', paddingRight: '10px' }}>
                                 {selectedOrder.items.map((item, index) => (
-                                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px dashed #eee', paddingBottom: '8px' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 'bold' }}>
-                                                {item.quantity}x {item.name}
+                                    <div
+                                        key={index}
+                                        style={{
+                                            display: 'flex',
+                                            gap: '15px',
+                                            marginBottom: '15px',
+                                            borderBottom: index === selectedOrder.items.length - 1 ? 'none' : '1px solid #f8fafc',
+                                            paddingBottom: '15px',
+                                            alignItems: 'center'
+                                        }}
+                                    >
+                                        {/* Hình ảnh món ăn */}
+                                        <img
+                                            src={item.image || "https://via.placeholder.com/60"}
+                                            alt={item.name}
+                                            style={{ width: '60px', height: '60px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #f1f5f9' }}
+                                        />
+
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '700', color: '#1e293b' }}>
+                                                <span>{item.quantity}x {item.name}</span>
+                                                <span style={{ color: '#475569' }}>{toVND(item.price * item.quantity)}đ</span>
                                             </div>
                                             {item.options && (
-                                                <div style={{ fontSize: '12px', color: '#666' }}>
-                                                    Options: {item.options}
+                                                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', fontStyle: 'italic' }}>
+                                                    Ghi chú: {item.options}
                                                 </div>
                                             )}
                                         </div>
-                                        <div style={{ fontWeight: 'bold' }}>{toVND(item.price * item.quantity)}đ</div>
                                     </div>
                                 ))}
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #ddd', fontSize: '18px', fontWeight: 'bold', color: '#F97350' }}>
-                                <span>Tổng tiền:</span>
+                            {/* Tổng thanh toán */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginTop: '20px',
+                                paddingTop: '20px',
+                                borderTop: '2px solid #F7F2E5',
+                                fontSize: '22px',
+                                fontWeight: '900',
+                                color: '#F97350'
+                            }}>
+                                <span style={{ color: '#1e293b', fontSize: '18px' }}>TỔNG THANH TOÁN:</span>
                                 <span>{toVND(selectedOrder.total)}đ</span>
                             </div>
                         </div>
 
-                        <button className="btn-close" onClick={() => setSelectedOrder(null)}>Đóng</button>
+                        <button
+                            className="btn primary"
+                            onClick={() => setSelectedOrder(null)}
+                            style={{ width: '100%', marginTop: '25px', padding: '15px', borderRadius: '15px', fontWeight: '800', fontSize: '16px' }}
+                        >
+                            Đóng chi tiết
+                        </button>
                     </div>
                 </div>
             )}

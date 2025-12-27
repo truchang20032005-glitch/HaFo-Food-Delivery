@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
@@ -9,344 +9,234 @@ function ReviewOrder() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
+    const [shipper, setShipper] = useState(null);
 
-    // State đánh giá Tài xế
+    // State đánh giá
     const [driverRating, setDriverRating] = useState(5);
     const [driverTags, setDriverTags] = useState([]);
     const [driverComment, setDriverComment] = useState('');
-    const [driverTip, setDriverTip] = useState(0);
-
-    // State đánh giá Món ăn (Lưu object: { "Tên món": 5 sao })
     const [foodRatings, setFoodRatings] = useState({});
-
-    // State kiểm soát trạng thái: false = đang nhập, true = đã gửi xong
+    const [foodComments, setFoodComments] = useState({});
     const [isSubmitted, setIsSubmitted] = useState(false);
 
-    useEffect(() => {
-        //axios.get(`http://localhost:5000/api/orders/${id}`)
-        api.get(`/orders/${id}`)
-            .then(res => setOrder(res.data))
-            .catch(err => console.error(err));
+    const fetchData = useCallback(async () => {
+        try {
+            const res = await api.get(`/orders/${id}`);
+            const orderData = res.data;
+            setOrder(orderData);
+
+            // Khởi tạo đánh giá cho từng món
+            const ratings = {};
+            const comments = {};
+            orderData.items.forEach(item => {
+                const itemId = item.foodId || item._id;
+                ratings[itemId] = 5;
+                comments[itemId] = "";
+            });
+            setFoodRatings(ratings);
+            setFoodComments(comments);
+
+            // Lấy thông tin tài xế thực tế từ hệ thống
+            if (orderData.shipperId) {
+                const shipRes = await api.get(`/shippers/profile/${orderData.shipperId}`);
+                setShipper(shipRes.data);
+            }
+        } catch (err) {
+            console.error("Lỗi tải thông tin đơn hàng:", err);
+        }
     }, [id]);
 
-    const handleSubmit = () => {
-        // Tổng hợp dữ liệu
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleSubmit = async () => {
         const reviewData = {
             orderId: id,
-            driver: { rating: driverRating, tags: driverTags, comment: driverComment, tip: driverTip },
-            food: foodRatings
+            driver: { rating: driverRating, tags: driverTags, comment: driverComment },
+            food: Object.keys(foodRatings).map(foodId => ({
+                foodId,
+                rating: foodRatings[foodId],
+                comment: foodComments[foodId]
+            }))
         };
-
-        console.log("Gửi đánh giá:", reviewData);
-        // Chuyển sang trạng thái "Đã gửi" thay vì chuyển trang
+        console.log("Gửi dữ liệu đánh giá:", reviewData);
         setIsSubmitted(true);
         window.scrollTo(0, 0);
     };
 
-    // Hàm xử lý chọn Tag (Thân thiện, Đúng giờ...)
-    const toggleTag = (tag) => {
-        if (driverTags.includes(tag)) {
-            setDriverTags(driverTags.filter(t => t !== tag));
-        } else {
-            setDriverTags([...driverTags, tag]);
-        }
+    const handleFoodRate = (foodId, rating) => {
+        setFoodRatings(prev => ({ ...prev, [foodId]: rating }));
     };
 
-    // Hàm xử lý đánh giá món ăn
-    const handleFoodRate = (itemName, rating) => {
-        setFoodRatings({ ...foodRatings, [itemName]: rating });
+    const handleFoodComment = (foodId, comment) => {
+        setFoodComments(prev => ({ ...prev, [foodId]: comment }));
     };
 
-    if (!order) return <div style={{ padding: '50px', textAlign: 'center' }}>Đang tải...</div>;
+    if (!order) return <div style={{ padding: '80px', textAlign: 'center', background: '#F7F2E5', minHeight: '100vh' }}>Đang tải thông tin đơn hàng...</div>;
 
-    // Tách chuỗi món ăn ra thành mảng để hiển thị
-    const foodItems = order.items.split(', ');
-
-    // Tính điểm trung bình món ăn (để hiển thị ở màn hình Read-only)
-    const avgFoodRating = Object.values(foodRatings).length > 0
-        ? Math.round(Object.values(foodRatings).reduce((a, b) => a + b, 0) / Object.values(foodRatings).length)
-        : 5;
-
-    // Component hiển thị sao (hỗ trợ chế độ chỉ xem)
-    const StarRow = ({ value, onChange, readOnly }) => (
-        <div className="stars" style={{ display: 'flex', gap: '4px' }}>
+    const StarRow = ({ value, onChange, readOnly, size = "24px" }) => (
+        <div style={{ display: 'flex', gap: '6px' }}>
             {[1, 2, 3, 4, 5].map(star => (
-                <button
+                <span
                     key={star}
-                    className={star <= value ? 'active' : ''}
-                    onClick={() => !readOnly && onChange && onChange(star)}
+                    onClick={() => !readOnly && onChange(star)}
                     style={{
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: readOnly ? '18px' : '24px', // Nhỏ hơn xíu khi xem lại
+                        fontSize: size,
                         cursor: readOnly ? 'default' : 'pointer',
-                        color: star <= value ? '#F5A524' : '#d1c7ba',
-                        padding: 0
+                        color: star <= value ? '#F5A524' : '#E2E8F0',
+                        transition: '0.2s'
                     }}
                 >
-                    ★
-                </button>
+                    {star <= value ? '★' : '☆'}
+                </span>
             ))}
         </div>
     );
 
+    // HỆ THỐNG STYLE ĐỒNG BỘ TUYỆT ĐỐI VỚI ORDERTRACKING VÀ CHECKOUT
+    const S = {
+        pageBackground: { background: '#F7F2E5', minHeight: '100vh', width: '100%', paddingBottom: '60px' },
+        centeringWrapper: { width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+        content: { width: '100%', maxWidth: '1200px', padding: '0 20px', boxSizing: 'border-box' },
+        gridWrapper: { display: 'grid', gridTemplateColumns: '1fr 450px', gap: '30px', marginTop: '30px', alignItems: 'start' }, // ✅ Cột phải 450px
+        card: { background: '#fff', borderRadius: '16px', border: '1px solid #eee', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' },
+        header: { padding: '18px 25px', borderBottom: '1px solid #f5f5f5', margin: 0, fontSize: '18px', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' },
+        chip: (active) => ({
+            border: '1px solid #eee', background: active ? '#F97350' : '#fff', color: active ? '#fff' : '#64748b',
+            borderRadius: '12px', padding: '10px 18px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: '0.2s'
+        })
+    };
+
     return (
-        <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>
+        <div style={S.pageBackground}>
             <Navbar />
+            <div style={S.centeringWrapper}>
+                <div style={S.content}>
+                    <div style={{ paddingTop: '25px' }}>
+                        <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1e293b' }}>
+                            {isSubmitted ? 'Phản hồi đã được ghi nhận' : 'Đánh giá chất lượng dịch vụ'}
+                        </h2>
+                    </div>
 
-            <header className="header" style={{ background: '#fff', borderBottom: '1px solid #e9e4d8', padding: '10px 0' }}>
-                <div className="container hop" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0 }}>{isSubmitted ? 'Đánh giá đã gửi' : 'Đánh giá đơn hàng'}</h3>
-                    <Link to="/" style={{ textDecoration: 'none', color: '#6b625d', fontWeight: 'bold' }}>Về trang chủ</Link>
-                </div>
-            </header>
-
-            <main className="hop" style={{ margin: '20px auto', display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
-
-                {/* --- CỘT TRÁI --- */}
-                <section>
-
-                    {/* --------------------------------------------------------- */}
-                    {/* TRƯỜNG HỢP 1: ĐÃ GỬI XONG (READ-ONLY) - GIỐNG FILE HTML BẠN GỬI */}
-                    {/* --------------------------------------------------------- */}
-                    {isSubmitted ? (
-                        <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd' }}>
-                            {/* Banner Cảm ơn */}
-                            <div className="done-banner" style={{ display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #dff6ea', background: '#EAFBF1', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
-                                <i className="fa-solid fa-circle-check" style={{ color: '#22C55E', fontSize: '24px' }}></i>
-                                <div>
-                                    <b style={{ display: 'block', fontSize: '16px', color: '#333', marginBottom: '4px' }}>Cảm ơn bạn! Đánh giá của bạn đã được ghi nhận.</b>
-                                    <div className="muted" style={{ color: '#666', fontSize: '13px' }}>Mã đơn <b style={{ color: '#333' }}>#{order._id.slice(-6).toUpperCase()}</b>. Chúng tôi trân trọng phản hồi của bạn.</div>
+                    <main style={S.gridWrapper}>
+                        {/* CỘT TRÁI: FORM ĐÁNH GIÁ CHI TIẾT */}
+                        <section style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                            {isSubmitted ? (
+                                <div style={{ ...S.card, padding: '60px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '70px', marginBottom: '25px' }}>✅</div>
+                                    <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#1e293b' }}>Đánh giá thành công!</h3>
+                                    <p style={{ color: '#64748b', marginTop: '10px', fontSize: '16px' }}>Cảm ơn bạn đã đóng góp ý kiến để HaFo hoàn thiện dịch vụ tốt hơn.</p>
+                                    <button onClick={() => navigate('/history')} style={{ marginTop: '30px', padding: '15px 40px', background: '#F97350', color: '#fff', border: 'none', borderRadius: '15px', fontWeight: '800', cursor: 'pointer' }}>Xem lịch sử đơn hàng</button>
                                 </div>
-                            </div>
-
-                            {/* Lưới tóm tắt đánh giá (4 ô) */}
-                            <div className="ratings-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                {/* Món ăn */}
-                                <div className="rate-box" style={{ border: '1px solid #f0e8d9', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFCF5' }}>
-                                    <div className="rate-ico" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #f0e8d9', color: '#F97350', fontSize: '18px' }}>
-                                        <i className="fa-solid fa-bowl-food"></i>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: '800', fontSize: '14px' }}>Món ăn</div>
-                                        <StarRow value={avgFoodRating} readOnly />
-                                        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Hương vị, phần ăn</div>
-                                    </div>
-                                </div>
-
-                                {/* Tài xế */}
-                                <div className="rate-box" style={{ border: '1px solid #f0e8d9', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFCF5' }}>
-                                    <div className="rate-ico" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #f0e8d9', color: '#F97350', fontSize: '18px' }}>
-                                        <i className="fa-solid fa-motorcycle"></i>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: '800', fontSize: '14px' }}>Tài xế</div>
-                                        <StarRow value={driverRating} readOnly />
-                                        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Thân thiện, đúng giờ</div>
-                                    </div>
-                                </div>
-                                {/* Các ô giả lập khác để giống layout */}
-                                <div className="rate-box" style={{ border: '1px solid #f0e8d9', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFCF5' }}>
-                                    <div className="rate-ico" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #f0e8d9', color: '#F97350', fontSize: '18px' }}>
-                                        <i className="fa-solid fa-box"></i>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: '800', fontSize: '14px' }}>Đóng gói</div>
-                                        <StarRow value={5} readOnly />
-                                        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Gọn gàng, sạch sẽ</div>
-                                    </div>
-                                </div>
-                                <div className="rate-box" style={{ border: '1px solid #f0e8d9', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFCF5' }}>
-                                    <div className="rate-ico" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #f0e8d9', color: '#F97350', fontSize: '18px' }}>
-                                        <i className="fa-solid fa-bolt"></i>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: '800', fontSize: '14px' }}>Tốc độ</div>
-                                        <StarRow value={5} readOnly />
-                                        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Thời gian giao</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ height: '1px', background: '#f0e8d9', margin: '20px 0' }}></div>
-
-                            {/* Nhận xét đã ghi */}
-                            <div style={{ fontWeight: '800', marginBottom: '6px' }}>Nhận xét của bạn</div>
-                            <div style={{
-                                background: '#fff', border: '1px dashed #eadfcd', borderRadius: '10px',
-                                padding: '12px', color: '#4a4039', lineHeight: '1.5', fontStyle: driverComment ? 'normal' : 'italic'
-                            }}>
-                                {driverComment || "Không có nhận xét chi tiết."}
-                            </div>
-
-                            {/* Nút điều hướng sau khi xong */}
-                            <div className="actions" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                                <Link to="/" className="btn primary" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#F97350', color: 'white', fontWeight: 'bold', textAlign: 'center', textDecoration: 'none' }}>
-                                    <i className="fa-solid fa-cart-plus"></i> Tiếp tục mua sắm
-                                </Link>
-                                <Link to="/history" className="btn soft" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #ddd', background: '#fff', color: '#333', fontWeight: 'bold', textAlign: 'center', textDecoration: 'none' }}>
-                                    <i className="fa-solid fa-receipt"></i> Xem lịch sử đơn
-                                </Link>
-                            </div>
-                            <div style={{ textAlign: 'center', color: '#999', fontSize: '12px', marginTop: '15px' }}>Bạn có thể chỉnh sửa đánh giá trong vòng 24 giờ.</div>
-                        </div>
-
-                    ) : (
-
-                        /* --------------------------------------------------------- */
-                        /* TRƯỜNG HỢP 2: CHƯA GỬI (FORM NHẬP LIỆU) - GIỮ NGUYÊN CŨ */
-                        /* --------------------------------------------------------- */
-                        <div className="card" style={{ background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #eadfcd' }}>
-                            {/* Banner Cảm ơn (Trạng thái vừa hoàn tất đơn) */}
-                            <div className="done-banner" style={{ display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #dff6ea', background: '#EAFBF1', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
-                                <i className="fa-solid fa-circle-check" style={{ color: '#22C55E', fontSize: '24px' }}></i>
-                                <div>
-                                    <b style={{ display: 'block', fontSize: '16px', color: '#333', marginBottom: '4px' }}>Đơn hàng đã hoàn tất — cảm ơn bạn!</b>
-                                    <span className="muted" style={{ color: '#666', fontSize: '13px' }}>Hãy chia sẻ trải nghiệm của bạn để HaFo phục vụ tốt hơn 💛</span>
-                                </div>
-                            </div>
-
-                            {/* 1. Đánh giá Tài xế */}
-                            <div className="review-card" style={{ background: '#fff', border: '1px solid #eadfcd', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', marginBottom: '18px' }}>
-                                <div className="head" style={{ padding: '14px 16px', background: '#FFFCF5', borderBottom: '1px solid #f0e8d9', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><i className="fa-solid fa-motorcycle"></i> Đánh giá tài xế</div>
-                                <div className="body" style={{ padding: '16px' }}>
-                                    <div className="driver-info" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
-                                        <img src={order.shipperAvatar || "/images/shipper.jpg"} alt="Shipper" onError={(e) => e.target.src = 'https://via.placeholder.com/50'} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #FAD06C' }} />
-                                        <div>
-                                            <div style={{ fontWeight: '800', fontSize: '16px' }}>Nguyễn Minh Tài</div>
-                                            <div className="muted" style={{ color: '#666', fontSize: '12px' }}>Biển số: <b>59X3-123.45</b> · Xe máy</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="star-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                        <span className="label" style={{ fontWeight: '600', color: '#555' }}>Mức độ hài lòng</span>
-                                        <div className="stars">
-                                            {[1, 2, 3, 4, 5].map(star => (
-                                                <button key={star} className={star <= driverRating ? 'active' : ''} onClick={() => setDriverRating(star)} style={{ border: 'none', background: 'transparent', fontSize: '24px', cursor: 'pointer', color: star <= driverRating ? '#F5A524' : '#e5dfd2', padding: 0 }}>★</button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
-                                        {['Thân thiện', 'Đúng giờ', 'Cẩn thận', 'Nhiệt tình'].map(tag => (
-                                            <div key={tag} className={`chip ${driverTags.includes(tag) ? 'active' : ''}`} onClick={() => toggleTag(tag)} style={{ border: '1px solid #e5dfd2', background: driverTags.includes(tag) ? '#F97350' : '#fff', color: driverTags.includes(tag) ? '#fff' : '#333', borderRadius: '99px', padding: '8px 14px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: '0.2s' }}>
-                                                {tag}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <textarea
-                                        className="cmt"
-                                        placeholder="Nhận xét cho tài xế (Ví dụ: Anh tài xế rất lịch sự...)"
-                                        value={driverComment}
-                                        onChange={(e) => setDriverComment(e.target.value)}
-                                        style={{ width: '100%', minHeight: '80px', border: '1px solid #e5dfd2', borderRadius: '10px', padding: '10px 12px', resize: 'vertical', fontFamily: 'inherit', marginBottom: '15px' }}
-                                    ></textarea>
-
-                                    <div className="label" style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Gửi tip cho tài xế (tuỳ chọn)</div>
-                                    <div className="chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                        {[5000, 10000, 20000, 50000].map(tip => (
-                                            <div key={tip} className={`chip tip ${driverTip === tip ? 'active' : ''}`} onClick={() => setDriverTip(tip === driverTip ? 0 : tip)} style={{ border: '1px solid #ffe0ad', background: driverTip === tip ? '#F97350' : '#fff7e5', color: driverTip === tip ? '#fff' : '#333', borderRadius: '99px', padding: '8px 14px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: '0.2s' }}>
-                                                {toVND(tip)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 2. Đánh giá Món ăn */}
-                            <div className="review-card" style={{ background: '#fff', border: '1px solid #eadfcd', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', marginBottom: '18px' }}>
-                                <div className="head" style={{ padding: '14px 16px', background: '#FFFCF5', borderBottom: '1px solid #f0e8d9', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><i className="fa-solid fa-bowl-food"></i> Đánh giá món ăn</div>
-                                <div className="body" style={{ padding: '16px' }}>
-                                    {foodItems.map((item, index) => (
-                                        <div key={index} style={{ marginBottom: '20px', borderBottom: '1px dashed #eee', paddingBottom: '15px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                <div style={{ fontWeight: '700' }}>{item}</div>
-                                            </div>
-
-                                            <div className="star-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '15px', marginBottom: '12px' }}>
-                                                <span className="label" style={{ fontSize: '13px', fontWeight: '600', color: '#555' }}>Chất lượng:</span>
-                                                <div className="stars" style={{ display: 'flex', gap: '6px' }}>
-                                                    {[1, 2, 3, 4, 5].map(star => (
-                                                        <button
-                                                            key={star}
-                                                            className={star <= (foodRatings[item] || 5) ? 'active' : ''}
-                                                            onClick={() => handleFoodRate(item, star)}
-                                                            style={{ fontSize: '20px', border: 'none', background: 'transparent', cursor: 'pointer', color: star <= (foodRatings[item] || 5) ? '#F5A524' : '#e5dfd2', padding: 0 }}
-                                                        >★</button>
-                                                    ))}
+                            ) : (
+                                <>
+                                    {/* Đánh giá tài xế với thông tin thực */}
+                                    <div style={S.card}>
+                                        <h4 style={S.header}><i className="fa-solid fa-motorcycle" style={{ color: '#F97350' }}></i> Nhân viên giao hàng</h4>
+                                        <div style={{ padding: '25px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '25px' }}>
+                                                <img src={shipper?.user?.avatar || "https://via.placeholder.com/70"} alt="Avatar" style={{ width: '70px', height: '70px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #FFF1ED' }} />
+                                                <div>
+                                                    <div style={{ fontWeight: '900', fontSize: '18px', color: '#1e293b' }}>{shipper?.user?.fullName || "Tài xế đang cập nhật"}</div>
+                                                    <div style={{ fontSize: '14px', color: '#94a3b8' }}>Biển số xe: {shipper?.licensePlate || "..."}</div>
                                                 </div>
                                             </div>
-                                            <input
-                                                type="text"
-                                                placeholder="Món này thế nào? (Ngon, vừa miệng...)"
-                                                style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e5dfd2' }}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                                <span style={{ fontWeight: '700' }}>Chất lượng giao hàng:</span>
+                                                <StarRow value={driverRating} onChange={setDriverRating} />
+                                            </div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                                                {['Giao nhanh', 'Đúng giờ', 'Thân thiện', 'Nhiệt tình'].map(tag => (
+                                                    <div key={tag} onClick={() => setDriverTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])} style={S.chip(driverTags.includes(tag))}>{tag}</div>
+                                                ))}
+                                            </div>
+                                            <textarea
+                                                placeholder="Nhập nhận xét về nhân viên giao hàng (nếu có)..."
+                                                value={driverComment}
+                                                onChange={(e) => setDriverComment(e.target.value)}
+                                                style={{ width: '100%', minHeight: '100px', border: '1px solid #eee', borderRadius: '15px', padding: '15px', fontSize: '14px', outline: 'none', resize: 'none' }}
                                             />
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    {/* Đánh giá món ăn với ô nhận xét riêng */}
+                                    <div style={S.card}>
+                                        <h4 style={S.header}><i className="fa-solid fa-bowl-food" style={{ color: '#F97350' }}></i> Chất lượng món ăn</h4>
+                                        <div style={{ padding: '25px' }}>
+                                            {order.items.map((item, index) => {
+                                                const itemId = item.foodId || item._id;
+                                                return (
+                                                    <div key={index} style={{ paddingBottom: '25px', marginBottom: '25px', borderBottom: index !== order.items.length - 1 ? '1px dashed #f1f1f1' : 'none' }}>
+                                                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+                                                            <img src={item.image || "https://via.placeholder.com/60"} alt={item.name} style={{ width: '60px', height: '60px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #eee' }} />
+                                                            <div style={{ fontWeight: '800', fontSize: '16px', color: '#1e293b' }}>{item.name}</div>
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                                            <span style={{ fontSize: '14px', color: '#64748b' }}>Đánh giá món ăn:</span>
+                                                            <StarRow value={foodRatings[itemId]} onChange={(val) => handleFoodRate(itemId, val)} size="20px" />
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Nhận xét về món ăn này..."
+                                                            value={foodComments[itemId]}
+                                                            onChange={(e) => handleFoodComment(itemId, e.target.value)}
+                                                            style={{ width: '100%', padding: '12px 15px', borderRadius: '12px', border: '1px solid #eee', outline: 'none', fontSize: '14px' }}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <button onClick={handleSubmit} style={{ width: '100%', padding: '20px', borderRadius: '40px', border: 'none', background: 'linear-gradient(to right, #F97350, #FF5F6D)', color: '#fff', fontSize: '18px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 8px 25px rgba(249, 115, 80, 0.3)' }}>
+                                        HOÀN TẤT VÀ GỬI ĐÁNH GIÁ
+                                    </button>
+                                </>
+                            )}
+                        </section>
+
+                        {/* CỘT PHẢI ĐỒNG BỘ 450PX: TỔNG HỢP THÔNG TIN */}
+                        <aside style={{ position: 'sticky', top: '100px', display: 'flex', flexDirection: 'column', gap: '25px', width: '450px' }}>
+                            {/* Tóm tắt đơn hàng có hình ảnh */}
+                            <div style={S.card}>
+                                <h4 style={S.header}><i className="fa-solid fa-receipt" style={{ color: '#F97350' }}></i> Tóm tắt đơn hàng</h4>
+                                <div style={{ padding: '25px' }}>
+                                    <div style={{ fontSize: '14px', marginBottom: '15px', color: '#64748b' }}>Mã đơn hàng: <b style={{ color: '#1e293b' }}>#{order._id.slice(-6).toUpperCase()}</b></div>
+
+                                    <div style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '8px', scrollbarWidth: 'thin' }}>
+                                        {order.items.map((it, i) => (
+                                            <div key={i} style={{ display: 'flex', gap: '15px', padding: '15px 0', borderTop: '1px solid #f9f9f9' }}>
+                                                <img src={it.image || "https://via.placeholder.com/55"} alt="food" style={{ width: '55px', height: '55px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #eee' }} />
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>{it.quantity}x {it.name}</span>
+                                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#333' }}>{toVND(it.price * it.quantity)}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{it.options}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div style={{ borderTop: '2px solid #F7F2E5', marginTop: '20px', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontWeight: '800', fontSize: '18px', color: '#1e293b' }}>TỔNG THANH TOÁN</span>
+                                        <span style={{ fontWeight: '900', fontSize: '28px', color: '#F97350' }}>{toVND(order.total)}</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Nút Gửi */}
-                            <div className="actions" style={{ marginTop: '10px' }}>
-                                <button onClick={handleSubmit} className="btn primary" style={{ width: '100%', padding: '14px', fontSize: '16px', borderRadius: '12px', fontWeight: 'bold', color: 'white', border: 'none', background: '#F97350', cursor: 'pointer', boxShadow: '0 4px 0 #e05d3a' }}>
-                                    <i className="fa-solid fa-paper-plane"></i> Gửi đánh giá
-                                </button>
+                            {/* Địa chỉ nhận hàng */}
+                            <div style={S.card}>
+                                <h4 style={S.header}><i className="fa-solid fa-location-dot" style={{ color: '#F97350' }}></i> Địa chỉ nhận hàng</h4>
+                                <div style={{ padding: '20px 25px', fontSize: '14px', color: '#64748b', lineHeight: '1.6' }}>
+                                    {order.customer.split('|')[2] || "Địa chỉ đã lưu trong hệ thống"}
+                                </div>
                             </div>
-                            <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '13px' }}>
-                                Bạn có thể chỉnh sửa đánh giá trong vòng 24 giờ.
-                            </div>
-                        </div>
-                    )}
-
-                </section>
-
-                {/* --- CỘT PHẢI: TÓM TẮT --- */}
-                <aside>
-                    <div className="review-card" style={{ background: '#fff', border: '1px solid #eadfcd', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                        <div className="head" style={{ padding: '14px 16px', background: '#FFFCF5', borderBottom: '1px solid #f0e8d9', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><i className="fa-solid fa-receipt"></i> Tóm tắt đơn hàng</div>
-                        <div className="body" style={{ padding: '16px' }}>
-                            <div style={{ marginBottom: '10px', fontSize: '14px' }}>Mã đơn: <b>#{order._id.slice(-6).toUpperCase()}</b></div>
-
-                            {/* Danh sách món thu gọn */}
-                            <div>
-                                {foodItems.map((item, idx) => (
-                                    <div key={idx} style={{ fontSize: '13px', color: '#555', padding: '6px 0', borderTop: '1px dashed #eee' }}>
-                                        • {item}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div style={{ borderTop: '1px solid #eee', margin: '15px 0' }}></div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '14px' }}>
-                                <span className="muted" style={{ color: '#666' }}>Tạm tính</span>
-                                <b>{toVND(order.total)}</b>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '14px' }}>
-                                <span className="muted" style={{ color: '#666' }}>Phí ship</span>
-                                <span>15.000đ</span>
-                            </div>
-
-                            <div style={{ borderTop: '1px solid #eee', margin: '10px 0' }}></div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '18px', fontWeight: '900', color: '#333' }}>
-                                <span>Tổng cộng</span>
-                                <span>{toVND(order.total + 15000)}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="review-card" style={{ marginTop: '15px', background: '#fff', border: '1px solid #eadfcd', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                        <div className="head" style={{ padding: '14px 16px', background: '#FFFCF5', borderBottom: '1px solid #f0e8d9', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><i className="fa-solid fa-location-dot"></i> Giao đến</div>
-                        <div className="body" style={{ padding: '16px', fontSize: '14px', lineHeight: '1.5' }}>
-                            {/* Cắt chuỗi customer để lấy địa chỉ (Do backend lưu gộp) */}
-                            {order.customer.split('|')[2] || order.customer}
-                        </div>
-                    </div>
-                </aside>
-
-            </main>
+                        </aside>
+                    </main>
+                </div>
+            </div>
         </div>
     );
 }
