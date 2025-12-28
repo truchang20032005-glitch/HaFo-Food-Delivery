@@ -25,6 +25,7 @@ const userRoutes = require('./routes/user');
 const customerReviewRoutes = require('./routes/customerReview');
 const transactionRoutes = require('./routes/transaction');
 const reportRoutes = require('./routes/report');
+const messageRoutes = require('./routes/message');
 
 const app = express();
 const PORT = 5000;
@@ -73,6 +74,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customer-reviews', customerReviewRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/messages', messageRoutes);
 app.use("/api/health", (req, res) => {
     console.log('[PING]');
     res.status(200).send('OK');

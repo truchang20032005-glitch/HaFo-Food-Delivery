@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
+import Chat from '../../components/Chat';
 import 'leaflet/dist/leaflet.css';
 
 // Thiết lập Icon
@@ -29,6 +30,8 @@ function OrderTracking() {
     const [shipper, setShipper] = useState(null);
     const [restaurant, setRestaurant] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [hasNewMsg, setHasNewMsg] = useState(false);
+    const [isShipperChatOpen, setIsShipperChatOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
         try {
@@ -46,11 +49,38 @@ function OrderTracking() {
         } catch (err) { console.error("Lỗi đồng bộ:", err); }
     }, [id]);
 
+    const checkNewMessages = useCallback(async () => {
+        try {
+            const res = await api.get(`/messages/${id}`);
+            const messages = res.data;
+
+            if (messages.length > 0) {
+                const lastMsg = messages[messages.length - 1];
+                const lastView = localStorage.getItem(`lastViewChat_${id}`);
+                const currentUserId = localStorage.getItem('userId');
+
+                if (lastMsg.senderId !== currentUserId) {
+                    if (!lastView || new Date(lastMsg.createdAt) > new Date(lastView)) {
+                        setHasNewMsg(true);
+                    } else {
+                        setHasNewMsg(false);
+                    }
+                }
+            }
+        } catch (err) { console.error(err); }
+    }, [id]);
+
     useEffect(() => {
         fetchData();
         const interval = setInterval(fetchData, 5000);
         return () => clearInterval(interval);
     }, [fetchData]);
+
+    useEffect(() => {
+        checkNewMessages();
+        const interval = setInterval(checkNewMessages, 5000);
+        return () => clearInterval(interval);
+    }, [checkNewMessages]);
 
     const realStats = useMemo(() => {
         if (!order) return { distance: 0, eta: 0 };
@@ -81,7 +111,63 @@ function OrderTracking() {
         container: { background: '#F7F2E5', minHeight: '100vh', paddingBottom: '50px' },
         wrapper: { maxWidth: '1200px', margin: '30px auto', padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 450px', gap: '30px', alignItems: 'start' },
         card: { background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', overflow: 'hidden' },
-        header: { margin: '0 0 20px', fontSize: '18px', fontWeight: '700', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }
+        header: { margin: '0 0 20px', fontSize: '18px', fontWeight: '700', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' },
+        floatingChatContainer: {
+            position: 'fixed',
+            right: '20px', // Đổi từ 30px thành 20px để khớp với lề chuẩn của các widget web
+            bottom: '20px',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            pointerEvents: 'none' // Để không chặn click vào các thành phần bên dưới
+        },
+
+        chatBoxWrapper: {
+            pointerEvents: 'auto',
+            position: 'fixed',
+            right: '20px',
+            // Đẩy lên cao hẳn: 20 (đáy) + 60 (nút AI) + 15 (gap) + 60 (nút Shipper) + 15 (gap) = 170px
+            bottom: '170px',
+            width: '400px',
+            height: '550px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            background: '#fff',
+            zIndex: 10000
+        },
+
+        circleBtn: {
+            pointerEvents: 'auto',
+            position: 'fixed',
+            right: '20px', // PHẢI KHỚP VỚI RIGHT CỦA CHATBOT.CSS
+            bottom: '95px', // Cách đáy 95px (để né nút AI ở dưới có bottom khoảng 20px)
+            width: '60px',  // Kích thước chuẩn của nút tròn
+            height: '60px',
+            borderRadius: '50%',
+            border: 'none',
+            color: '#fff',
+            fontSize: '24px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+            transition: 'all 0.3s'
+        },
+
+        redDotBadge: {
+            position: 'absolute',
+            top: '5px',
+            right: '5px',
+            width: '12px',
+            height: '12px',
+            background: 'red',
+            borderRadius: '50%',
+            border: '2px solid white'
+        }
     };
 
     return (
@@ -148,18 +234,45 @@ function OrderTracking() {
                 <aside style={{ display: 'flex', flexDirection: 'column', gap: '25px', width: '450px' }}>
                     <div style={S.card}>
                         <h3 style={S.header}><i className="fa-solid fa-motorcycle" style={{ color: '#F97350' }}></i> Thông tin vận chuyển</h3>
-                        <div style={{ minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {order.shipperId && shipper ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%' }}>
-                                    <img src={shipper.user?.avatar || 'https://via.placeholder.com/75'} alt="Ava" style={{ width: '75px', height: '75px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #FFF1ED' }} />
-                                    <div>
-                                        <div style={{ fontWeight: '900', fontSize: '18px' }}>{shipper.user?.fullName}</div>
-                                        <div style={{ fontSize: '14px', color: '#666' }}>{shipper.licensePlate} · {shipper.vehicleType}</div>
+                        <div style={{ minHeight: '120px' }}>
+                            {order.shipperId && typeof order.shipperId === 'object' ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                    <img
+                                        src={order.shipperId.avatar || 'https://via.placeholder.com/75'}
+                                        alt="Ava"
+                                        style={{ width: '75px', height: '75px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #FFF1ED' }}
+                                    />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: '900', fontSize: '18px' }}>{order.shipperId.fullName}</div>
+                                        <div style={{ fontSize: '14px', color: '#F97350', fontWeight: 'bold', margin: '4px 0' }}>
+                                            <i className="fa-solid fa-phone"></i> {order.shipperId.phone || "Đang cập nhật..."}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
+                                            <a href={`tel:${order.shipperId.phone}`} style={{ textDecoration: 'none', padding: '5px 12px', background: '#eee', borderRadius: '15px', color: '#333', fontSize: '12px', fontWeight: 'bold' }}>Gọi điện</a>
+                                            <div
+                                                onClick={() => setIsShipperChatOpen(true)} // Mở hộp chat khi click
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    textDecoration: 'none',
+                                                    padding: '5px 12px',
+                                                    background: '#F97350',
+                                                    borderRadius: '15px',
+                                                    color: '#fff',
+                                                    fontSize: '12px',
+                                                    fontWeight: 'bold',
+                                                    position: 'relative'
+                                                }}
+                                            >
+                                                Nhắn tin
+                                                {hasNewMsg && (
+                                                    <span style={{ /* style chấm đỏ cũ của bạn */ }} />
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
                                 <div style={{ textAlign: 'center' }}>
-                                    {/* ✅ Vòng xoay Spinner má yêu cầu */}
                                     <i className="fa-solid fa-spinner fa-spin" style={{ color: '#F97350', fontSize: '32px', marginBottom: '15px' }}></i>
                                     <div style={{ fontSize: '15px', color: '#666', fontWeight: '700' }}>Đang tìm tài xế gần bạn...</div>
                                 </div>
@@ -205,6 +318,31 @@ function OrderTracking() {
                     </button>
                 </aside>
             </main>
+            <div style={S.floatingChatContainer}>
+                {/* 1. Hộp Chat hiện ra khi nhấn nút */}
+                {isShipperChatOpen && (
+                    <div style={S.chatBoxWrapper}>
+                        <Chat
+                            orderId={id}
+                            onClose={() => setIsShipperChatOpen(false)}
+                            partnerAvatar={order.shipperId?.avatar}
+                        />
+                    </div>
+                )}
+
+                {/* 2. Nút tròn nhắn tin với Shipper (Nằm trên nút AI) */}
+                <button
+                    onClick={() => setIsShipperChatOpen(!isShipperChatOpen)}
+                    className={hasNewMsg ? 'vibrate-active' : ''} // Thêm class rung khi có tin nhắn
+                    style={{
+                        ...S.circleBtn,
+                        background: isShipperChatOpen ? '#666' : '#F97350', // Đổi màu khi mở
+                    }}
+                >
+                    <i className={`fa-solid ${isShipperChatOpen ? 'fa-xmark' : 'fa-motorcycle'}`}></i>
+                    {hasNewMsg && <span style={S.redDotBadge}></span>}
+                </button>
+            </div>
 
             {/* MODAL XÁC NHẬN */}
             {showModal && (

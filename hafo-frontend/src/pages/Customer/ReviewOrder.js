@@ -25,20 +25,16 @@ function ReviewOrder() {
             const orderData = res.data;
             setOrder(orderData);
 
-            // Khởi tạo đánh giá cho từng món
-            const ratings = {};
-            const comments = {};
-            orderData.items.forEach(item => {
-                const itemId = item.foodId || item._id;
-                ratings[itemId] = 5;
-                comments[itemId] = "";
-            });
-            setFoodRatings(ratings);
-            setFoodComments(comments);
+            // Khởi tạo đánh giá cho từng món... (giữ nguyên)
 
-            // Lấy thông tin tài xế thực tế từ hệ thống
+            // ✅ SỬA TẠI ĐÂY: Lấy ID từ Object shipperId
             if (orderData.shipperId) {
-                const shipRes = await api.get(`/shippers/profile/${orderData.shipperId}`);
+                // Nếu shipperId là object (đã populate), lấy ._id. Nếu là string, dùng luôn.
+                const shipperUserId = typeof orderData.shipperId === 'object'
+                    ? orderData.shipperId._id
+                    : orderData.shipperId;
+
+                const shipRes = await api.get(`/shippers/profile/${shipperUserId}`);
                 setShipper(shipRes.data);
             }
         } catch (err) {
@@ -51,18 +47,34 @@ function ReviewOrder() {
     }, [fetchData]);
 
     const handleSubmit = async () => {
-        const reviewData = {
-            orderId: id,
-            driver: { rating: driverRating, tags: driverTags, comment: driverComment },
-            food: Object.keys(foodRatings).map(foodId => ({
-                foodId,
-                rating: foodRatings[foodId],
-                comment: foodComments[foodId]
-            }))
-        };
-        console.log("Gửi dữ liệu đánh giá:", reviewData);
-        setIsSubmitted(true);
-        window.scrollTo(0, 0);
+        try {
+            // Chuẩn bị dữ liệu theo Schema CustomerReview.js
+            const reviewData = {
+                orderId: id,
+                customerId: localStorage.getItem('userId'), // Giả định bạn lưu userId ở đây
+                restaurantId: order.restaurantId._id || order.restaurantId,
+                shipperId: order.shipperId?._id || order.shipperId,
+                rating: driverRating, // Hoặc một trung bình cộng nào đó
+                comment: driverComment,
+                shipperRating: driverRating,
+                shipperComment: driverComment,
+                itemReviews: Object.keys(foodRatings).map(foodId => ({
+                    foodId,
+                    name: order.items.find(it => (it.foodId || it._id) === foodId)?.name,
+                    rating: foodRatings[foodId],
+                    comment: foodComments[foodId]
+                }))
+            };
+
+            // GỌI API THỰC TẾ
+            await api.post('/customer-reviews', reviewData);
+
+            setIsSubmitted(true);
+            window.scrollTo(0, 0);
+        } catch (error) {
+            console.error("Lỗi khi gửi đánh giá:", error);
+            alert("Không thể gửi đánh giá, vui lòng thử lại sau!");
+        }
     };
 
     const handleFoodRate = (foodId, rating) => {
@@ -138,7 +150,7 @@ function ReviewOrder() {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '25px' }}>
                                                 <img src={shipper?.user?.avatar || "https://via.placeholder.com/70"} alt="Avatar" style={{ width: '70px', height: '70px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #FFF1ED' }} />
                                                 <div>
-                                                    <div style={{ fontWeight: '900', fontSize: '18px', color: '#1e293b' }}>{shipper?.user?.fullName || "Tài xế đang cập nhật"}</div>
+                                                    <div style={{ fontWeight: '900', fontSize: '18px', color: '#1e293b' }}>{shipper?.user?.fullName || order?.shipperId?.fullName || "Tài xế đang cập nhật"}</div>
                                                     <div style={{ fontSize: '14px', color: '#94a3b8' }}>Biển số xe: {shipper?.licensePlate || "..."}</div>
                                                 </div>
                                             </div>

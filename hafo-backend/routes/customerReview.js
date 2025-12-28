@@ -40,6 +40,33 @@ router.post('/:reviewId/reply', async (req, res) => {
     }
 });
 
+router.post('/', async (req, res) => {
+    try {
+        const { orderId, customerId, restaurantId, shipperId, rating, comment, itemReviews, shipperRating, shipperComment } = req.body;
+
+        const newReview = new CustomerReview({
+            orderId,
+            customerId,
+            restaurantId,
+            shipperId,
+            rating,
+            comment,
+            itemReviews,
+            shipperRating,
+            shipperComment
+        });
+
+        await newReview.save();
+
+        // Cập nhật trạng thái đơn hàng đã được đánh giá (tùy chọn)
+        // await Order.findByIdAndUpdate(orderId, { isReviewed: true });
+
+        res.status(201).json(newReview);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
 // 3. Báo cáo đánh giá sai sự thật
 router.put('/:reviewId/report', async (req, res) => {
     try {

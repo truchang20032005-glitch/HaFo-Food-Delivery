@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const OrderSchema = new mongoose.Schema({
     userId: { type: String, required: true },
-    shipperId: { type: String, default: null },
+    shipperId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Liên kết trực tiếp tới bảng User của Shipper đó
+        default: null
+    },
 
     restaurantId: {
         type: mongoose.Schema.Types.ObjectId,
