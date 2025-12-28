@@ -87,6 +87,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/messages', messageRoutes);
 
 app.use("/api/health", (req, res) => {
+    console.log('[PING]');
     res.status(200).send('OK');
 });
 
