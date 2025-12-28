@@ -20,39 +20,38 @@ router.get('/:id', async (req, res) => {
 // 2. CẬP NHẬT PROFILE (CÓ UPLOAD AVATAR)
 router.put('/:id', uploadCloud.single('avatar'), async (req, res) => {
     try {
-        // Lấy các dữ liệu text từ FormData
-        const { fullName, phone, email, gender, birthday, addresses } = req.body;
+        // Chỉ lấy những trường CÓ GIÁ TRỊ từ req.body
+        let updateData = {};
 
-        const updateData = {
-            fullName,
-            phone,
-            email,
-            gender,
-            birthday
-        };
+        const fields = ['fullName', 'phone', 'email', 'gender', 'birthday'];
+        fields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updateData[field] = req.body[field];
+            }
+        });
 
-        // 1. SỬA LẠI: Nếu có file ảnh thì lưu vào AVATAR (chứ không phải addresses)
+        // Xử lý ảnh avatar nếu có
         if (req.file) {
             updateData.avatar = req.file.path;
         }
 
-        // 2. SỬA LẠI: Xử lý Addresses
-        // Vì FormData gửi mảng dưới dạng chuỗi JSON, nên phải parse ra
-        if (addresses) {
+        // Xử lý Addresses nếu có gửi lên (vì nó là chuỗi JSON)
+        if (req.body.addresses) {
             try {
-                // Parse chuỗi JSON thành mảng object gốc
-                updateData.addresses = JSON.parse(addresses);
+                updateData.addresses = JSON.parse(req.body.addresses);
             } catch (e) {
-                console.error("Lỗi parse addresses:", e);
-                // Nếu lỗi parse, có thể giữ nguyên hoặc bỏ qua
+                console.error("Lỗi parse addresses");
             }
         }
 
+        // Thực hiện cập nhật
         const updatedUser = await User.findByIdAndUpdate(
             req.params.id,
-            updateData,
-            { new: true }
+            { $set: updateData }, // Dùng $set để chỉ cập nhật các trường có trong updateData
+            { new: true, runValidators: true }
         ).select('-password');
+
+        if (!updatedUser) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
 
         res.json(updatedUser);
     } catch (error) {

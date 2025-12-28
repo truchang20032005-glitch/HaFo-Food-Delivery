@@ -4,16 +4,15 @@ import api from '../../services/api';
 
 function Settings() {
     const navigate = useNavigate();
-    const fileInputRef = useRef(null); // Ref để mở chọn file
+    const fileInputRef = useRef(null);
     const [loading, setLoading] = useState(false);
 
-    // State cho thông tin Admin
     const [adminInfo, setAdminInfo] = useState({
         id: '',
         fullName: '',
         email: '',
         phone: '',
-        avatar: '' // Thêm avatar vào state
+        avatar: ''
     });
 
     const [systemConfig, setSystemConfig] = useState(() => {
@@ -29,20 +28,20 @@ function Settings() {
     const [showPassModal, setShowPassModal] = useState(false);
     const [passData, setPassData] = useState({ current: '', new: '', confirm: '' });
 
-    // --- 1. LOAD DỮ LIỆU KHI VÀO TRANG ---
     const fetchProfile = async () => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
             const userObj = JSON.parse(userStr);
             try {
-                const res = await api.get(`/users/${userObj.id}`);
+                // Sử dụng userObj.id hoặc userObj._id tùy theo cấu trúc của má
+                const res = await api.get(`/users/${userObj.id || userObj._id}`);
                 const u = res.data;
                 setAdminInfo({
                     id: u._id,
                     fullName: u.fullName || '',
                     email: u.email || '',
                     phone: u.phone || '',
-                    avatar: u.avatar || '' // Lấy avatar từ DB
+                    avatar: u.avatar || ''
                 });
             } catch (err) {
                 console.error("Lỗi tải profile:", err);
@@ -50,9 +49,7 @@ function Settings() {
         }
     };
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    useEffect(() => { fetchProfile(); }, []);
 
     useEffect(() => {
         document.body.classList.remove('light', 'dark');
@@ -60,18 +57,18 @@ function Settings() {
             document.body.classList.add('dark');
         }
         localStorage.setItem('adminConfig', JSON.stringify(systemConfig));
-    }, [systemConfig.theme]);
+    }, [systemConfig.theme, systemConfig]);
 
     const getCleanImageUrl = (url) => {
         if (!url) return "/images/admin.png";
+        // Thêm timestamp để phá cache trình duyệt, ép tải ảnh mới
         const connector = url.includes('?') ? '&' : '?';
         return `${url}${connector}t=${new Date().getTime()}`;
     };
 
-    const handleAvatarClick = () => {
-        fileInputRef.current.click(); // Kích hoạt input file ẩn
-    };
+    const handleAvatarClick = () => { fileInputRef.current.click(); };
 
+    // ✅ ĐÃ SỬA: Logic up ảnh giống Storefront.js (Có Header & Đồng bộ mạnh)
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -81,32 +78,33 @@ function Settings() {
 
         try {
             setLoading(true);
-            const res = await api.put(`/users/${adminInfo.id}`, uploadData);
+            // Gửi kèm header multipart/form-data để server nhận diện đúng file
+            const res = await api.put(`/users/${adminInfo.id}`, uploadData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             const updatedUser = res.data;
 
-            // Cập nhật State để UI thay đổi ngay
+            // 1. Cập nhật State để UI thay đổi ngay lập tức
             setAdminInfo(prev => ({ ...prev, avatar: updatedUser.avatar }));
 
-            // Cập nhật LocalStorage
+            // 2. Cập nhật LocalStorage
             const currentUser = JSON.parse(localStorage.getItem('user'));
-            const newUserStorage = { ...currentUser, avatar: updatedUser.avatar };
-            localStorage.setItem('user', JSON.stringify(newUserStorage));
+            if (currentUser) {
+                localStorage.setItem('user', JSON.stringify({ ...currentUser, avatar: updatedUser.avatar }));
+            }
 
-            // 🔥 PHÁT EVENT ĐỂ NAVBAR/HEADER CẬP NHẬT THEO
+            // 3. Phát event để Navbar/Header đang dùng AuthContext cập nhật ảnh theo luôn
             window.dispatchEvent(new Event('storage'));
 
-            alert("✅ Cập nhật ảnh đại diện thành công!");
-
-            // Reset input file để có thể chọn lại chính file đó nếu muốn
-            e.target.value = null;
+            alert("✅ Cập nhật ảnh đại diện Admin thành công!");
         } catch (err) {
-            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+            alert("❌ Lỗi up ảnh: " + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
+            e.target.value = null; // Reset input để có thể chọn lại cùng 1 file
         }
     };
 
-    // --- 3. LƯU THÔNG TIN CHỮ ---
     const handleSaveInfo = async () => {
         if (!adminInfo.fullName) return alert("Tên không được để trống!");
         setLoading(true);
@@ -118,7 +116,12 @@ function Settings() {
             });
 
             const currentUser = JSON.parse(localStorage.getItem('user'));
-            localStorage.setItem('user', JSON.stringify({ ...currentUser, fullName: res.data.fullName, email: res.data.email, phone: res.data.phone }));
+            localStorage.setItem('user', JSON.stringify({
+                ...currentUser,
+                fullName: res.data.fullName,
+                email: res.data.email,
+                phone: res.data.phone
+            }));
 
             alert("✅ Cập nhật thông tin thành công!");
         } catch (err) {
@@ -146,14 +149,13 @@ function Settings() {
 
     return (
         <div>
-            {/* 1. THÔNG TIN TÀI KHOẢN */}
+            {/* Giao diện giữ nguyên như má yêu cầu */}
             <div className="card-stat" style={{ marginTop: '20px', padding: '25px' }}>
                 <h4 style={{ marginTop: 0, color: '#F97350', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '20px' }}>
                     <i className="fa-solid fa-user-gear"></i> Thông tin tài khoản
                 </h4>
 
                 <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
-                    {/* KHU VỰC AVATAR (Giao diện giống Profile khách) */}
                     <div style={{ textAlign: 'center' }}>
                         <div
                             style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }}
@@ -173,7 +175,6 @@ function Settings() {
                         <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>Nhấn để đổi ảnh</p>
                     </div>
 
-                    {/* FORM NHẬP LIỆU */}
                     <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '150px 1fr', gap: '15px', alignItems: 'center' }}>
                         <label style={{ fontWeight: '600', color: '#555' }}>Tên quản trị</label>
                         <input
@@ -207,7 +208,6 @@ function Settings() {
                 </div>
             </div>
 
-            {/* 2. CẤU HÌNH HỆ THỐNG */}
             <div className="card-stat" style={{ marginTop: '20px', padding: '25px' }}>
                 <h4 style={{ marginTop: 0, color: '#F97350', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px' }}>
                     <i className="fa-solid fa-paint-roller"></i> Giao diện & Hệ thống
@@ -238,7 +238,6 @@ function Settings() {
                 </div>
             </div>
 
-            {/* MODAL ĐỔI MẬT KHẨU (Giữ nguyên) */}
             {showPassModal && (
                 <div className="modal-bg" onClick={() => setShowPassModal(false)}>
                     <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>

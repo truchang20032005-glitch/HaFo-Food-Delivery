@@ -4,8 +4,8 @@ const ReportSchema = new mongoose.Schema({
     // Liên kết tới đơn hàng bị khiếu nại
     orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
 
-    // ID của shipper gửi báo cáo
-    shipperId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reporterRole: { type: String, enum: ['merchant', 'shipper'], required: true },
 
     // Nội dung đánh giá của khách mà shipper muốn khiếu nại
     reviewContent: { type: String },

@@ -2437,3 +2437,19 @@ input:checked+.slider:before {
   /* Thêm đổ bóng nhấp nháy để nổi bật hơn */
   box-shadow: 0 0 15px rgba(249, 115, 80, 0.6) !important;
 }
+
+@keyframes popIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: popIn 0.2s ease-out forwards;
+}

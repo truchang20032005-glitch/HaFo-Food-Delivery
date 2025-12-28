@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
 function Reviews() {
@@ -6,7 +6,10 @@ function Reviews() {
     const [selectedReview, setSelectedReview] = useState(null);
     const [reportModal, setReportModal] = useState(null);
     const [reportReason, setReportReason] = useState('');
-    const [replyText, setReplyText] = useState('');
+
+    // State quản lý nội dung phản hồi cho từng món và phản hồi chung
+    const [itemReplyTexts, setItemReplyTexts] = useState({});
+    const [generalReplyText, setGeneralReplyText] = useState('');
     const [loading, setLoading] = useState(false);
 
     const loadData = async () => {
@@ -21,31 +24,47 @@ function Reviews() {
 
     useEffect(() => { loadData(); }, []);
 
-    const handleReply = async () => {
-        if (!replyText.trim()) return;
+    // Hàm gửi phản hồi (Dùng chung cho cả món ăn và phản hồi tổng quát)
+    const handleSendReply = async (content, type = 'general') => {
+        if (!content.trim()) return alert("Vui lòng nhập nội dung phản hồi!");
+
         setLoading(true);
         try {
             const user = JSON.parse(localStorage.getItem('user'));
             await api.post(`/customer-reviews/${selectedReview._id}/reply`, {
                 userId: user.id || user._id,
-                content: replyText
+                content: content,
+                userRole: 'merchant' // Gắn role nhà hàng
             });
+
             alert("✅ Đã gửi phản hồi thành công!");
-            setReplyText('');
-            setSelectedReview(null);
-            loadData();
-        } catch (err) { alert(err.message); }
-        finally { setLoading(false); }
+            if (type === 'general') setGeneralReplyText('');
+            loadData(); // Tải lại để cập nhật lịch sử phản hồi trong modal
+        } catch (err) {
+            alert("Lỗi: " + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleReport = async () => {
-        if (!reportReason.trim()) return alert("Nhập lý do má ơi!");
+        if (!reportReason.trim()) return alert("Nhập lý do!");
         setLoading(true);
         try {
-            await api.put(`/customer-reviews/${reportModal._id}/report`, { reason: reportReason });
-            alert("🚩 Đã báo cáo lên Admin!");
+            const user = JSON.parse(localStorage.getItem('user'));
+            const reportData = {
+                orderId: reportModal.orderId,
+                reporterId: user.id || user._id,
+                reporterRole: 'merchant',
+                reason: reportReason,
+                reviewContent: reportModal.comment
+            };
+
+            // GỌI API MỚI (Tập trung)
+            await api.post('/reports/review', reportData);
+
+            alert("🚩 Đã gửi khiếu nại lên Admin!");
             setReportModal(null);
-            setReportReason('');
             loadData();
         } catch (err) { alert(err.message); }
         finally { setLoading(false); }
@@ -57,8 +76,24 @@ function Reviews() {
 
     const S = {
         overlay: { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
-        sheet: { background: '#fff', width: '100%', maxWidth: '600px', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' },
-        itemCard: { padding: '12px', background: '#F8FAFC', borderRadius: '12px', marginBottom: '10px', border: '1px solid #E2E8F0' }
+        sheet: { background: '#fff', width: '100%', maxWidth: '700px', borderRadius: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' },
+        modalHeader: { padding: '20px 30px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' },
+        modalBody: { padding: '30px', overflowY: 'auto', background: '#F8FAFC' },
+        sectionTitle: { fontSize: '14px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' },
+
+        // Thẻ món ăn
+        foodCard: { background: '#fff', borderRadius: '20px', padding: '20px', marginBottom: '15px', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' },
+        replyInputGroup: { display: 'flex', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #E2E8F0' },
+        smallInput: { flex: 1, padding: '10px 15px', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '13px', background: '#F8FAFC' },
+        sendBtnSmall: { padding: '8px 15px', borderRadius: '12px', border: 'none', background: '#F97350', color: '#fff', fontSize: '12px', fontWeight: '700', cursor: 'pointer' },
+
+        // Bong bóng chat lịch sử
+        historyBubble: (isMe) => ({
+            marginTop: '10px', padding: '12px 18px', borderRadius: '16px', fontSize: '13px', lineHeight: '1.5',
+            background: isMe ? '#FFF1ED' : '#F1F5F9',
+            borderLeft: `4px solid ${isMe ? '#F97350' : '#94A3B8'}`,
+            alignSelf: 'flex-start'
+        })
     };
 
     return (
@@ -76,87 +111,192 @@ function Reviews() {
                         </tr>
                     </thead>
                     <tbody>
-                        {reviews.map(r => (
-                            <tr key={r._id} style={{ borderBottom: '1px solid #F1F5F9', opacity: r.isReported ? 0.6 : 1 }}>
-                                <td style={{ padding: '15px 20px' }}>
-                                    <div style={{ fontWeight: '700' }}>{r.customerId?.fullName}</div>
-                                    <div style={{ fontSize: '11px', color: '#94A3B8' }}>{new Date(r.createdAt).toLocaleDateString('vi-VN')}</div>
-                                </td>
-                                <td>{renderStars(r.rating)}</td>
-                                <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.comment}</td>
-                                <td style={{ textAlign: 'center' }}>
-                                    {r.replies?.length > 0 ? <span className="tag green">Đã rep</span> : <span className="tag yellow">Chờ rep</span>}
-                                </td>
-                                <td style={{ textAlign: 'right', paddingRight: '20px' }}>
-                                    <button className="btn small soft" onClick={() => setSelectedReview(r)} style={{ marginRight: '8px' }}>Chi tiết</button>
-                                    <button className="btn small danger" onClick={() => setReportModal(r)} disabled={r.isReported}>Báo cáo</button>
-                                </td>
-                            </tr>
-                        ))}
+                        {reviews.map(r => {
+                            // 1. Logic lấy số sao: Ưu tiên rating tổng, nếu bằng 0 lấy của món đầu tiên có rating
+                            const displayRating = r.rating || (r.itemReviews?.find(it => it.rating)?.rating) || 0;
+
+                            // 2. Logic lấy nội dung: Ưu tiên nhận xét chung, nếu trống lấy nhận xét của món bất kỳ
+                            const displayComment = r.comment || (r.itemReviews?.find(it => it.comment)?.comment) || "Không có nội dung";
+
+                            return (
+                                // BỎ opacity: r.isReported ? 0.6 : 1 ĐỂ DÒNG LUÔN RÕ NÉT
+                                <tr key={r._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                    <td style={{ padding: '15px 20px' }}>
+                                        <div style={{ fontWeight: '700' }}>{r.customerId?.fullName}</div>
+                                        <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                                            {new Date(r.createdAt).toLocaleDateString('vi-VN')}
+                                        </div>
+                                    </td>
+
+                                    {/* Hiển thị số sao đã qua xử lý logic */}
+                                    <td>{renderStars(displayRating)}</td>
+
+                                    {/* Hiển thị nội dung đã qua xử lý logic */}
+                                    <td style={{
+                                        maxWidth: '250px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        fontSize: '13px',
+                                        color: '#475569'
+                                    }}>
+                                        {displayComment}
+                                    </td>
+
+                                    <td style={{ textAlign: 'center' }}>
+                                        {r.replies?.length > 0
+                                            ? <span className="tag green" style={{ opacity: 1 }}>Đã rep</span>
+                                            : <span className="tag yellow">Chờ rep</span>}
+                                    </td>
+
+                                    <td style={{ textAlign: 'right', paddingRight: '20px' }}>
+                                        <button
+                                            className="btn small soft"
+                                            onClick={() => setSelectedReview(r)}
+                                            style={{ marginRight: '8px' }}
+                                        >
+                                            Chi tiết
+                                        </button>
+
+                                        {/* SỬA LẠI: Nút báo cáo luôn hiện rõ, chỉ khóa khi đang loading gửi dữ liệu */}
+                                        <button
+                                            className="btn small danger"
+                                            onClick={() => setReportModal(r)}
+                                            style={{
+                                                opacity: 1,
+                                                background: r.isReported ? '#FEE2E2' : '', // Đổi màu nhẹ nếu đã báo cáo để dễ phân biệt
+                                                color: r.isReported ? '#EF4444' : ''
+                                            }}
+                                            disabled={loading}
+                                        >
+                                            {r.isReported ? 'Đã báo cáo' : 'Báo cáo'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
 
-            {/* MODAL CHI TIẾT & PHẢN HỒI */}
+            {/* MODAL CHI TIẾT & PHẢN HỒI MỚI */}
             {selectedReview && (
-                <div style={S.overlay} onClick={() => setSelectedReview(null)}>
-                    <div style={S.sheet} onClick={e => e.stopPropagation()}>
-                        <div style={{ padding: '20px 24px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between' }}>
-                            <b style={{ fontSize: '18px' }}>Chi tiết đánh giá đơn #{selectedReview.orderId?.slice(-6).toUpperCase()}</b>
-                            <button onClick={() => setSelectedReview(null)} style={{ border: 'none', background: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+                <div style={S.overlay}>
+                    <div style={S.sheet}>
+                        <div style={S.modalHeader}>
+                            <div>
+                                <b style={{ fontSize: '20px', color: '#1E293B' }}>Chi tiết đánh giá</b>
+                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Đơn hàng #{selectedReview.orderId?.slice(-6).toUpperCase()}</div>
+                            </div>
+                            <button onClick={() => setSelectedReview(null)} style={{ border: 'none', background: '#F1F5F9', width: '36px', height: '36px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', color: '#64748B' }}>×</button>
                         </div>
-                        <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
-                            {/* Nhận xét chung */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <b>{selectedReview.customerId?.fullName}</b>
+
+                        <div style={S.modalBody}>
+                            {/* 1. Nhận xét tổng quát của khách */}
+                            <div style={{ background: '#fff', borderRadius: '20px', padding: '25px', marginBottom: '25px', border: '1px solid #E2E8F0' }}>
+                                <div style={S.sectionTitle}><i className="fa-solid fa-comment-dots"></i> Nhận xét chung</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                    <b style={{ fontSize: '16px' }}>{selectedReview.customerId?.fullName}</b>
                                     <div>{renderStars(selectedReview.rating)}</div>
                                 </div>
-                                <p style={{ fontStyle: 'italic', color: '#64748B' }}>"{selectedReview.comment}"</p>
+                                <p style={{ fontStyle: 'italic', color: '#475569', fontSize: '15px', lineHeight: '1.6' }}>"{selectedReview.comment || "Không có nhận xét nội dung."}"</p>
                             </div>
 
-                            {/* Chi tiết từng món */}
-                            <div style={{ marginBottom: '25px' }}>
-                                <div style={{ fontWeight: '800', fontSize: '13px', color: '#F97350', marginBottom: '10px' }}>ĐÁNH GIÁ MÓN ĂN</div>
-                                {selectedReview.itemReviews?.map((it, idx) => (
-                                    <div key={idx} style={S.itemCard}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <b style={{ fontSize: '14px' }}>{it.name}</b>
-                                            <span>{renderStars(it.rating)}</span>
+                            {/* 2. Đánh giá chi tiết từng món & Phản hồi riêng */}
+                            <div style={S.sectionTitle}><i className="fa-solid fa-utensils"></i> Đánh giá chi tiết món ăn</div>
+                            {selectedReview.itemReviews?.map((it, idx) => (
+                                <div key={idx} style={S.foodCard}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div>
+                                            <b style={{ fontSize: '15px', color: '#1E293B' }}>{it.name}</b>
+                                            <div style={{ marginTop: '4px' }}>{renderStars(it.rating)}</div>
                                         </div>
-                                        <div style={{ fontSize: '13px', color: '#64748B' }}>{it.comment}</div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Đánh giá Shipper */}
-                            <div style={{ background: '#FFF8F1', padding: '15px', borderRadius: '16px', marginBottom: '25px' }}>
-                                <div style={{ fontWeight: '800', fontSize: '13px', color: '#EA580C' }}>VỀ GIAO HÀNG (SHIPPER)</div>
-                                <div style={{ marginTop: '5px' }}>{renderStars(selectedReview.shipperRating)}</div>
-                                <div style={{ fontSize: '14px' }}>{selectedReview.shipperComment || 'Không có bình luận về giao hàng.'}</div>
-                            </div>
-
-                            {/* Phản hồi của các bên */}
-                            <div style={{ borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                <label style={{ fontWeight: '800', fontSize: '14px' }}>Lịch sử phản hồi:</label>
-
-                                {selectedReview.replies?.map((rep, i) => (
-                                    <div key={i} style={{
-                                        marginTop: '10px',
-                                        background: rep.userRole === 'merchant' ? '#FFF1ED' : '#F0FDF4', // Màu khác nhau cho dễ nhìn
-                                        padding: '12px',
-                                        borderRadius: '12px',
-                                        borderLeft: `4px solid ${rep.userRole === 'merchant' ? '#F97350' : '#22C55E'}`
-                                    }}>
-                                        <b style={{ color: rep.userRole === 'merchant' ? '#F97350' : '#16A34A' }}>
-                                            {rep.userRole === 'merchant' ? '🏠 NHÀ HÀNG:' : '🛵 SHIPPER:'}
-                                        </b>
-                                        <span style={{ fontSize: '14px', marginLeft: '5px' }}>{rep.content}</span>
-                                        <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '5px' }}>
-                                            {new Date(rep.createdAt).toLocaleString('vi-VN')}
+                                        <div style={{ fontSize: '13px', color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: '8px' }}>
+                                            Món #{idx + 1}
                                         </div>
                                     </div>
-                                ))}
+                                    <div style={{ marginTop: '10px', color: '#475569', fontSize: '14px' }}>
+                                        {it.comment || <span style={{ color: '#CBD5E1' }}>Khách không để lại bình luận món này.</span>}
+                                    </div>
+
+                                    {/* Ô nhập phản hồi cho từng món */}
+                                    <div style={S.replyInputGroup}>
+                                        <input
+                                            style={S.smallInput}
+                                            placeholder={`Phản hồi riêng cho món ${it.name}...`}
+                                            value={itemReplyTexts[it._id] || ''}
+                                            onChange={(e) => setItemReplyTexts({ ...itemReplyTexts, [it._id]: e.target.value })}
+                                        />
+                                        <button
+                                            style={S.sendBtnSmall}
+                                            disabled={loading}
+                                            onClick={() => {
+                                                const content = `[Món: ${it.name}] ${itemReplyTexts[it._id]}`;
+                                                handleSendReply(content, 'item');
+                                                setItemReplyTexts({ ...itemReplyTexts, [it._id]: '' });
+                                            }}
+                                        >
+                                            Gửi ngay
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* 3. Lịch sử phản hồi đã gửi */}
+                            {selectedReview.replies?.length > 0 && (
+                                <div style={{ marginTop: '30px' }}>
+                                    <div style={S.sectionTitle}><i className="fa-solid fa-clock-rotate-left"></i> Lịch sử phản hồi</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        {selectedReview.replies.map((rep, i) => {
+                                            const isMerchant = rep.userRole === 'merchant';
+                                            return (
+                                                <div key={i} style={S.historyBubble(isMerchant)}>
+                                                    <b style={{ color: isMerchant ? '#F97350' : '#16A34A', fontSize: '11px', display: 'block', marginBottom: '4px' }}>
+                                                        {isMerchant ? '🏠 PHẢN HỒI CỦA QUÁN:' : '🛵 SHIPPER PHẢN HỒI:'}
+                                                    </b>
+                                                    {rep.content}
+                                                    <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '6px' }}>
+                                                        {new Date(rep.createdAt).toLocaleString('vi-VN')}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 4. Phản hồi chung (Dưới cùng) */}
+                            <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #E2E8F0' }}>
+                                <div style={S.sectionTitle}>Phản hồi chung cho cả đơn</div>
+                                <textarea
+                                    className="f-input"
+                                    style={{ height: '80px', borderRadius: '16px' }}
+                                    placeholder="Cảm ơn khách hoặc giải thích chung về đơn hàng..."
+                                    value={generalReplyText}
+                                    onChange={e => setGeneralReplyText(e.target.value)}
+                                />
+                                <button
+                                    className="btn primary"
+                                    style={{
+                                        width: '100%',
+                                        marginTop: '15px',
+                                        borderRadius: '16px',
+                                        background: '#334155',
+                                        // --- SỬA TẠI ĐÂY: THÊM CĂN GIỮA TUYỆT ĐỐI ---
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        height: '48px', // Chiều cao cố định để đẹp hơn
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={() => handleSendReply(generalReplyText, 'general')}
+                                    disabled={loading}
+                                >
+                                    Gửi phản hồi chung
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -168,7 +308,7 @@ function Reviews() {
                 <div style={S.overlay}>
                     <div style={{ ...S.sheet, maxWidth: '400px', padding: '24px' }}>
                         <h3 style={{ color: '#EF4444', marginTop: 0 }}>🚩 Báo cáo đánh giá</h3>
-                        <label style={{ fontSize: '13px', fontWeight: '600' }}>Lý do má báo cáo:</label>
+                        <label style={{ fontSize: '13px', fontWeight: '600' }}>Lý do báo cáo:</label>
                         <textarea className="f-input" style={{ height: '100px', marginTop: '10px' }} placeholder="VD: Khách đánh giá sai sự thật, xúc phạm quán..." value={reportReason} onChange={e => setReportReason(e.target.value)} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                             <button className="btn soft" style={{ flex: 1 }} onClick={() => setReportModal(null)}>Hủy</button>

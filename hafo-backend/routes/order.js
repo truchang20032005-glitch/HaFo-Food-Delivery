@@ -69,21 +69,22 @@ router.post('/', async (req, res) => {
 
 // --- 4. CẬP NHẬT TRẠNG THÁI ĐƠN ---
 router.put('/:id', async (req, res) => {
-    const { status, shipperId, rating, review, isReviewed } = req.body;
+    // Đổi rating -> restaurantRating, shipperRating
+    const { status, shipperId, restaurantRating, shipperRating, review, isReviewed } = req.body;
     let updateData = {};
 
     if (status) updateData.status = status;
     if (shipperId) updateData.shipperId = shipperId;
-    if (rating) updateData.rating = rating;
+
+    // Cập nhật đúng tên trường mới
+    if (restaurantRating) updateData.restaurantRating = restaurantRating;
+    if (shipperRating) updateData.shipperRating = shipperRating;
+
     if (review) updateData.review = review;
     if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
 
     try {
-        const updatedOrder = await Order.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            { new: true }
-        );
+        const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateData, { new: true });
         res.json(updatedOrder);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -97,6 +98,35 @@ router.get('/user/:userId', async (req, res) => {
         res.json(orders);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+});
+
+// API lấy đơn cho Shipper
+router.get('/available-orders', async (req, res) => {
+    try {
+        const { lat, lng, radius = 5000 } = req.query; // mặc định 5km
+
+        // Tìm các Quán ăn trong bán kính shipper
+        const nearbyRestaurants = await Restaurant.find({
+            location: {
+                $near: {
+                    $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
+                    $maxDistance: parseInt(radius)
+                }
+            }
+        }).select('_id');
+
+        const restaurantIds = nearbyRestaurants.map(r => r._id);
+
+        // Chỉ lấy những đơn thuộc các quán gần đây
+        const orders = await Order.find({
+            restaurantId: { $in: restaurantIds },
+            status: 'pending'
+        }).populate('restaurantId');
+
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

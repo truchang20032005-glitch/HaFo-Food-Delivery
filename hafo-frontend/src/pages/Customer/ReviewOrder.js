@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
+import { useAuth } from '../../context/AuthContext';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
 function ReviewOrder() {
+    const { user } = useAuth();
     const { id } = useParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
@@ -47,19 +49,23 @@ function ReviewOrder() {
     }, [fetchData]);
 
     const handleSubmit = async () => {
+        const currentUserId = user?._id || user?.id;
+        if (!currentUserId) {
+            alert("Vui lòng đăng nhập để thực hiện đánh giá!");
+            return;
+        }
         try {
-            // Chuẩn bị dữ liệu theo Schema CustomerReview.js
             const reviewData = {
                 orderId: id,
-                customerId: localStorage.getItem('userId'), // Giả định bạn lưu userId ở đây
+                customerId: currentUserId, // ✅ Sửa lại lấy ID từ user context
                 restaurantId: order.restaurantId._id || order.restaurantId,
                 shipperId: order.shipperId?._id || order.shipperId,
-                rating: driverRating, // Hoặc một trung bình cộng nào đó
+                rating: driverRating,
                 comment: driverComment,
                 shipperRating: driverRating,
                 shipperComment: driverComment,
                 itemReviews: Object.keys(foodRatings).map(foodId => ({
-                    foodId,
+                    foodId: foodId, // Đảm bảo đây là ID 24 ký tự hợp lệ
                     name: order.items.find(it => (it.foodId || it._id) === foodId)?.name,
                     rating: foodRatings[foodId],
                     comment: foodComments[foodId]
@@ -68,12 +74,12 @@ function ReviewOrder() {
 
             // GỌI API THỰC TẾ
             await api.post('/customer-reviews', reviewData);
-
             setIsSubmitted(true);
             window.scrollTo(0, 0);
         } catch (error) {
-            console.error("Lỗi khi gửi đánh giá:", error);
-            alert("Không thể gửi đánh giá, vui lòng thử lại sau!");
+            // Log lỗi ra console để debug chính xác lỗi từ Backend
+            console.error("Chi tiết lỗi:", error.response?.data || error.message);
+            alert("Không thể gửi đánh giá. Lỗi: " + (error.response?.data?.error || "Vui lòng thử lại sau"));
         }
     };
 

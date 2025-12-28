@@ -2,15 +2,16 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import Chat from '../../components/Chat';
 import 'leaflet/dist/leaflet.css';
+import { io } from 'socket.io-client';
 
 // Thiết lập Icon
-const customerIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1239/1239525.png', iconSize: [35, 35], iconAnchor: [17, 35] });
-const shipperIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40], iconAnchor: [20, 40] });
-const restaurantIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448609.png', iconSize: [35, 35], iconAnchor: [17, 35] });
+//const customerIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1239/1239525.png', iconSize: [35, 35], iconAnchor: [17, 35] });
+//const shipperIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40], iconAnchor: [20, 40] });
+//const restaurantIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448609.png', iconSize: [35, 35], iconAnchor: [17, 35] });
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 const toClock = (d) => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -32,6 +33,8 @@ function OrderTracking() {
     const [showModal, setShowModal] = useState(false);
     const [hasNewMsg, setHasNewMsg] = useState(false);
     const [isShipperChatOpen, setIsShipperChatOpen] = useState(false);
+    const [shipperPos, setShipperPos] = useState([10.762, 106.660]);
+    const socket = io('http://localhost:5000');
 
     const fetchData = useCallback(async () => {
         try {
@@ -81,6 +84,22 @@ function OrderTracking() {
         const interval = setInterval(checkNewMessages, 5000);
         return () => clearInterval(interval);
     }, [checkNewMessages]);
+
+    useEffect(() => {
+        if (!socket || !id) return; // Bảo vệ nếu id hoặc socket chưa sẵn sàng
+
+        socket.on(`tracking_order_${id}`, (data) => {
+            setShipperPos([data.lat, data.lng]);
+        });
+
+        return () => socket.off(`tracking_order_${id}`);
+    }, [id, socket]);
+
+    // Icon chiếc xe máy
+    const bikeIcon = L.icon({
+        iconUrl: '/images/bike-icon.png',
+        iconSize: [40, 40]
+    });
 
     const realStats = useMemo(() => {
         if (!order) return { distance: 0, eta: 0 };
@@ -202,15 +221,9 @@ function OrderTracking() {
                     </div>
 
                     <div style={{ ...S.card, height: '400px', padding: 0 }}>
-                        <MapContainer center={[order.lat || 10.762, order.lng || 106.660]} zoom={15} style={{ height: '100%', width: '100%' }}>
+                        <MapContainer center={shipperPos} zoom={16} style={{ height: '400px' }}>
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            {order.lat && <Marker position={[order.lat, order.lng]} icon={customerIcon} />}
-                            {shipper?.lat ? (
-                                <>
-                                    <Marker position={[shipper.lat, shipper.lng]} icon={shipperIcon} />
-                                    <Polyline positions={[[order.lat, order.lng], [shipper.lat, shipper.lng]]} color="#F97350" dashArray="10, 10" />
-                                </>
-                            ) : (restaurant?.lat && <Marker position={[restaurant.lat, restaurant.lng]} icon={restaurantIcon} />)}
+                            <Marker position={shipperPos} icon={bikeIcon} />
                         </MapContainer>
                     </div>
 
