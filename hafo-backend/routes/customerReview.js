@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const CustomerReview = require('../models/CustomerReview');
 const ReviewReply = require('../models/ReviewReply');
+const Order = require('../models/Order');
 
 // 1. Lấy tất cả đánh giá của 1 quán (Kèm các phản hồi)
 router.get('/restaurant/:restaurantId', async (req, res) => {
@@ -45,24 +46,22 @@ router.post('/', async (req, res) => {
         const { orderId, customerId, restaurantId, shipperId, rating, comment, itemReviews, shipperRating, shipperComment } = req.body;
 
         const newReview = new CustomerReview({
-            orderId,
-            customerId,
-            restaurantId,
-            shipperId,
-            rating,
-            comment,
-            itemReviews,
-            shipperRating,
-            shipperComment
+            orderId, customerId, restaurantId, shipperId,
+            rating, comment, itemReviews, shipperRating, shipperComment
         });
 
         await newReview.save();
 
-        // Cập nhật trạng thái đơn hàng đã được đánh giá (tùy chọn)
-        // await Order.findByIdAndUpdate(orderId, { isReviewed: true });
+        // ✅ PHẢI MỞ DÒNG NÀY ĐỂ TRANG LỊCH SỬ CẬP NHẬT NÚT
+        await Order.findByIdAndUpdate(orderId, {
+            isReviewed: true,
+            restaurantRating: rating,      // Sao của quán (rating tổng)
+            shipperRating: shipperRating   // Sao của shipper
+        });
 
         res.status(201).json(newReview);
     } catch (err) {
+        console.error("LỖI LƯU ĐÁNH GIÁ:", err.message); // Xem lỗi cụ thể ở terminal
         res.status(400).json({ error: err.message });
     }
 });
@@ -76,6 +75,35 @@ router.put('/:reviewId/report', async (req, res) => {
             { new: true }
         );
         res.json(review);
+    } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Lấy chi tiết đánh giá của 1 đơn hàng (Kèm phản hồi)
+router.get('/order/:orderId', async (req, res) => {
+    try {
+        const review = await CustomerReview.findOne({ orderId: req.params.orderId })
+            .populate('customerId', 'fullName avatar')
+            .populate('restaurantId', 'name')
+            .populate('shipperId', 'fullName avatar');
+
+        if (!review) return res.status(404).json({ message: "Chưa có đánh giá" });
+
+        // Lấy thêm phản hồi
+        const replies = await ReviewReply.find({ reviewId: review._id }).populate('userId', 'fullName avatar');
+
+        res.json({ ...review.toObject(), replies });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Cập nhật đánh giá
+router.put('/:reviewId', async (req, res) => {
+    try {
+        const updatedReview = await CustomerReview.findByIdAndUpdate(
+            req.params.reviewId,
+            req.body,
+            { new: true }
+        );
+        res.json(updatedReview);
     } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

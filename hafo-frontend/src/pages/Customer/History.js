@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
@@ -9,6 +9,9 @@ function History() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, danggiao, damua, dahuy
+    const [selectedReview, setSelectedReview] = useState(null);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -34,6 +37,25 @@ function History() {
     const getImageUrl = (path) => {
         if (!path) return 'https://via.placeholder.com/80?text=HaFo';
         return path;
+    };
+
+    // Hàm mở xem đánh giá
+    const handleViewReview = async (orderId) => {
+        try {
+            const res = await api.get(`/customer-reviews/order/${orderId}`);
+            setSelectedReview(res.data);
+            setShowReviewModal(true);
+        } catch (err) {
+            alert("Không thể tải đánh giá này.");
+        }
+    };
+
+    // Kiểm tra xem đơn hàng có trong vòng 24h không
+    const canEdit = (orderDate) => {
+        const now = new Date();
+        const receivedDate = new Date(orderDate);
+        const diffInHours = (now - receivedDate) / (1000 * 60 * 60);
+        return diffInHours <= 24;
     };
 
     // Logic lọc tab
@@ -182,9 +204,33 @@ function History() {
                                                     <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
                                                         Mua lại
                                                     </button>
-                                                    <Link to={`/review/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#F97350', color: '#fff', fontSize: '13px', fontWeight: 'bold' }}>
-                                                        Đánh giá
-                                                    </Link>
+                                                    {order.isReviewed ? (
+                                                        /* Nút Xem lại đánh giá (Dạng viền cam cho tinh tế) */
+                                                        <button
+                                                            onClick={() => handleViewReview(order._id)}
+                                                            style={{
+                                                                padding: '8px 16px', borderRadius: '20px',
+                                                                border: '1px solid #F97350', background: '#fff',
+                                                                color: '#F97350', fontSize: '13px', fontWeight: 'bold',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            Xem lại đánh giá
+                                                        </button>
+                                                    ) : (
+                                                        /* Nút Đánh giá (Dạng cam đặc - Style cũ bạn muốn) */
+                                                        <Link
+                                                            to={`/review/${order._id}`}
+                                                            style={{
+                                                                textDecoration: 'none', padding: '8px 20px', borderRadius: '20px',
+                                                                background: '#F97350', color: '#fff', fontSize: '13px',
+                                                                fontWeight: 'bold', textAlign: 'center',
+                                                                boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)'
+                                                            }}
+                                                        >
+                                                            Đánh giá
+                                                        </Link>
+                                                    )}
                                                 </>
                                             )}
                                             {order.status === 'cancel' && (
@@ -200,8 +246,227 @@ function History() {
                     )}
                 </div>
             </div>
+            {showReviewModal && selectedReview && (
+                <div style={S.modalOverlay}>
+                    {/* Đã sửa lại className và style tách biệt */}
+                    <div className="animate-pop-in" style={S.modalContainer}>
+                        {/* 1. Header */}
+                        <div style={S.modalHeader}>
+                            <div>
+                                <h3 style={S.modalTitle}>Chi tiết đánh giá</h3>
+                                {/* Sử dụng optional chaining để an toàn */}
+                                <p style={S.modalSubtitle}>Đơn hàng #{selectedReview.orderId?.slice ? selectedReview.orderId.slice(-6).toUpperCase() : '...'}</p>
+                            </div>
+                            <button onClick={() => setShowReviewModal(false)} style={S.closeBtnCircle}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <div style={S.modalBody}>
+                            {/* 2. Đánh giá Tài xế */}
+                            <div style={S.shipperHighlightCard}>
+                                <div style={S.shipperAvatarLarge}>
+                                    <i className="fa-solid fa-motorcycle"></i>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={S.labelText}>Tài xế vận chuyển</div>
+                                    <div style={S.shipperNameLarge}>{selectedReview.shipperId?.fullName || "Tài xế"}</div>
+                                    <div style={S.starRowLarge}>
+                                        {'★'.repeat(selectedReview.shipperRating || 0)}
+                                        <span style={{ color: '#E5E7EB' }}>{'★'.repeat(5 - (selectedReview.shipperRating || 0))}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {selectedReview.shipperComment && (
+                                <div style={S.commentBubble}>
+                                    <i className="fa-solid fa-quote-left" style={{ color: '#F97350', marginRight: '8px', opacity: 0.5 }}></i>
+                                    {selectedReview.shipperComment}
+                                </div>
+                            )}
+
+                            <div style={S.divider}></div>
+
+                            {/* 3. Đánh giá Món ăn */}
+                            <div>
+                                <h4 style={S.sectionTitle}>🍴 Đánh giá món ăn ({selectedReview.itemReviews?.length || 0})</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {selectedReview.itemReviews?.map((item, idx) => (
+                                        <div key={idx} style={S.foodReviewCard}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
+                                                <div style={S.foodName}>{item.name}</div>
+                                                <div style={S.starRowSmall}>
+                                                    {'★'.repeat(item.rating || 0)}
+                                                    <span style={{ color: '#E5E7EB' }}>{'★'.repeat(5 - (item.rating || 0))}</span>
+                                                </div>
+                                            </div>
+                                            {item.comment && <div style={S.foodComment}>{item.comment}</div>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 4. Phản hồi */}
+                            {selectedReview.replies && selectedReview.replies.length > 0 && (
+                                <div style={S.replySectionContainer}>
+                                    <h4 style={S.sectionTitle}>💬 Phản hồi từ đối tác</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                        {selectedReview.replies.map((reply, i) => {
+                                            const isMerchant = reply.userRole === 'merchant';
+                                            return (
+                                                <div key={i} style={S.replyChatBubble}>
+                                                    <div style={S.replyAvatar(isMerchant)}>
+                                                        <i className={`fa-solid ${isMerchant ? 'fa-store' : 'fa-motorcycle'}`}></i>
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={S.replyAuthorName}>
+                                                            {reply.userId?.fullName}
+                                                            <span style={S.replyRoleBadge(isMerchant)}>
+                                                                {isMerchant ? 'Quán' : 'Shipper'}
+                                                            </span>
+                                                        </div>
+                                                        <div style={S.replyContent}>{reply.content}</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={S.modalFooter}>
+                            {canEdit(selectedReview.createdAt) ? (
+                                <button
+                                    onClick={() => navigate(`/review/${selectedReview.orderId}?edit=true`)}
+                                    style={S.editBtnPrimary}
+                                >
+                                    <i className="fa-solid fa-pen-to-square" style={{ marginRight: '8px' }}></i>
+                                    Sửa đánh giá (Còn hiệu lực)
+                                </button>
+                            ) : (
+                                <div style={S.expiredNotice}>
+                                    <i className="fa-solid fa-clock-rotate-left"></i> Đã hết thời hạn chỉnh sửa (24h)
+                                </div>
+                            )}
+                            <button onClick={() => setShowReviewModal(false)} style={S.closeBtnText}>Đóng lại</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+
+const S = {
+    modalOverlay: {
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, backdropFilter: 'blur(5px)', padding: '20px'
+    },
+    modalContainer: {
+        background: '#fff', width: '100%', maxWidth: '550px',
+        borderRadius: '24px', overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        display: 'flex', flexDirection: 'column', maxHeight: '90vh'
+    },
+    modalHeader: {
+        padding: '20px 25px', borderBottom: '1px solid #F3F4F6',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: '#fff'
+    },
+    modalTitle: { margin: 0, fontSize: '20px', fontWeight: '800', color: '#111827' },
+    modalSubtitle: { margin: '4px 0 0', fontSize: '13px', color: '#6B7280' },
+    closeBtnCircle: {
+        width: '36px', height: '36px', borderRadius: '50%', border: 'none',
+        background: '#F3F4F6', color: '#4B5563', fontSize: '16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        transition: 'all 0.2s'
+    },
+
+    modalBody: {
+        padding: '25px', overflowY: 'auto', flex: 1,
+        background: '#F9FAFB' // Nền hơi xám nhẹ cho body
+    },
+
+    // Section Tài xế
+    shipperHighlightCard: {
+        display: 'flex', alignItems: 'center', gap: '15px',
+        padding: '20px', background: '#FFF7ED', // Màu cam rất nhạt
+        borderRadius: '16px', border: '1px solid #FFEDD5'
+    },
+    shipperAvatarLarge: {
+        width: '56px', height: '56px', borderRadius: '50%',
+        background: '#F97350', color: 'white', fontSize: '24px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)'
+    },
+    labelText: { fontSize: '12px', color: '#9A3412', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' },
+    shipperNameLarge: { fontSize: '18px', fontWeight: '800', color: '#9A3412', margin: '2px 0' },
+    starRowLarge: { fontSize: '20px', color: '#FBBF24', letterSpacing: '2px' },
+    commentBubble: {
+        marginTop: '15px', padding: '15px 20px', background: '#fff',
+        borderRadius: '12px', border: '1px solid #E5E7EB',
+        fontSize: '14px', color: '#374151', fontStyle: 'italic', lineHeight: '1.5'
+    },
+
+    divider: { height: '1px', background: '#E5E7EB', margin: '25px 0' },
+    sectionTitle: { fontSize: '16px', fontWeight: '700', color: '#111827', margin: '0 0 15px' },
+
+    // Section Món ăn
+    foodReviewCard: {
+        padding: '15px', background: '#fff', borderRadius: '12px',
+        border: '1px solid #F3F4F6', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+    },
+    foodName: { fontWeight: '700', fontSize: '15px', color: '#374151' },
+    starRowSmall: { fontSize: '14px', color: '#FBBF24' },
+    foodComment: { fontSize: '13px', color: '#6B7280', marginTop: '8px', lineHeight: '1.4' },
+
+    // Section Phản hồi
+    replySectionContainer: {
+        marginTop: '30px', paddingTop: '25px', borderTop: '2px dashed #E5E7EB'
+    },
+    replyChatBubble: { display: 'flex', gap: '12px' },
+    replyAvatar: (isMerchant) => ({
+        width: '32px', height: '32px', borderRadius: '50%',
+        background: isMerchant ? '#EFF6FF' : '#F0FDF4',
+        color: isMerchant ? '#2563EB' : '#16A34A',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0
+    }),
+    replyAuthorName: { fontWeight: '700', fontSize: '14px', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' },
+    replyRoleBadge: (isMerchant) => ({
+        fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
+        background: isMerchant ? '#DBEAFE' : '#DCFCE7',
+        color: isMerchant ? '#1E40AF' : '#166534',
+        fontWeight: '800', textTransform: 'uppercase'
+    }),
+    replyContent: {
+        marginTop: '4px', padding: '10px 14px', background: '#fff',
+        borderRadius: '4px 16px 16px 16px', border: '1px solid #E5E7EB',
+        fontSize: '13px', color: '#374151', lineHeight: '1.5'
+    },
+    replyTime: { fontSize: '11px', color: '#9CA3AF', marginTop: '4px' },
+
+    modalFooter: {
+        padding: '20px 25px', borderTop: '1px solid #F3F4F6',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+        background: '#fff'
+    },
+    editBtnPrimary: {
+        width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+        background: '#F97350', color: '#fff', fontWeight: '800', fontSize: '15px',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 4px 12px rgba(249, 115, 80, 0.25)',
+        transition: 'all 0.2s'
+    },
+    expiredNotice: {
+        textAlign: 'center', fontSize: '13px', color: '#6B7280',
+        padding: '10px', background: '#F3F4F6', borderRadius: '12px', fontWeight: '600'
+    },
+    closeBtnText: {
+        width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
+        background: '#fff', color: '#6B7280', fontWeight: '700', fontSize: '14px',
+        cursor: 'pointer', transition: 'all 0.2s'
+    },
+};
 
 export default History;

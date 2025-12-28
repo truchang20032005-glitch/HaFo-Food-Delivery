@@ -169,36 +169,21 @@ router.put('/approve/:type/:id', async (req, res) => {
         let emailToSend = "";
         let nameToSend = "";
 
+        // 1. TRƯỜNG HỢP DUYỆT NHÀ HÀNG (MERCHANT)
         if (type === 'merchant') {
             const pending = await PendingRestaurant.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-            // Lấy email để gửi
             emailToSend = pending.email || pending.repEmail;
             nameToSend = pending.name;
 
-            // ... (Logic tạo Restaurant và Update User giữ nguyên như cũ) ...
-            let restaurant = await Restaurant.findOne({ owner: pending.userId });
-            if (!restaurant) {
-                restaurant = new Restaurant({
-                    owner: pending.userId,
-                    name: pending.name,
-                    address: pending.address,
-                    phone: pending.phone,
-                    image: pending.avatar,
-                    // ... các trường khác
-                    isOpen: true
-                });
-                await restaurant.save();
-            }
-            await User.findByIdAndUpdate(pending.userId, { role: 'merchant' });
-            // ✅ Tạo Restaurant mới
+            // ✅ BƯỚC quan trọng: Chỉ tạo Nhà hàng tại đây (Khi duyệt)
             const newRestaurant = new Restaurant({
                 owner: pending.userId,
                 name: pending.name,
                 address: pending.address,
                 phone: pending.phone,
-                image: pending.avatar || pending.coverImage, // Dùng avatar hoặc coverImage
+                image: pending.avatar || pending.coverImage,
                 city: pending.city,
                 district: pending.district,
                 cuisine: pending.cuisine,
@@ -213,37 +198,26 @@ router.put('/approve/:type/:id', async (req, res) => {
             });
             await newRestaurant.save();
 
-            // ✅ CẬP NHẬT USER - GÁN restaurant ID
+            // Cập nhật User: Đổi role và gắn ID nhà hàng vừa tạo
             await User.findByIdAndUpdate(pending.userId, {
                 role: 'merchant',
-                restaurant: newRestaurant._id,    // ← QUAN TRỌNG!
+                restaurant: newRestaurant._id, // Liên kết user với nhà hàng mới
                 approvalStatus: 'approved'
             });
 
-            // ✅ Đánh dấu pending đã duyệt
+            // Đánh dấu hồ sơ chờ đã được duyệt
             pending.status = 'approved';
             await pending.save();
 
+            // 2. TRƯỜNG HỢP DUYỆT SHIPPER
         } else if (type === 'shipper') {
             const pending = await PendingShipper.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-            // Lấy email
             emailToSend = pending.email;
             nameToSend = pending.fullName;
 
-            // ... (Logic tạo Shipper và Update User giữ nguyên như cũ) ...
-            const existing = await Shipper.findOne({ user: pending.userId });
-            if (!existing) {
-                const newShipper = new Shipper({
-                    user: pending.userId,
-                    // ... các trường khác
-                    income: 0
-                });
-                await newShipper.save();
-            }
-            await User.findByIdAndUpdate(pending.userId, { role: 'shipper' });
-            // ✅ Tạo Shipper mới
+            // ✅ BƯỚC quan trọng: Chỉ tạo Shipper tại đây (Khi duyệt)
             const newShipper = new Shipper({
                 user: pending.userId,
                 vehicleType: pending.vehicleType,
@@ -252,14 +226,14 @@ router.put('/approve/:type/:id', async (req, res) => {
                 bankName: pending.bankName,
                 bankAccount: pending.bankAccount,
                 bankOwner: pending.bankOwner,
-                income: 0
+                income: 0 // Thu nhập khởi điểm là 0
             });
             await newShipper.save();
 
-            // ✅ CẬP NHẬT USER - GÁN shipper ID
+            // Cập nhật User: Đổi role và gắn ID shipper vừa tạo
             await User.findByIdAndUpdate(pending.userId, {
                 role: 'shipper',
-                shipper: newShipper._id,          // ← QUAN TRỌNG!
+                shipper: newShipper._id, // Liên kết user với hồ sơ shipper
                 fullName: pending.fullName,
                 phone: pending.phone,
                 approvalStatus: 'approved'
@@ -269,16 +243,16 @@ router.put('/approve/:type/:id', async (req, res) => {
             await pending.save();
         }
 
-        // ---> GỬI MAIL THÔNG BÁO DUYỆT <---
+        // 3. GỬI EMAIL THÔNG BÁO (Giữ nguyên logic cũ của bạn)
         if (emailToSend) {
-            const content = `Xin chào ${nameToSend},\n\nHồ sơ đối tác của bạn tại HaFo đã được DUYỆT THÀNH CÔNG!\nBây giờ bạn có thể đăng nhập vào hệ thống để bắt đầu kinh doanh/hoạt động.\n\nTrân trọng,\nHaFo Team.`;
+            const content = `Xin chào ${nameToSend},\n\nHồ sơ đối tác của bạn tại HaFo đã được DUYỆT THÀNH CÔNG!\nBây giờ bạn có thể đăng nhập để bắt đầu hoạt động.\n\nTrân trọng,\nHaFo Team.`;
             await sendNotificationEmail(emailToSend, "Hồ sơ HaFo của bạn đã được duyệt! 🎉", content);
         }
 
-        res.json({ message: 'Đã duyệt và gửi email thông báo!' });
+        res.json({ message: 'Đã duyệt thành công và gửi email thông báo!' });
 
     } catch (err) {
-        console.error('Lỗi approve:', err);
+        console.error('Lỗi Duyệt hồ sơ:', err);
         res.status(500).json({ error: err.message });
     }
 });

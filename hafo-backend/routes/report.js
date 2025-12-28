@@ -1,20 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const Report = require('../models/Report');
+const CustomerReview = require('../models/CustomerReview');
 
-// 1. SHIPPER GỬI BÁO CÁO (Gọi từ ShipperHistory.js)
+// Gửi báo cáo (Merchant hoặc Shipper gọi chung API này)
 router.post('/review', async (req, res) => {
     try {
-        const { orderId, shipperId, reason, reviewContent } = req.body;
+        const { orderId, reporterId, reporterRole, reason, reviewContent } = req.body;
 
         const newReport = new Report({
             orderId,
-            shipperId,
+            reporterId,
+            reporterRole, // 'merchant' hoặc 'shipper'
             reason,
             reviewContent
         });
-
         await newReport.save();
+
+        // Cập nhật trạng thái báo cáo bên phía Review để UI hiển thị "Đã báo cáo"
+        await CustomerReview.findOneAndUpdate(
+            { orderId: orderId },
+            { isReported: true }
+        );
+
         res.status(201).json({ message: "Gửi báo cáo thành công!", data: newReport });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -25,8 +33,9 @@ router.post('/review', async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const reports = await Report.find()
-            .populate('shipperId', 'fullName phone')
-            .populate('orderId', '_id total')
+            // Sửa shipperId thành reporterId cho đúng với Model Report.js
+            .populate('reporterId', 'fullName phone avatar')
+            .populate('orderId', '_id total customer')
             .sort({ createdAt: -1 });
         res.json(reports);
     } catch (err) {

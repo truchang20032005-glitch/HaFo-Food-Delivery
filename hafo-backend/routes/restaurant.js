@@ -16,40 +16,42 @@ router.post('/', async (req, res) => {
     }
 });
 
-// 2. LẤY TẤT CẢ QUÁN (Gộp chung logic lấy stats cho Admin và Khách hàng)
+// 2. LẤY DANH SÁCH TẤT CẢ QUÁN KÈM DOANH THU (Dành cho Admin/Home)
 router.get('/', async (req, res) => {
     try {
-        // Lấy danh sách quán và thông tin chủ sở hữu
+        // 1. Lấy danh sách quán và thông tin chủ sở hữu
         const restaurants = await Restaurant.find().populate('owner', 'fullName email phone');
 
-        // Tính toán thống kê cho từng quán (Dùng Promise.all để chạy song song)
-        const result = await Promise.all(restaurants.map(async (rest) => {
-            // Tính doanh thu từ các đơn đã hoàn thành (status: 'done')
-            const stats = await Order.aggregate([
-                {
-                    $match: {
-                        restaurantId: rest._id,
-                        status: 'done'
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalRevenue: { $sum: '$total' }
-                    }
+        // 2. Tính doanh thu và số đơn của TẤT CẢ quán bằng 1 câu lệnh aggregate
+        const stats = await Order.aggregate([
+            { $match: { status: 'done' } },
+            {
+                $group: {
+                    _id: '$restaurantId',
+                    totalRevenue: { $sum: '$total' },
+                    totalOrders: { $sum: 1 } // Đếm luôn số đơn cho tiện
                 }
-            ]);
+            }
+        ]);
 
-            // Lấy tổng số đơn hàng của quán này
-            const countAll = await Order.countDocuments({ restaurantId: rest._id });
-            const revenueValue = stats[0] ? stats[0].totalRevenue : 0;
+        // 3. Chuyển kết quả sang Map để tra cứu O(1)
+        const statsMap = {};
+        stats.forEach(item => {
+            statsMap[item._id.toString()] = {
+                revenue: item.totalRevenue,
+                orders: item.totalOrders
+            };
+        });
 
+        // 4. Hợp nhất dữ liệu
+        const result = restaurants.map(rest => {
+            const restStats = statsMap[rest._id.toString()] || { revenue: 0, orders: 0 };
             return {
                 ...rest.toObject(),
-                orders: countAll || 0, // Đảm bảo luôn có số 0 nếu không có đơn
-                revenue: revenueValue || 0 // Đảm bảo không bị undefined dẫn đến lỗi "undefinedđ"
+                revenue: restStats.revenue,
+                orders: restStats.orders
             };
-        }));
+        });
 
         res.json(result);
     } catch (err) {
@@ -57,15 +59,13 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 3. LẤY CHI TIẾT 1 QUÁN + MENU
+// 3. LẤY CHI TIẾT 1 QUÁN
 router.get('/:id', async (req, res) => {
     try {
-        const restaurant = await Restaurant.findById(req.params.id);
-        const foods = await Food.find({ restaurant: req.params.id });
-        res.json({ restaurant, foods });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const restaurant = await Restaurant.findById(req.params.id).populate('owner', 'fullName phone email');
+        if (!restaurant) return res.status(404).json({ message: 'Không tìm thấy quán' });
+        res.json(restaurant);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // 4. LẤY MENU CỦA 1 QUÁN

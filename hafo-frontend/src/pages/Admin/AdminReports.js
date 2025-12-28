@@ -18,21 +18,20 @@ function AdminReports() {
         }
     };
 
-    useEffect(() => {
-        fetchReports();
-    }, []);
+    useEffect(() => { fetchReports(); }, []);
 
     const handleUpdateStatus = async (id, status) => {
+        if (!adminNote.trim()) return alert("Vui lòng nhập ghi chú xử lý!");
         try {
             await api.put(`/reports/${id}/status`, { status, adminNote });
-            alert("Đã cập nhật trạng thái xử lý!");
+            alert("✅ Đã cập nhật trạng thái xử lý!");
             setSelectedReport(null);
             setAdminNote('');
             fetchReports();
-        } catch (err) {
-            alert("Lỗi: " + err.message);
-        }
+        } catch (err) { alert("Lỗi: " + err.message); }
     };
+
+    if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}>Đang tải báo cáo...</div>;
 
     return (
         <div>
@@ -63,8 +62,8 @@ function AdminReports() {
                                 <tr key={r._id}>
                                     <td><b style={{ color: '#F97350' }}>#{r.orderId?._id.slice(-6).toUpperCase()}</b></td>
                                     <td>
-                                        <div style={{ fontWeight: '700' }}>{r.shipperId?.fullName}</div>
-                                        <div style={{ fontSize: '11px', color: '#888' }}>{r.shipperId?.phone}</div>
+                                        <div style={{ fontWeight: '700' }}>{r.reporterId?.fullName}</div>
+                                        <div style={{ fontSize: '11px', color: '#888' }}>{r.reporterRole === 'shipper' ? '🛵 Tài xế' : '🏠 Nhà hàng'}</div>
                                     </td>
                                     <td style={{ maxWidth: '250px' }}><span className="text-truncate">{r.reason}</span></td>
                                     <td style={{ fontSize: '12px' }}>{new Date(r.createdAt).toLocaleString('vi-VN')}</td>
@@ -85,22 +84,44 @@ function AdminReports() {
 
             {/* MODAL CHI TIẾT KHIẾU NẠI */}
             {selectedReport && (
-                <div className="modal-bg" onClick={() => setSelectedReport(null)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%', borderRadius: '24px', padding: '30px' }}>
-                        <h3 style={{ color: '#F97350', marginBottom: '20px' }}>Chi tiết khiếu nại</h3>
+                <div className="modal-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div className="admin-modal" style={{ maxWidth: '600px', width: '100%' }}>
+                        <h3 style={{ marginTop: 0 }}>Chi tiết báo cáo khiếu nại</h3>
 
-                        <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '15px', marginBottom: '20px' }}>
-                            <div style={{ marginBottom: '10px' }}><b>Nội dung đánh giá của khách:</b></div>
-                            <div style={{ fontStyle: 'italic', color: '#64748b', background: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                "{selectedReport.reviewContent || "Không có nội dung văn bản"}"
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div>
+                                <div style={{ fontSize: '12px', color: '#999', textTransform: 'uppercase' }}>
+                                    Người khiếu nại ({selectedReport.reporterRole === 'shipper' ? 'Tài xế' : 'Nhà hàng'})
+                                </div>
+                                <div style={{ fontWeight: 'bold' }}>{selectedReport.reporterId?.fullName}</div>
+                                <div style={{ fontSize: '13px', color: '#666' }}>SĐT: {selectedReport.reporterId?.phone || "N/A"}</div>
                             </div>
-                            <div style={{ marginTop: '15px' }}><b>Lý do tài xế khiếu nại:</b></div>
-                            <div style={{ color: '#1e293b', fontWeight: '500' }}>{selectedReport.reason}</div>
+                            <div>
+                                <div style={{ fontSize: '12px', color: '#999', textTransform: 'uppercase' }}>Đơn hàng liên quan</div>
+                                <div style={{ fontWeight: 'bold' }}>#{selectedReport.orderId?._id}</div>
+                                <div style={{ fontSize: '13px', color: '#666' }}>Khách hàng: {selectedReport.orderId?.customer?.split('|')[0]}</div>
+                            </div>
                         </div>
 
+                        <div style={{ marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '12px' }}>
+                            <div style={{ fontSize: '12px', color: '#999', marginBottom: '5px' }}>NỘI DUNG ĐÁNH GIÁ CỦA KHÁCH:</div>
+                            <div style={{ fontStyle: 'italic' }}>"{selectedReport.reviewContent || "Trống"}"</div>
+                        </div>
+
+                        <div style={{ marginTop: '20px' }}>
+                            <div style={{ fontSize: '12px', color: '#999', marginBottom: '5px' }}>LÝ DO KHIẾU NẠI:</div>
+                            <div style={{ fontWeight: '500' }}>{selectedReport.reason}</div>
+                        </div>
+
+                        {selectedReport.status !== 'pending' && (
+                            <div style={{ marginTop: '20px', padding: '15px', background: '#e6f4ea', borderRadius: '12px', color: '#1e7e34' }}>
+                                <b>Admin đã xử lý:</b> {selectedReport.adminNote}
+                            </div>
+                        )}
+
                         {selectedReport.status === 'pending' && (
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ fontWeight: '700', fontSize: '14px', display: 'block', marginBottom: '8px' }}>Ghi chú xử lý (Admin):</label>
+                            <div style={{ marginTop: '20px' }}>
+                                <label style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Ghi chú xử lý (Admin):</label>
                                 <textarea
                                     value={adminNote}
                                     onChange={(e) => setAdminNote(e.target.value)}
@@ -110,7 +131,7 @@ function AdminReports() {
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                             <button className="btn soft" onClick={() => setSelectedReport(null)}>Đóng</button>
                             {selectedReport.status === 'pending' && (
                                 <>

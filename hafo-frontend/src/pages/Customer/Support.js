@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 
 function Support() {
-    const navigate = useNavigate();
-    // 2. Trạng thái quản lý việc mở mục nào (null là đóng hết)
+    //const navigate = useNavigate();
     const [activeIndex, setActiveIndex] = useState(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-    // 3. Dữ liệu câu hỏi lồng nội dung chi tiết
+    // Theo dõi kích thước màn hình
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const faqData = [
         {
             icon: '📦',
@@ -33,313 +38,109 @@ function Support() {
         setActiveIndex(activeIndex === index ? null : index);
     };
 
+    // --- HỆ THỐNG STYLES RESPONSIVE ---
+    const S = {
+        heroWrapper: {
+            position: 'relative', width: '100%', height: isMobile ? '350px' : '600px',
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+            overflow: 'hidden', backgroundColor: '#000'
+        },
+        heroContentBox: {
+            position: 'relative', zIndex: 3, marginLeft: isMobile ? '5%' : '8%',
+            maxWidth: isMobile ? '90%' : '550px', padding: '20px', color: '#fff'
+        },
+        heroTitle: {
+            fontSize: isMobile ? '32px' : '48px', fontWeight: 'bold', marginBottom: '15px',
+            lineHeight: '1.2', textShadow: '2px 2px 8px rgba(0,0,0,0.5)'
+        },
+        gridContainer: {
+            display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(450px, 1fr))',
+            gap: isMobile ? '20px' : '30px', maxWidth: '1200px', margin: isMobile ? '30px auto' : '60px auto',
+            padding: '0 15px'
+        },
+        modernCard: {
+            backgroundColor: '#fff', padding: isMobile ? '25px' : '40px',
+            borderRadius: '28px', boxShadow: '0 15px 50px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0'
+        },
+        faqInnerContent: {
+            padding: isMobile ? '10px 10px 20px 10px' : '0px 20px 25px 68px',
+            fontSize: '15px', lineHeight: '1.6', color: '#666', textAlign: 'justify'
+        },
+        contactWrapper: {
+            display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? '30px' : '0', justifyContent: 'space-around', marginBottom: '40px'
+        }
+    };
+
     return (
         <div className="support-page" style={{ backgroundColor: '#fdfaf5', minHeight: '100vh', paddingBottom: '50px' }}>
             <Navbar />
 
-            {/* --- HERO SECTION --- */}
-            <div className="support-hero" style={heroWrapperStyle}>
-                <img
-                    src="/images/supporter.jpg"
-                    alt="Support Banner"
-                    style={bannerImgStyle}
-                />
-
-                <div style={gradientOverlayStyle}></div>
-
-                <div style={heroContentBoxStyle}>
-                    <h1 style={heroTitleStyle}>
-                        Trung tâm hỗ trợ <span style={{ color: '#ff7a00' }}>HaFo</span>
-                    </h1>
-
-                    <div style={heroDividerStyle}></div>
-
-                    <p style={heroTextStyle}>
-                        Chúng tôi luôn sẵn sàng lắng nghe và giải đáp mọi thắc mắc của bạn. Đội ngũ hỗ trợ tận tâm của HaFo cam kết mang đến thông tin nhanh chóng, chính xác, giúp bạn trải nghiệm dịch vụ một cách tiện lợi và an tâm nhất.
+            <div className="support-hero" style={S.heroWrapper}>
+                <img src="/images/supporter.jpg" alt="Support Banner" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, objectFit: 'cover', opacity: '0.8' }} />
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)', zIndex: 2 }}></div>
+                <div style={S.heroContentBox}>
+                    <h1 style={S.heroTitle}>Trung tâm hỗ trợ <span style={{ color: '#ff7a00' }}>HaFo</span></h1>
+                    <div style={{ width: '60px', height: '5px', background: '#ff7a00', marginBottom: '25px', borderRadius: '10px' }}></div>
+                    <p style={{ fontSize: isMobile ? '15px' : '18px', lineHeight: '1.7', color: 'rgba(255,255,255,0.9)' }}>
+                        Chúng tôi luôn sẵn sàng lắng nghe và giải đáp mọi thắc mắc của bạn nhanh chóng nhất.
                     </p>
                 </div>
             </div>
 
-            {/* --- CONTENT GRID --- */}
-            <div className="support-grid" style={gridContainerStyle}>
-
-                {/* Cụm 1: Câu hỏi thường gặp - CÓ ACCORDION */}
-                <div className="support-card" style={modernCardStyle}>
-                    <div style={headerStyle}>
-                        <span style={iconHeaderStyle}>❓</span>
-                        <h3 style={{ margin: 0, color: '#333', fontSize: '22px' }}>Câu hỏi thường gặp</h3>
+            <div className="support-grid" style={S.gridContainer}>
+                <div className="support-card" style={S.modernCard}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px', borderBottom: '2px solid #fff5ed', paddingBottom: '20px' }}>
+                        <span style={{ fontSize: '24px', backgroundColor: '#fff5ed', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '15px' }}>❓</span>
+                        <h3 style={{ margin: 0, color: '#333', fontSize: '20px' }}>Câu hỏi thường gặp</h3>
                     </div>
-
                     {faqData.map((item, index) => (
                         <div key={index} style={{ borderBottom: '1px solid #f9f9f9' }}>
-                            {/* Phần tiêu đề bấm vào được */}
-                            <div
-                                className="support-item"
-                                style={modernItemStyle}
-                                onClick={() => toggleAccordion(index)}
-                            >
-                                <div style={iconBoxStyle}>{item.icon}</div>
+                            <div className="support-item" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', cursor: 'pointer' }} onClick={() => toggleAccordion(index)}>
+                                <div style={{ minWidth: '40px', height: '40px', backgroundColor: '#f8f9fa', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{item.icon}</div>
                                 <div style={{ flex: 1 }}>
-                                    <strong style={{ fontSize: '16px', color: '#333' }}>{item.title}</strong>
-                                    <p style={subTextStyle}>{item.desc}</p>
+                                    <strong style={{ fontSize: '15px', color: '#333' }}>{item.title}</strong>
+                                    {!isMobile && <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#888' }}>{item.desc}</p>}
                                 </div>
-                                <span style={{
-                                    ...arrowStyle,
-                                    transform: activeIndex === index ? 'rotate(90deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.3s ease',
-                                    display: 'inline-block'
-                                }}>
-                                    ›
-                                </span>
+                                <span style={{ color: '#ddd', fontSize: '24px', transform: activeIndex === index ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>›</span>
                             </div>
-
-                            {/* Phần nội dung chi tiết ẩn/hiện */}
                             {activeIndex === index && (
-                                <div style={faqContentDetailStyle}>
-                                    <div style={faqInnerContentStyle}>
-                                        {item.content}
-                                    </div>
+                                <div style={{ overflow: 'hidden', transition: '0.3s' }}>
+                                    <div style={S.faqInnerContent}>{item.content}</div>
                                 </div>
                             )}
                         </div>
                     ))}
                 </div>
 
-                {/* Cụm 2: Liên hệ trực tiếp */}
-                <div className="support-card" style={{ ...modernCardStyle, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+                <div className="support-card" style={{ ...S.modernCard, textAlign: 'center' }}>
                     <div style={{ marginBottom: '30px' }}>
-                        <h3 style={{ fontSize: '24px', marginBottom: '10px', color: '#333' }}>Bạn cần kết nối trực tiếp?</h3>
-                        <p style={{ color: '#777', fontSize: '15px' }}>Đội ngũ HaFo luôn túc trực 24/7 để lắng nghe bạn</p>
+                        <h3 style={{ fontSize: '22px', marginBottom: '10px', color: '#333' }}>Bạn cần kết nối trực tiếp?</h3>
+                        <p style={{ color: '#777', fontSize: '14px' }}>Đội ngũ HaFo luôn túc trực 24/7 để lắng nghe bạn</p>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '40px' }}>
-                        <div style={contactBoxStyle}>
-                            <div style={iconCircleStyle}>📞</div>
-                            <small style={{ fontWeight: '700', color: '#444', display: 'block' }}>Hotline</small>
-                            <span style={{ fontSize: '14px', color: '#ff7a00' }}>1900 1234</span>
+                    <div style={S.contactWrapper}>
+                        <div>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '20px', backgroundColor: '#bdeac4ff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 10px' }}>📞</div>
+                            <small style={{ fontWeight: '700', color: '#444' }}>Hotline</small>
+                            <span style={{ fontSize: '14px', color: '#ff7a00', display: 'block' }}>1900 1234</span>
                         </div>
-                        <div style={contactBoxStyle}>
-                            <div style={iconCircleStyle}>✉️</div>
-                            <small style={{ fontWeight: '700', color: '#444', display: 'block' }}>Email</small>
-                            <span style={{ fontSize: '14px', color: '#ff7a00' }}>happyfoodcskh2025@gmail.com</span>
+                        <div>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '20px', backgroundColor: '#bdeac4ff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 10px' }}>✉️</div>
+                            <small style={{ fontWeight: '700', color: '#444' }}>Email</small>
+                            <span style={{ fontSize: '14px', color: '#ff7a00', display: 'block' }}>happyfoodcskh2025@gmail.com</span>
                         </div>
                     </div>
-                    <p style={{ color: '#bbb', fontSize: '13px', marginTop: '10px' }}>Thời gian phản hồi trung bình: 5 phút</p>
-                    <p style={{ color: '#888', fontSize: '14px', marginTop: '10px' }}>Chúng tôi cam kết bảo mật thông tin khách hàng</p>
                 </div>
             </div>
-            {/* --- THANK YOU SECTION --- */}
-            <div className="support-footer" style={{
-                textAlign: 'center',
-                padding: '80px 20px',
-                marginTop: '40px',
-                borderTop: '1px solid #eee',
-                background: 'linear-gradient(to bottom, #a9ddc1ff, #f8dccaeb)'
-            }}>
-                <div style={{ fontSize: '40px', marginBottom: '20px' }}>❤️</div>
-                <h2 style={{
-                    fontSize: '28px',
-                    color: '#333',
-                    fontWeight: '700',
-                    marginBottom: '15px'
-                }}>
-                    Cảm ơn bạn đã tin tưởng chọn <span style={{ color: '#ff7a00' }}>HaFo</span>!
-                </h2>
-                <p style={{
-                    maxWidth: '750px',
-                    margin: '0 auto',
-                    color: '#666',
-                    lineHeight: '1.6',
-                    fontSize: '16px',
-                    whiteSpace: 'pre-line' // Giúp nhận diện xuống dòng
-                }}>
-                    Sự hài lòng của bạn là động lực để đội ngũ chúng tôi không ngừng hoàn thiện dịch vụ mỗi ngày.{"\n"}
-                    Chúc bạn luôn có những bữa ăn ngon miệng và trọn vẹn niềm vui cùng HaFo!
-                </p>
-                <p style={{ marginTop: '40px', fontSize: '12px', color: '#bbb' }}>
-                    © 2025 HaFo Food Delivery. All rights reserved.
-                </p>
+
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'linear-gradient(to bottom, #a9ddc1ff, #f8dccaeb)' }}>
+                <div style={{ fontSize: '40px', marginBottom: '15px' }}>❤️</div>
+                <h2 style={{ fontSize: isMobile ? '22px' : '28px', color: '#333', fontWeight: '700' }}>Cảm ơn bạn đã tin tưởng <span style={{ color: '#ff7a00' }}>HaFo</span>!</h2>
+                <p style={{ maxWidth: '700px', margin: '15px auto', color: '#666', fontSize: '15px', lineHeight: '1.6' }}>Sự hài lòng của bạn là động lực để chúng tôi hoàn thiện mỗi ngày.</p>
+                <p style={{ marginTop: '30px', fontSize: '12px', color: '#888' }}>© 2025 HaFo Food Delivery. All rights reserved.</p>
             </div>
         </div>
     );
 }
-
-// --- HỆ THỐNG STYLES ---
-const heroWrapperStyle = {
-    position: 'relative',
-    width: '100%',
-    height: '600px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    overflow: 'hidden',
-    backgroundColor: '#000'
-};
-
-const bannerImgStyle = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    zIndex: 1,
-    objectFit: 'cover',
-    objectPosition: 'right center',
-    opacity: '0.8'
-};
-
-const gradientOverlayStyle = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)',
-    zIndex: 2
-};
-
-const heroContentBoxStyle = {
-    position: 'relative',
-    zIndex: 3,
-    marginLeft: '8%',
-    maxWidth: '550px',
-    padding: '30px',
-    color: '#fff'
-};
-
-const heroTitleStyle = {
-    fontSize: '48px',
-    fontWeight: 'bold',
-    marginBottom: '20px',
-    lineHeight: '1.2',
-    textShadow: '2px 2px 8px rgba(0,0,0,0.5)'
-};
-
-const heroDividerStyle = {
-    width: '60px',
-    height: '5px',
-    background: '#ff7a00',
-    marginBottom: '25px',
-    borderRadius: '10px'
-};
-
-const heroTextStyle = {
-    fontSize: '18px',
-    lineHeight: '1.7',
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'left'
-};
-
-const gridContainerStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
-    gap: '30px',
-    maxWidth: '1200px',
-    margin: '60px auto',
-    padding: '0 20px'
-};
-
-const modernCardStyle = {
-    backgroundColor: '#fff',
-    padding: '40px',
-    borderRadius: '28px',
-    boxShadow: '0 15px 50px rgba(0,0,0,0.05)',
-    border: '1px solid #f0f0f0',
-};
-
-const headerStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '15px',
-    marginBottom: '25px',
-    borderBottom: '2px solid #fff5ed',
-    paddingBottom: '20px'
-};
-
-const iconHeaderStyle = {
-    fontSize: '24px',
-    backgroundColor: '#fff5ed',
-    width: '50px',
-    height: '50px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '15px'
-};
-
-const modernItemStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '20px',
-    padding: '20px 0',
-    cursor: 'pointer',
-};
-
-const iconBoxStyle = {
-    width: '48px',
-    height: '48px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '14px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '22px'
-};
-
-const subTextStyle = {
-    margin: '4px 0 0 0',
-    fontSize: '14px',
-    color: '#888',
-};
-
-const arrowStyle = {
-    color: '#ddd',
-    fontSize: '28px',
-    fontWeight: '300',
-    marginLeft: '10px'
-};
-
-const faqContentDetailStyle = {
-    overflow: 'hidden',
-    transition: 'max-height 0.3s ease-in-out',
-};
-
-const faqInnerContentStyle = {
-    padding: '0px 20px 25px 68px',
-    fontSize: '15px',
-    lineHeight: '1.6',
-    color: '#666',
-    textAlign: 'justify'
-};
-
-const contactBoxStyle = {
-    textAlign: 'center',
-    flex: 1
-};
-
-const iconCircleStyle = {
-    width: '65px',
-    height: '65px',
-    borderRadius: '22px',
-    backgroundColor: '#bdeac4ff',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '28px',
-    margin: '0 auto 15px',
-    boxShadow: '0 10px 25px rgba(94, 255, 0, 0.2)'
-};
-const socialIconStyle = {
-    fontSize: '14px',
-    color: '#ff7a00',
-    fontWeight: '600',
-    cursor: 'pointer',
-    padding: '8px 16px',
-    backgroundColor: '#fff',
-    borderRadius: '20px',
-    border: '1px solid #ff7a00',
-    transition: '0.3s'
-};
 
 export default Support;

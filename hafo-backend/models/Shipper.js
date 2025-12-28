@@ -5,7 +5,10 @@ const ShipperSchema = new mongoose.Schema({
     vehicleType: { type: String, required: true },
     licensePlate: { type: String, required: true },
     isAvailable: { type: Boolean, default: true },
-    currentLocation: { type: String },
+    location: {
+        type: { type: String, default: 'Point' },
+        coordinates: { type: [Number], default: [0, 0] } // [lng, lat]
+    },
     rating: { type: Number, default: 5.0 },
     income: { type: Number, default: 0 },
     // ✅ Thêm các trường ngân hàng mới

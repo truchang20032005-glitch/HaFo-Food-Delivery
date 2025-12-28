@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
+const Shipper = require('../models/Shipper');
+const Restaurant = require('../models/Restaurant');
 
 // 1. DÀNH CHO ADMIN: LẤY TẤT CẢ YÊU CẦU ĐỐI SOÁT (Sửa lỗi 404)
 router.get('/admin/all', async (req, res) => {
@@ -41,14 +43,32 @@ router.post('/', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
     try {
         const { status, note } = req.body;
-        const updated = await Transaction.findByIdAndUpdate(
-            req.params.id,
-            { status, note },
-            { new: true }
-        ).populate('userId', 'fullName');
+        const transaction = await Transaction.findById(req.params.id);
+        if (!transaction) return res.status(404).json({ message: "Không thấy giao dịch" });
 
-        if (!updated) return res.status(404).json({ message: "Không tìm thấy giao dịch" });
-        res.json(updated);
+        // ✅ NẾU DUYỆT THÀNH CÔNG -> THỰC HIỆN TRỪ TIỀN
+        if (status === 'approved' && transaction.status !== 'approved') {
+            if (transaction.role === 'shipper') {
+                // Trừ thu nhập shipper
+                await Shipper.findOneAndUpdate(
+                    { user: transaction.userId },
+                    { $inc: { income: -transaction.amount } } // Dùng $inc với số âm để trừ
+                );
+            } else if (transaction.role === 'merchant') {
+                // Nếu bạn có trường revenue/income trong Restaurant thì trừ ở đó
+                // Giả định bạn lưu doanh thu trong Restaurant
+                await Restaurant.findOneAndUpdate(
+                    { owner: transaction.userId },
+                    { $inc: { revenue: -transaction.amount } }
+                );
+            }
+        }
+
+        transaction.status = status;
+        transaction.note = note;
+        await transaction.save();
+
+        res.json(transaction);
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
