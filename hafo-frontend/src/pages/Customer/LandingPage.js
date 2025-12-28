@@ -89,6 +89,24 @@ function LandingPage() {
                         padding: 11px 25px !important; /* Tiện thể bóp cái nút lại xíu cho xinh trên mobile */
                         font-size: 14px !important;
                     }
+                    .trust-header { 
+                        padding: 0 10px !important; 
+                        margin-bottom: 25px !important; 
+                        text-align: center !important;
+                    }
+                    h2.trust-title-center { 
+                        font-size: 22px !important; /* Hạ size vừa đủ để không quá dài */
+                        line-height: 1.5 !important; /* ✅ KHOẢNG CÁCH DÒNG: Để dòng trên không đè dòng dưới */
+                        margin-bottom: 15px !important; /* ✅ ĐẨY XUỐNG: Để không đè lên đoạn văn ở dưới */
+                        display: block !important;
+                    }
+                    .section-subtitle { 
+                        font-size: 14px !important; 
+                        line-height: 1.6 !important; /* ✅ Cho đoạn văn thoáng ra */
+                        margin: 10px 0 25px 0 !important; 
+                        display: block !important;
+                        color: #d97706 !important; /* Màu cam đậm cho dễ đọc trên nền vàng */
+                    }
                 }
             `}</style>
 
