@@ -15,6 +15,7 @@ import History from './pages/Customer/History';
 import Profile from './pages/Customer/Profile';
 import Support from './pages/Customer/Support';
 import BecomePartner from './pages/Customer/BecomePartner';
+import Chat from './components/Chat';
 // Đăng kí đối tác
 import MerchantRegister from './pages/Register/MerchantRegister';
 import ShipperRegister from './pages/Register/ShipperRegister';
@@ -58,14 +59,18 @@ function App() {
 
   // Hàm quyết định trang chủ
   const getMainPage = () => {
-    // Nếu chưa đăng nhập -> Về trang chào mừng
     if (!user) return <LandingPage />;
 
-    // Nếu có user, kiểm tra role
-    // Dùng optional chaining ?. để an toàn tuyệt đối
+    // ƯU TIÊN 1: Nếu hồ sơ đang chờ duyệt, ép vào trang PendingApproval
+    if (user?.approvalStatus === 'pending') {
+      return <Navigate to="/pending-approval" />;
+    }
+
+    // ƯU TIÊN 2: Nếu mới chọn Role nhưng chưa điền Form đăng ký đối tác
     if (user?.role === 'pending_merchant') return <Navigate to="/register/merchant" />;
     if (user?.role === 'pending_shipper') return <Navigate to="/register/shipper" />;
 
+    // ƯU TIÊN 3: Điều hướng theo Role chính thức sau khi được duyệt
     switch (user?.role) {
       case 'merchant': return <Navigate to="/merchant/dashboard" />;
       case 'shipper': return <Navigate to="/shipper/dashboard" />;
@@ -81,10 +86,11 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/" element={getMainPage()} />
-
+          <Route path="/chat/:orderId" element={<Chat />} />
 
           {/* LOGIC ĐIỀU HƯỚNG TRANG CHỦ THÔNG MINH */}
           <Route path="/" element={getMainPage()} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
           <Route path="/support" element={<Support />} /> {/* Thêm dòng này */}
           <Route path="/become-partner" element={<BecomePartner />} />
           {/* Đường dẫn rõ ràng cho Khách hàng (để Merchant cũng có thể xem giao diện khách nếu muốn) */}

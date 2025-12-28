@@ -34,7 +34,8 @@ router.get('/:id', async (req, res) => {
     try {
         // THÊM .populate('restaurantId') ĐỂ LẤY TÊN, ĐỊA CHỈ, SDT QUÁN
         const order = await Order.findById(req.params.id)
-            .populate('restaurantId');
+            .populate('restaurantId')
+            .populate('shipperId', 'fullName phone avatar'); // Lấy luôn thông tin tài xế ở đây
 
         if (!order) {
             return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
