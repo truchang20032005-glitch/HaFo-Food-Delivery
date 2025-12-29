@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
-function Navbar({ onOpenLogin, onSearch }) {
+function Navbar({ onOpenLogin, onSearch, searchValue }) {
     const { user, logout } = useAuth();
     const { totalCount } = useCart();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -58,7 +58,23 @@ function Navbar({ onOpenLogin, onSearch }) {
                         {!isRegisterPage && (
                             <div className="search" style={{ flex: 1, maxWidth: '550px', margin: '0 20px', marginLeft: 'auto', display: 'flex', alignItems: 'center', background: '#f8f8f8', border: '1px solid #ccc', borderRadius: '50px', padding: '2px 10px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', cursor: 'pointer' }}>
                                 <span style={{ marginRight: '12px', opacity: 0.6 }}>🔍</span>
-                                <input type="text" placeholder="Tìm quán, món ăn, địa chỉ..." style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', color: '#333', fontSize: '16px', fontWeight: '500', padding: '8px', borderRadius: '50px' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Tìm quán, món ăn, địa chỉ..."
+                                    value={searchValue || ""}
+                                    onChange={(e) => onSearch(e.target.value)} // ✅ Thêm dòng này để truyền dữ liệu ra ngoài
+                                    style={{
+                                        border: 'none',
+                                        background: 'transparent',
+                                        outline: 'none',
+                                        width: '100%',
+                                        color: '#333',
+                                        fontSize: '16px',
+                                        fontWeight: '500',
+                                        padding: '8px',
+                                        borderRadius: '50px'
+                                    }}
+                                />
                             </div>
                         )}
                         <div className="ben-phai">

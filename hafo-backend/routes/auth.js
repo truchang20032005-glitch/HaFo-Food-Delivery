@@ -164,7 +164,7 @@ router.post('/register', async (req, res) => {
             addresses: address ? [{ label: 'Mặc định', value: address }] : [], // Lưu địa chỉ vào mảng
             role: role || 'customer',
             targetRole: targetRole || null,
-            approvalStatus: (role === 'pending_merchant' || role === 'pending_shipper') ? 'pending' : 'none'
+            approvalStatus: 'none'
         });
 
         await newUser.save();

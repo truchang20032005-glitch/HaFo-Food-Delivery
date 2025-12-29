@@ -158,7 +158,7 @@ function RestaurantDetail() {
                     {/* KHUNG CUỘN MENU */}
                     <div
                         className="menu-scroll-container"
-                        style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '10px' }}
+                        style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '10px' }}
                     >
                         {filteredFoods.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>

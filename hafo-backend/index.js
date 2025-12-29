@@ -61,15 +61,19 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Kết nối MongoDB (Giữ nguyên của má)
+// Kết nối MongoDB
 const MONGO_URI = process.env.MONGO_URI;
-mongoose.connect(MONGO_URI)
+mongoose.connect(MONGO_URI, {
+    connectTimeoutMS: 60000, // Tăng lên 60 giây
+    serverSelectionTimeoutMS: 60000
+})
     .then(() => {
         console.log('✅ Đã kết nối MongoDB thành công!');
+
     })
     .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
 
-// ĐĂNG KÝ ROUTES (Giữ nguyên của má)
+// ĐĂNG KÝ ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/orders', orderRoutes);

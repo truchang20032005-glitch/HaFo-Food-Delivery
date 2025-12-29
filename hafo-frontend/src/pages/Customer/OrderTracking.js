@@ -2,16 +2,29 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { useMap, MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import Chat from '../../components/Chat';
 import 'leaflet/dist/leaflet.css';
 import { io } from 'socket.io-client';
 
-// Thiết lập Icon
-//const customerIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1239/1239525.png', iconSize: [35, 35], iconAnchor: [17, 35] });
-//const shipperIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40], iconAnchor: [20, 40] });
-//const restaurantIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448609.png', iconSize: [35, 35], iconAnchor: [17, 35] });
+const iconMarker = (url, size = [40, 40]) => L.icon({
+    iconUrl: url,
+    iconSize: size,
+    iconAnchor: [size[0] / 2, size[1]]
+});
+
+const shipperIcon = iconMarker('/images/bike-icon.png', [45, 45]);
+const restaurantIcon = iconMarker('/images/store-icon.png', [35, 35]);
+const customerIcon = iconMarker('/images/home-icon.png', [35, 35]);
+
+function RecenterMap({ position }) {
+    const map = useMap();
+    useEffect(() => {
+        if (position) map.setView(position, map.getZoom());
+    }, [position, map]);
+    return null;
+}
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 const toClock = (d) => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -35,6 +48,7 @@ function OrderTracking() {
     const [isShipperChatOpen, setIsShipperChatOpen] = useState(false);
     const [shipperPos, setShipperPos] = useState([10.762, 106.660]);
     const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+    const [lastNotifiedMsgId, setLastNotifiedMsgId] = useState(null);
     const socket = io(SOCKET_URL, {
         transports: ['websocket'], // Ép dùng websocket để Render chạy mượt hơn
         withCredentials: true
@@ -61,22 +75,19 @@ function OrderTracking() {
         try {
             const res = await api.get(`/messages/${id}`);
             const messages = res.data;
-
             if (messages.length > 0) {
                 const lastMsg = messages[messages.length - 1];
-                const lastView = localStorage.getItem(`lastViewChat_${id}`);
                 const currentUserId = localStorage.getItem('userId');
 
-                if (lastMsg.senderId !== currentUserId) {
-                    if (!lastView || new Date(lastMsg.createdAt) > new Date(lastView)) {
-                        setHasNewMsg(true);
-                    } else {
-                        setHasNewMsg(false);
-                    }
+                if (lastMsg.senderId !== currentUserId && lastMsg._id !== lastNotifiedMsgId) {
+                    const audio = new Audio('/sounds/message.mp3');
+                    audio.play().catch(e => console.log("Autoplay blocked"));
+                    setLastNotifiedMsgId(lastMsg._id);
+                    setHasNewMsg(true);
                 }
             }
         } catch (err) { console.error(err); }
-    }, [id]);
+    }, [id, lastNotifiedMsgId]);
 
     useEffect(() => {
         fetchData();
@@ -99,12 +110,6 @@ function OrderTracking() {
 
         return () => socket.off(`tracking_order_${id}`);
     }, [id, socket]);
-
-    // Icon chiếc xe máy
-    const bikeIcon = L.icon({
-        iconUrl: '/images/bike-icon.png',
-        iconSize: [40, 40]
-    });
 
     const realStats = useMemo(() => {
         if (!order) return { distance: 0, eta: 0 };
@@ -226,9 +231,27 @@ function OrderTracking() {
                     </div>
 
                     <div style={{ ...S.card, height: '400px', padding: 0 }}>
-                        <MapContainer center={shipperPos} zoom={16} style={{ height: '400px' }}>
+                        <MapContainer center={shipperPos} zoom={15} style={{ height: '400px', borderRadius: '16px' }}>
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            <Marker position={shipperPos} icon={bikeIcon} />
+
+                            {/* ✅ Tự động xoay bản đồ theo Shipper */}
+                            <RecenterMap position={shipperPos} />
+
+                            {/* 1. Marker của Shipper (Vị trí thực từ Socket) */}
+                            <Marker position={shipperPos} icon={shipperIcon} />
+
+                            {/* 2. Marker của Quán ăn (Tọa độ từ DB) */}
+                            {restaurant?.location?.coordinates && (
+                                <Marker
+                                    position={[restaurant.location.coordinates[1], restaurant.location.coordinates[0]]}
+                                    icon={restaurantIcon}
+                                />
+                            )}
+
+                            {/* 3. Marker của Khách hàng (Điểm giao hàng) */}
+                            {order?.lat && order?.lng && (
+                                <Marker position={[order.lat, order.lng]} icon={customerIcon} />
+                            )}
                         </MapContainer>
                     </div>
 

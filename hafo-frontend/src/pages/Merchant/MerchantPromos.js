@@ -154,7 +154,34 @@ function MerchantPromos() {
                     <tbody>
                         {filtered.map(p => (
                             <tr key={p._id}>
-                                <td><b style={{ color: '#F97350', border: '1px dashed #F97350', padding: '4px 8px', borderRadius: '6px' }}>{p.code}</b></td>
+                                <td>
+                                    <div style={{
+                                        position: 'relative',
+                                        display: 'inline-block', // Để khung vừa khít với chữ
+                                        padding: '18px 12px',
+                                        border: '1px dashed #F97350',
+                                        background: '#FFF5F2',
+                                        borderRadius: '8px',
+                                        color: '#F97350',
+                                        fontWeight: 'bold',
+                                        fontSize: '14px',
+                                        minWidth: '100px',
+                                        minHeight: '50px',
+                                        textAlign: 'center'
+                                    }}>
+                                        {p.code}
+
+                                        {/* Vòng tròn trang trí bên trái */}
+                                        <div style={{
+                                            position: 'absolute', left: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderRight: '1px solid #F97350'
+                                        }}></div>
+
+                                        {/* Vòng tròn trang trí bên phải */}
+                                        <div style={{
+                                            position: 'absolute', right: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderLeft: '1px solid #F97350'
+                                        }}></div>
+                                    </div>
+                                </td>
                                 <td>{p.type === 'percent' ? `${p.value}%` : `${toVND(p.value)}đ`}<br /><small>Đơn từ {toVND(p.minOrder)}đ</small></td>
                                 <td style={{ fontSize: '12px', color: '#64748b' }}>
                                     {p.startDate ? new Date(p.startDate).toLocaleDateString('vi-VN') : '...'} -

@@ -25,6 +25,8 @@ const PendingShipperSchema = new mongoose.Schema({
     cccdFront: String,
     cccdBack: String,
     avatar: String,
+    licenseImage: String,
+    vehicleRegImage: String,
 
     // Ngân hàng & Hoạt động
     bankName: String,

@@ -62,6 +62,47 @@ function ShipperWallet() {
         }
     };
 
+    const handleWithdraw = async () => {
+        // 1. Kiểm tra số dư (realBalance được tính từ transactions)
+        if (realBalance <= 0) {
+            return alert("Số dư của bạn không đủ để thực hiện rút tiền!");
+        }
+
+        // 2. Kiểm tra thông tin ngân hàng đã có chưa
+        if (!profile.bankAccount || !profile.bankName) {
+            return alert("Vui lòng cập nhật thông tin ngân hàng trước khi rút tiền!");
+        }
+
+        if (!window.confirm(`Bạn muốn gửi yêu cầu rút ${toVND(realBalance)}đ về ngân hàng?`)) return;
+
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+
+            // 3. Gửi yêu cầu tạo Transaction mới lên Backend
+            const payload = {
+                userId: user.id,
+                role: 'shipper',
+                amount: realBalance,
+                bankInfo: {
+                    bankName: profile.bankName,
+                    bankAccount: profile.bankAccount,
+                    bankOwner: profile.bankOwner
+                },
+                note: 'Shipper yêu cầu rút toàn bộ số dư'
+            };
+
+            await api.post('/transactions', payload);
+
+            alert("✅ Gửi yêu cầu rút tiền thành công! Vui lòng chờ Admin phê duyệt.");
+
+            // Tải lại dữ liệu để cập nhật lịch sử hoặc trạng thái (nếu cần)
+            fetchWalletData(user.id);
+        } catch (err) {
+            console.error(err);
+            alert("Lỗi khi rút tiền: " + (err.response?.data?.message || err.message));
+        }
+    };
+
     // ✅ Hàm lưu thông tin ngân hàng
     const handleSaveBank = async () => {
         const user = JSON.parse(localStorage.getItem('user'));
@@ -95,8 +136,32 @@ function ShipperWallet() {
                     <div className="kpi-label">Số dư khả dụng</div>
                     <div className="kpi-val" style={{ color: '#F97350', fontSize: '28px' }}>{toVND(realBalance)}đ</div>
                     <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>Doanh thu từ các đơn đã giao</div>
-                    <div style={{ marginTop: '15px' }}>
-                        <button className="ship-btn primary" style={{ padding: '10px', width: 'auto' }} onClick={() => alert("Yêu cầu rút tiền đã gửi!")}>Rút tiền về ngân hàng</button>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center', // Căn giữa theo chiều ngang
+                        marginTop: '25px',
+                        paddingBottom: '10px'
+                    }}>
+                        <button
+                            className="btn primary"
+                            onClick={handleWithdraw}
+                            disabled={realBalance <= 0}
+                            style={{
+                                padding: '12px 40px', // Tăng độ dài nút cho cân đối
+                                fontSize: '15px',
+                                fontWeight: '800',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 15px rgba(249, 115, 80, 0.2)', // Đổ bóng cam cho nổi bật
+                                cursor: 'pointer',
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px'
+                            }}
+                        >
+                            <i className="fa-solid fa-money-bill-transfer"></i>
+                            Rút tiền về ngân hàng
+                        </button>
                     </div>
                 </div>
 
