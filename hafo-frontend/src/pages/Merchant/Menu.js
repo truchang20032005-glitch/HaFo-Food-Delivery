@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import AddDishModal from './AddDishModal';
 
@@ -8,8 +8,9 @@ function Menu() {
     const [myShop, setMyShop] = useState(null);
     const [loading, setLoading] = useState(true);
     const [editingFood, setEditingFood] = useState(null);
+    const [previewImage, setPreviewImage] = useState(null);
 
-    const fetchShopInfo = async () => {
+    const fetchShopInfo = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             try {
@@ -24,9 +25,11 @@ function Menu() {
                 setLoading(false);
             }
         }
-    };
+    }, []);
 
-    useEffect(() => { fetchShopInfo(); }, []);
+    useEffect(() => {
+        fetchShopInfo();
+    }, [fetchShopInfo]);
 
     const fetchMenu = async (restaurantId) => {
         try {
@@ -110,11 +113,31 @@ function Menu() {
                                     opacity: food.isAvailable ? 1 : 0.7
                                 }}>
                                     <td style={{ padding: '12px' }}>
-                                        <img
-                                            src={food.image || "https://via.placeholder.com/64"}
-                                            alt={food.name}
-                                            style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover', border: '1px solid #eee' }}
-                                        />
+                                        <div
+                                            style={{
+                                                width: 100, // Tăng lên 100px cho dễ nhìn
+                                                height: 100,
+                                                borderRadius: 12,
+                                                overflow: 'hidden',
+                                                cursor: 'zoom-in', // Hiệu ứng bàn tay khi rê chuột vào
+                                                border: '1px solid #eee',
+                                                background: '#f9f9f9',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                            onClick={() => setPreviewImage(food.image)} // Click để xem full
+                                        >
+                                            <img
+                                                src={food.image || "https://via.placeholder.com/100"}
+                                                alt={food.name}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover', // Để ảnh lấp đầy ô vuông cho đẹp giao diện bảng
+                                                }}
+                                            />
+                                        </div>
                                     </td>
                                     <td>
                                         <div style={{ fontWeight: '700', fontSize: '15px', color: '#333' }}>{food.name}</div>
@@ -174,6 +197,35 @@ function Menu() {
                     restaurantId={myShop._id}
                     editFood={editingFood}
                 />
+            )}
+            {previewImage && (
+                <div
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 9999,
+                        background: 'rgba(0,0,0,0.8)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        cursor: 'zoom-out'
+                    }}
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <img
+                        src={previewImage}
+                        alt="Full Preview"
+                        style={{
+                            maxWidth: '90%',
+                            maxHeight: '90%',
+                            borderRadius: '8px',
+                            boxShadow: '0 5px 30px rgba(0,0,0,0.5)'
+                        }}
+                    />
+                    <button
+                        style={{
+                            position: 'absolute', top: 20, right: 20,
+                            background: '#fff', border: 'none', borderRadius: '50%',
+                            width: 40, height: 40, cursor: 'pointer', fontWeight: 'bold'
+                        }}
+                    >✕</button>
+                </div>
             )}
         </section>
     );

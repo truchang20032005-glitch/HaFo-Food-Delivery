@@ -12,10 +12,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_nay_phai_giau';
 // --- CẤU HÌNH GỬI MAIL (NODEMAILER) ---
 // Bạn nhớ thay bằng email và mật khẩu ứng dụng thật của bạn
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "sandbox.smtp.mailtrap.io", // ✅ Đúng host trong ảnh của bạn
+    port: 2525, // ✅ Bạn dùng cổng 2525 cho ổn định
     auth: {
-        user: process.env.EMAIL_USER, // Đọc từ .env
-        pass: process.env.EMAIL_PASS  // Đọc từ .env
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -92,7 +93,8 @@ router.post('/social-login', async (req, res) => {
                 email: email,
                 avatar: avatar || '',
                 role: 'customer', // Mặc định là khách hàng
-                addresses: []
+                addresses: [],
+                approvalStatus: user.approvalStatus
             });
 
             await user.save();
@@ -202,7 +204,8 @@ router.post('/login', async (req, res) => {
                 role: user.role,
                 fullName: user.fullName,
                 email: user.email,
-                avatar: user.avatar || ''
+                avatar: user.avatar || '',
+                approvalStatus: user.approvalStatus
             }
         });
     } catch (err) {

@@ -2079,10 +2079,26 @@ input:checked+.slider:before {
 }
 
 .section-subtitle {
-  color: #F97350;
+  color: var(--mau-cam);
+  /* Giữ màu cam hiện tại */
   font-size: 18px;
+  /* Giữ kích thước cũ */
   margin-top: -30px;
+  /* Giữ margin cũ */
   margin-bottom: 40px;
+  /* Giữ margin cũ */
+
+  /* --- PHẦN CHỈNH FONT MỚI --- */
+  font-family: 'Playfair Display', 'Georgia', serif;
+  /* Font có chân nhìn sang hơn */
+  font-style: italic;
+  /* Chữ nghiêng cho mềm mại */
+  font-weight: 500;
+  /* Độ đậm vừa phải */
+  letter-spacing: 0.5px;
+  /* Khoảng cách chữ thoáng hơn */
+  opacity: 0.9;
+  /* Làm mờ nhẹ một chút cho thanh thoát */
 }
 
 /* Trust Grid Layout */
@@ -2452,4 +2468,66 @@ input:checked+.slider:before {
 
 .animate-pop-in {
   animation: popIn 0.2s ease-out forwards;
+}
+
+/* --- ĐỊNH NGHĨA NÚT CHUNG --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+/* --- NÚT SOFT (Màu nhẹ nhàng, viền liền) --- */
+.btn.soft {
+  background: #fff;
+  border: 1px solid var(--line);
+  /* Thay đổi border-style thành solid hoặc viết gộp thế này */
+  /* border-style: dashed; <--- Xóa hoặc sửa dòng này */
+}
+
+.btn.soft:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* Nút Primary (Màu cam để má xài cho đồng bộ) */
+.btn.primary {
+  background-color: var(--mau-cam);
+  color: white;
+  border: none;
+}
+
+.btn.primary:hover {
+  filter: brightness(0.9);
+}
+
+.auth-slider-container {
+  width: 100%;
+  overflow: hidden;
+  /* Ẩn phần bị trượt ra ngoài */
+  position: relative;
+}
+
+/* Thanh trượt chứa cả 2 bước */
+.auth-slider-content {
+  display: flex;
+  width: 200%;
+  /* Rộng gấp đôi để chứa 2 bước hàng ngang */
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Hiệu ứng trượt mượt mà */
+}
+
+/* Mỗi bước chiếm đúng 50% của thanh trượt (tức 100% chiều rộng modal) */
+.auth-step-pane {
+  width: 50%;
+  padding: 5px;
+  box-sizing: border-box;
 }

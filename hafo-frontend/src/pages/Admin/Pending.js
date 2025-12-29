@@ -159,7 +159,7 @@ function Pending() {
                                     {selectedReq.type === 'merchant' ? (
                                         <>
                                             <tr><td colSpan="2" style={{ background: '#eee', fontWeight: 'bold', padding: '8px' }}>Thông tin Quán</td></tr>
-                                            <tr><th>Địa chỉ quán</th><td>{selectedReq.address}, {selectedReq.district}, {selectedReq.city}</td></tr>
+                                            <tr><th>Địa chỉ quán</th><td>{selectedReq.address}</td></tr>
                                             <tr><th>Loại hình</th><td>{selectedReq.serviceType === 'food' ? 'Giao đồ ăn' : 'Giao thực phẩm'}</td></tr>
                                             <tr><th>Ẩm thực</th><td>{selectedReq.cuisine?.join(', ')}</td></tr>
 

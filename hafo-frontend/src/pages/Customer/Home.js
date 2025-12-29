@@ -15,7 +15,7 @@ function Home() {
     const [districts, setDistricts] = useState([]);
     const [cuisines, setCuisines] = useState([]);
 
-    const toVND = (n) => n?.toLocaleString('vi-VN');
+    //const toVND = (n) => n?.toLocaleString('vi-VN');
 
     // 1. GỌI API LẤY DANH SÁCH QUÁN THẬT TỪ BACKEND
     useEffect(() => {

@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000');
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+const socket = io(SOCKET_URL, {
+    transports: ['websocket'], // Ép dùng websocket để Render chạy mượt hơn
+    withCredentials: true
+});
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
 function ShipperDashboard() {

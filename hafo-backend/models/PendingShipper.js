@@ -12,23 +12,25 @@ const PendingShipperSchema = new mongoose.Schema({
     city: String,
     district: String,
 
-    // Xe cộ
-    vehicleType: String, // Xe máy/Xe điện
+    // ✅ TRƯỜNG MỚI: Tọa độ GeoJSON
+    location: {
+        type: { type: String, default: 'Point' },
+        coordinates: { type: [Number], default: [106.660172, 10.762622] }
+    },
+
+    // Xe cộ & Giấy tờ
+    vehicleType: String,
     licensePlate: String,
+    driverLicense: String,
+    cccdFront: String,
+    cccdBack: String,
+    avatar: String,
 
-    // Giấy tờ
-    driverLicense: String, // Số bằng lái
-    cccdFront: { type: String }, // Mặt trước CMND
-    cccdBack: { type: String },  // Mặt sau CMND
-    profileImage: { type: String }, // Ảnh chân dung (Selfie)
-
-    // Ngân hàng
+    // Ngân hàng & Hoạt động
     bankName: String,
     bankAccount: String,
     bankOwner: String,
     bankBranch: String,
-
-    // Hoạt động
     area: String,
     workTime: String,
 

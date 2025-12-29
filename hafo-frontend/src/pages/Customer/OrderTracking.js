@@ -34,7 +34,12 @@ function OrderTracking() {
     const [hasNewMsg, setHasNewMsg] = useState(false);
     const [isShipperChatOpen, setIsShipperChatOpen] = useState(false);
     const [shipperPos, setShipperPos] = useState([10.762, 106.660]);
-    const socket = io('http://localhost:5000');
+    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+    const socket = io(SOCKET_URL, {
+        transports: ['websocket'], // Ép dùng websocket để Render chạy mượt hơn
+        withCredentials: true
+    });
+
 
     const fetchData = useCallback(async () => {
         try {

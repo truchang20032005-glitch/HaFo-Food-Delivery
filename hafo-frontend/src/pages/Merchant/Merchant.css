@@ -118,16 +118,22 @@ header.top {
 
 .btn {
     display: inline-flex;
-    gap: 8px;
+    /* Chuyển lại thành inline-flex để nút tự co theo chữ */
+    width: auto;
+    /* Nút sẽ rộng vừa đủ nội dung */
     align-items: center;
-    padding: 10px 12px;
+    justify-content: center;
+    /* Căn giữa nội dung cho các nút bình thường */
+    gap: 8px;
+    padding: 10px 16px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #fff;
     font-weight: 700;
     color: var(--ink);
     text-decoration: none;
-    cursor: pointer
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
 .btn.primary {
@@ -577,6 +583,71 @@ label {
     display: flex;
     flex-direction: column;
     gap: 10px
+}
+
+/* Hiệu ứng Hover tổng quát cho các nút trong sidebar */
+.list-col .btn {
+    width: 100%;
+    justify-content: flex-start;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Giúp chuyển động mượt mà hơn */
+    position: relative;
+    overflow: hidden;
+}
+
+.list-col .btn:hover {
+    background-color: #fffaf5;
+    /* Màu nền cam cực nhẹ khi hover */
+    border-color: var(--cam);
+    /* Viền đổi sang màu cam thương hiệu */
+    color: var(--cam);
+    /* Chữ đổi sang màu cam */
+    transform: translateX(5px);
+    /* Đẩy nhẹ nút sang phải 5px */
+    box-shadow: 0 4px 12px rgba(249, 115, 80, 0.08);
+    /* Đổ bóng cam rất mờ */
+}
+
+/* Hiệu ứng cho Icon khi hover */
+.list-col .btn:hover i {
+    transform: scale(1.1);
+    /* Icon to lên một chút */
+    color: var(--cam);
+}
+
+.list-col .btn.active {
+    background: var(--cam) !important;
+    color: #fff !important;
+    border-color: var(--cam);
+    box-shadow: 0 4px 15px rgba(249, 115, 80, 0.25);
+}
+
+.list-col .btn.active i {
+    color: #fff;
+}
+
+/* Khi đã active thì không cần dịch chuyển khi hover nữa để tránh rối mắt */
+.list-col .btn.active:hover {
+    transform: none;
+    background: var(--cam);
+}
+
+.list-col .btn::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 4px;
+    background: var(--cam);
+    border-radius: 0 4px 4px 0;
+    opacity: 0;
+    transition: 0.3s;
+}
+
+.list-col .btn:hover::before,
+.list-col .btn.active::before {
+    opacity: 1;
 }
 
 .pill {

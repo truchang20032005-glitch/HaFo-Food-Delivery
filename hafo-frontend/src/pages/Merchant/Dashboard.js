@@ -90,7 +90,7 @@ function Dashboard() {
         <div className="dashboard-wrapper">
             {/* LỜI CHÀO NỒNG NHIỆT */}
             <div style={S.greeting}>Chào mừng trở lại, {ownerName}! 👋</div>
-            <div style={S.subGreeting}>Dưới đây là tình hình kinh doanh của quán má hôm nay.</div>
+            <div style={S.subGreeting}>Dưới đây là tình hình kinh doanh của quán bạn hôm nay.</div>
 
             {/* 1. CHỈ SỐ CHÍNH (THIẾT KẾ LẠI) */}
             <div className="cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '25px' }}>

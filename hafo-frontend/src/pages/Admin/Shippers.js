@@ -39,6 +39,13 @@ function AdminShippers() {
         return name.toLowerCase().includes(searchTerm.toLowerCase()) || phone.includes(searchTerm);
     });
 
+    if (loading) return (
+        <div style={{ padding: '50px', textAlign: 'center', color: '#64748b' }}>
+            <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '30px', marginBottom: '10px' }}></i>
+            <p>Đang tải danh sách tài xế...</p>
+        </div>
+    );
+
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

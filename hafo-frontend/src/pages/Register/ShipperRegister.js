@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
+import LocationPicker from '../../components/LocationPicker';
 
 function ShipperRegister() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [isSuccess, setIsSuccess] = useState(false);
     const [cities, setCities] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     const [data, setData] = useState(() => {
         const savedData = localStorage.getItem('shipper_draft');
@@ -21,7 +23,9 @@ function ShipperRegister() {
             vehicleRegImage: null,
             licenseImage: null,
             cccdFront: null,
-            cccdBack: null
+            cccdBack: null,
+            lat: 10.762622,
+            lng: 106.660172
         }
     });
 
@@ -37,6 +41,10 @@ function ShipperRegister() {
         };
         localStorage.setItem('shipper_draft', JSON.stringify(dataToSave));
     }, [data]);
+
+    const handleLocationSelect = (pos) => {
+        setData(prev => ({ ...prev, lat: pos.lat, lng: pos.lng }));
+    };
 
     // Kiểm tra User & Trạng thái duyệt khi vào trang
     useEffect(() => {
@@ -123,6 +131,7 @@ function ShipperRegister() {
     };
 
     const handleSubmit = async () => {
+        setLoading(true);
         try {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return alert("Vui lòng đăng nhập!");
@@ -156,6 +165,9 @@ function ShipperRegister() {
             window.scrollTo(0, 0); // Cuộn lên đầu trang
         } catch (err) {
             alert("Lỗi: " + (err.response?.data?.message || err.message));
+        }
+        finally {
+            setLoading(false); // 🔓 MỞ NÚT KHI XONG (DÙ THÀNH CÔNG HAY LỖI)
         }
     };
 
@@ -327,10 +339,13 @@ function ShipperRegister() {
                         {/* BƯỚC 5: HOẠT ĐỘNG */}
                         {step === 5 && (
                             <div>
-                                <div className="form-title">Bước 5: Khu vực & Thời gian</div>
+                                <div className="form-title">Bước 5: Khu vực hoạt động</div>
                                 <div className="f-group">
-                                    <label className="f-label">Khu vực hoạt động mong muốn</label>
-                                    <input className="f-input" name="area" value={data.area} onChange={handleChange} placeholder="VD: Quận 1, Quận 3..." />
+                                    <label className="f-label">Ghim vị trí xuất phát mặc định *</label>
+                                    <LocationPicker
+                                        onLocationSelect={handleLocationSelect}
+                                        defaultPos={[data.lat, data.lng]}
+                                    />
                                 </div>
                                 <label className="f-label">Hình thức đăng ký</label>
                                 <div style={{ display: 'flex', gap: 15 }}>
@@ -389,10 +404,22 @@ function ShipperRegister() {
                         )}
 
                         <div className="form-actions">
-                            {step > 1 && <button className="btn soft" onClick={() => setStep(step - 1)}>Quay lại</button>}
+                            {step > 1 && (
+                                <button className="btn soft" onClick={() => setStep(step - 1)} disabled={loading}>
+                                    Quay lại
+                                </button>
+                            )}
                             <div style={{ marginLeft: 'auto' }}>
-                                {step < 6 && <button className="btn primary" onClick={handleNext}>Tiếp tục</button>}
-                                {step === 6 && <button className="btn primary" onClick={handleSubmit}>Gửi hồ sơ</button>}
+                                {step < 6 && (
+                                    <button className="btn primary" onClick={handleNext} disabled={loading}>
+                                        {loading ? 'Đang xử lý...' : 'Tiếp tục'}
+                                    </button>
+                                )}
+                                {step === 6 && (
+                                    <button className="btn primary" onClick={handleSubmit} disabled={loading}>
+                                        {loading ? 'Đang gửi hồ sơ...' : 'Gửi hồ sơ đăng ký'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

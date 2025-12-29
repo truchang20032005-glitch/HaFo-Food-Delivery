@@ -3,10 +3,8 @@ const mongoose = require('mongoose');
 const PendingRestaurantSchema = new mongoose.Schema({
     userId: { type: String, required: true },
 
-    // --- BƯỚC 1: LOẠI HÌNH ---
-    serviceType: { type: String, default: 'food' }, // food | mart
-
-    // --- BƯỚC 2: THÔNG TIN CƠ BẢN ---
+    // --- THÔNG TIN CƠ BẢN ---
+    serviceType: { type: String, default: 'food' },
     name: String,
     phone: String,
     email: String,
@@ -14,30 +12,30 @@ const PendingRestaurantSchema = new mongoose.Schema({
     city: String,
     district: String,
 
-    // --- BƯỚC 3: ẨM THỰC & VẬN HÀNH ---
-    cuisine: [String], // Mảng các loại món (Cơm, Bún...)
-    signatureDish: String, // Món đặc trưng
+    // ✅ TRƯỜNG MỚI: Tọa độ GeoJSON
+    location: {
+        type: { type: String, default: 'Point' },
+        coordinates: { type: [Number], default: [106.660172, 10.762622] } // [lng, lat]
+    },
+
+    // --- VẬN HÀNH ---
+    cuisine: [String],
+    signatureDish: String,
     openTime: String,
     closeTime: String,
     priceRange: String,
     parkingFee: String,
-    avatar: String, // Link ảnh mặt tiền
+    avatar: String,
 
-    // --- BƯỚC 4: PHÁP LÝ ---
+    // --- PHÁP LÝ & NGÂN HÀNG ---
     ownerName: String,
     idCard: String,
-    idCardFront: String, // Mặt trước CMND
-    idCardBack: String,  // Mặt sau CMND
-
-    // --- BƯỚC 5: NGÂN HÀNG ---
+    idCardFront: String,
+    idCardBack: String,
     bankName: String,
     bankAccount: String,
     bankOwner: String,
     bankBranch: String,
-
-    // --- ẢNH CÁC THÔNG TIN QUÁN ---
-    logo: { type: String },      // Đường dẫn ảnh logo quán
-    coverImage: { type: String }, // Đường dẫn ảnh mặt tiền quán
 
     status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now }
