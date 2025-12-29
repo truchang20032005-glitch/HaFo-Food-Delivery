@@ -93,12 +93,23 @@ router.get('/my-shop/:userId', async (req, res) => {
 router.put('/:id', uploadCloud.single('image'), async (req, res) => {
     try {
         const updateData = { ...req.body };
+
         if (req.file) {
             updateData.image = req.file.path;
         }
+
+        // ĐỒNG BỘ TỌA ĐỘ VÀO GEOJSON
+        // Vì Leaflet dùng [lat, lng] nhưng MongoDB dùng [lng, lat]
+        if (updateData.lat && updateData.lng) {
+            updateData.location = {
+                type: 'Point',
+                coordinates: [parseFloat(updateData.lng), parseFloat(updateData.lat)]
+            };
+        }
+
         const updatedRestaurant = await Restaurant.findByIdAndUpdate(
             req.params.id,
-            updateData,
+            { $set: updateData }, // Sử dụng $set để an toàn hơn
             { new: true }
         );
         res.json(updatedRestaurant);

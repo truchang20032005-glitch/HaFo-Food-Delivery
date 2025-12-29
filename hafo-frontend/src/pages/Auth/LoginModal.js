@@ -27,10 +27,7 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
             alert("Đăng nhập thành công!");
             onClose();
             // Điều hướng
-            if (res.data.user.role === 'admin') navigate('/admin');
-            else if (res.data.user.role === 'merchant') navigate('/merchant');
-            else if (res.data.user.role === 'shipper') navigate('/shipper');
-            else navigate('/home');
+            navigate('/');
         } catch (err) {
             alert("Lỗi: " + (err.response?.data?.message || err.message));
         }
@@ -108,13 +105,27 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
     return (
         <div className="auth-overlay">
             <div className="auth-modal">
-                <div className="auth-modal__head">
-                    <div className="auth-modal__title">
-                        {view === 'login' && 'Đăng Nhập'}
-                        {view === 'forgot' && 'Quên Mật Khẩu'}
-                        {view === 'reset' && 'Đặt Lại Mật Khẩu'}
-                    </div>
-                    <button className="auth-modal__close" onClick={onClose}>✕</button>
+                <div className="auth-modal__head" style={{ justifyContent: 'center', position: 'relative', padding: '10px 0', minHeight: 'auto' }}>
+                    {/* ✅ Căn giữa tiêu đề Đăng nhập */}
+                    <h2 style={{
+                        textAlign: 'center',
+                        width: '100%',
+                        margin: '0',
+                        //lineHeight: '1.2',
+                        color: '#ffffffff',
+                        fontWeight: '900',
+                        fontSize: '20px'
+                    }}>
+                        {view === 'login' && 'Đăng nhập'}
+                        {view === 'forgot' && 'Quên mật khẩu'}
+                        {view === 'reset' && 'Đặt lại mật khẩu'}
+                    </h2>
+                    <button className="auth-modal__close" onClick={onClose} style={{
+                        position: 'absolute',
+                        right: '20px',
+                        top: '50%',         // ✅ FIX 5: Căn giữa nút đóng theo chiều dọc header mới
+                        transform: 'translateY(-50%)'
+                    }}>✕</button>
                 </div>
 
                 <div className="auth-modal__body">
@@ -177,8 +188,14 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
                             <div className="nhom-input" style={{ marginBottom: 20 }}>
                                 <input type="email" placeholder="Email của bạn" value={resetData.email} onChange={e => setResetData({ ...resetData, email: e.target.value })} />
                             </div>
-                            <button className="nut-dang-nhap-chinh" onClick={sendResetOtp}>GỬI MÃ OTP</button>
-                            <button className="btn soft" style={{ width: '100%', marginTop: 10 }} onClick={() => setView('login')}>Quay lại</button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+                                <button className="nut-dang-nhap-chinh" style={{ justifyContent: 'center', width: '40%', marginTop: 10 }} onClick={sendResetOtp}>
+                                    GỬI MÃ OTP
+                                </button>
+                                <button className="btn soft" style={{ justifyContent: 'center', width: '40%', marginTop: 10 }} onClick={() => setView('login')}>
+                                    Quay lại
+                                </button>
+                            </div>
                         </>
                     )}
 

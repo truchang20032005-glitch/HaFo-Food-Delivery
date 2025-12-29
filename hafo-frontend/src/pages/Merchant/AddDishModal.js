@@ -39,7 +39,7 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
     }, [isOpen, editFood]);
 
     const handleSave = async () => {
-        if (!formData.name || !formData.price) return alert("Má ơi, nhập tên với giá món đã!");
+        if (!formData.name || !formData.price) return alert("Vui lòng nhập tên và giá món!");
         setLoading(true);
         try {
             const data = new FormData();
@@ -95,7 +95,7 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
             fontSize: '15px', outline: 'none', transition: 'all 0.2s', background: '#fff'
         },
         imageZone: {
-            width: '100%', height: '140px', borderRadius: '12px', border: '2px dashed #cbd5e1',
+            width: '100%', height: '350x', borderRadius: '12px', border: '2px dashed #cbd5e1',
             background: '#f1f5f9', display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden'
         }
@@ -149,7 +149,7 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
                             <label style={S.label}>Hình ảnh món ăn</label>
                             <div style={S.imageZone} onClick={() => document.getElementById('fileInput').click()}>
                                 {imagePreview ? (
-                                    <img src={imagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
+                                    <img src={imagePreview} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Preview" />
                                 ) : (
                                     <>
                                         <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '24px', color: '#94a3b8', marginBottom: '8px' }}></i>

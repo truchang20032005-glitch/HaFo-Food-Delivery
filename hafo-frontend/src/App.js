@@ -61,21 +61,27 @@ function App() {
   const getMainPage = () => {
     if (!user) return <LandingPage />;
 
-    // ƯU TIÊN 1: Nếu hồ sơ đang chờ duyệt, ép vào trang PendingApproval
+    // TRƯỜNG HỢP 1: Đã nộp hồ sơ và đang chờ Admin duyệt
+    // (Dựa vào approvalStatus: 'pending' mà backend cập nhật sau khi gửi form)
     if (user?.approvalStatus === 'pending') {
       return <Navigate to="/pending-approval" />;
     }
 
-    // ƯU TIÊN 2: Nếu mới chọn Role nhưng chưa điền Form đăng ký đối tác
-    if (user?.role === 'pending_merchant') return <Navigate to="/register/merchant" />;
-    if (user?.role === 'pending_shipper') return <Navigate to="/register/shipper" />;
+    // TRƯỜNG HỢP 2: Đã đăng ký tài khoản nhưng chưa điền/gửi form thông tin đối tác
+    // (Lúc này role vẫn là pending_merchant/shipper nhưng approvalStatus chưa là pending)
+    if (user?.role === 'pending_merchant') {
+      return <Navigate to="/register/merchant" />;
+    }
+    if (user?.role === 'pending_shipper') {
+      return <Navigate to="/register/shipper" />;
+    }
 
-    // ƯU TIÊN 3: Điều hướng theo Role chính thức sau khi được duyệt
+    // TRƯỜNG HỢP 3: Hồ sơ đã được duyệt hoặc là khách hàng bình thường
     switch (user?.role) {
       case 'merchant': return <Navigate to="/merchant/dashboard" />;
       case 'shipper': return <Navigate to="/shipper/dashboard" />;
       case 'admin': return <Navigate to="/admin/dashboard" />;
-      default: return <Home />; // Customer
+      default: return <Home />; // Customer bình thường
     }
   };
 

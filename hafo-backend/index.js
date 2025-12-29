@@ -30,7 +30,7 @@ const reportRoutes = require('./routes/report');
 const messageRoutes = require('./routes/message');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // --- 2. TẠO HTTP SERVER VÀ CẤU HÌNH SOCKET.IO ---
 const server = http.createServer(app);

@@ -1,7 +1,24 @@
 import { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
-import { useAuth } from '../../context/AuthContext'; // Dùng context để cập nhật header sau khi đổi tên/ảnh
+import { useAuth } from '../../context/AuthContext';
+import 'leaflet/dist/leaflet.css';
+
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({
+    iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Helper di chuyển tâm bản đồ
+function RecenterMap({ lat, lng }) {
+    const map = useMap();
+    useEffect(() => { if (lat && lng) map.setView([lat, lng], 16); }, [lat, lng, map]);
+    return null;
+}
 
 function Profile() {
     const { login } = useAuth(); // Để cập nhật lại localStorage sau khi save
@@ -24,8 +41,10 @@ function Profile() {
 
     // State thêm địa chỉ
     const [isAdding, setIsAdding] = useState(false);
+    const [editingIndex, setEditingIndex] = useState(null);
     const [newAddrLabel, setNewAddrLabel] = useState('Nhà riêng');
     const [newAddrValue, setNewAddrValue] = useState('');
+    const [newCoords, setNewCoords] = useState({ lat: 10.762, lng: 106.660 });
 
     // State đổi mật khẩu
     const [showPassModal, setShowPassModal] = useState(false);
@@ -37,7 +56,40 @@ function Profile() {
         return path; // Trả về link Cloudinary trực tiếp
     };
 
-    // 1. TẢI DỮ LIỆU USER THẬT
+    const handleEditAddress = (idx) => {
+        const addr = formData.addresses[idx];
+        setNewAddrLabel(addr.label);
+        setNewAddrValue(addr.value);
+        setNewCoords({ lat: addr.lat || 10.762, lng: addr.lng || 106.660 });
+        setEditingIndex(idx);
+        setIsAdding(true); // Mở khung nhập liệu lên
+    };
+
+    const handleSearchAddress = async () => {
+        if (!newAddrValue) return;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newAddrValue)}`);
+            const data = await res.json();
+            if (data && data.length > 0) {
+                setNewCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+            }
+        } catch (err) { console.error(err); }
+    };
+    // Hàm này để khi click vào map thì tự điền chữ vào ô input
+    function LocationMarker() {
+        useMapEvents({
+            async click(e) {
+                const { lat, lng } = e.latlng;
+                setNewCoords({ lat, lng });
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+                const data = await res.json();
+                if (data && data.display_name) setNewAddrValue(data.display_name);
+            }
+        });
+        return <Marker position={[newCoords.lat, newCoords.lng]} />;
+    }
+
+    // TẢI DỮ LIỆU USER THẬT
     useEffect(() => {
         const fetchProfile = async () => {
             const localUser = JSON.parse(localStorage.getItem('user'));
@@ -120,10 +172,22 @@ function Profile() {
     // 4. XỬ LÝ ĐỊA CHỈ
     const confirmAddAddress = () => {
         if (!newAddrValue.trim()) return;
-        const newAddressObj = { label: newAddrLabel, value: newAddrValue };
-        setFormData({ ...formData, addresses: [...formData.addresses, newAddressObj] });
+        const newAddressObj = { label: newAddrLabel, value: newAddrValue, lat: newCoords.lat, lng: newCoords.lng };
+
+        if (editingIndex !== null) {
+            // Nếu đang sửa: cập nhật lại đúng vị trí index đó
+            const updatedAdrs = [...formData.addresses];
+            updatedAdrs[editingIndex] = newAddressObj;
+            setFormData({ ...formData, addresses: updatedAdrs });
+        } else {
+            // Nếu thêm mới: push vào cuối mảng như cũ
+            setFormData({ ...formData, addresses: [...formData.addresses, newAddressObj] });
+        }
+
+        // Reset mọi thứ về mặc định
         setNewAddrValue('');
         setIsAdding(false);
+        setEditingIndex(null);
     };
 
     const handleRemoveAddress = (index) => {
@@ -255,36 +319,97 @@ function Profile() {
                                     {addr.label}
                                 </span>
                                 <span style={{ flex: 1, color: '#333' }}>{addr.value}</span>
-                                <button onClick={() => handleRemoveAddress(idx)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>
-                                    <i className="fa-regular fa-trash-can"></i>
-                                </button>
+
+                                {/* NHÓM NÚT HÀNH ĐỘNG */}
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button onClick={() => handleEditAddress(idx)} style={{ border: 'none', background: 'none', color: '#F97350', cursor: 'pointer', fontSize: '16px' }}>
+                                        <i className="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button onClick={() => handleRemoveAddress(idx)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>
+                                        <i className="fa-regular fa-trash-can"></i>
+                                    </button>
+                                </div>
                             </div>
                         ))}
 
                         {isAdding ? (
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff5f2', padding: '15px', borderRadius: '10px', border: '1px dashed #F97350' }}>
-                                <select
-                                    value={newAddrLabel}
-                                    onChange={e => setNewAddrLabel(e.target.value)}
-                                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid #F97350', outline: 'none' }}
-                                >
-                                    <option>Nhà riêng</option>
-                                    <option>Văn phòng</option>
-                                    <option>Khác</option>
-                                </select>
-                                <input
-                                    autoFocus
-                                    placeholder="Nhập địa chỉ chi tiết..."
-                                    value={newAddrValue}
-                                    onChange={e => setNewAddrValue(e.target.value)}
-                                    style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #F97350', outline: 'none' }}
-                                />
-                                <button onClick={confirmAddAddress} className="btn primary" style={{ padding: '8px 15px' }}>Lưu</button>
-                                <button onClick={() => setIsAdding(false)} className="btn soft" style={{ padding: '8px 15px' }}>Hủy</button>
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '15px',
+                                background: '#fffaf5',
+                                padding: '20px',
+                                borderRadius: '12px',
+                                border: '1px solid #F97350'
+                            }}>
+                                {/* HÀNG 1: CHỌN LOẠI VÀ CÁC NÚT THAO TÁC */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#666' }}>Loại:</span>
+                                        <select
+                                            value={newAddrLabel}
+                                            onChange={e => setNewAddrLabel(e.target.value)}
+                                            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #ddd', outline: 'none' }}
+                                        >
+                                            <option>Nhà riêng</option>
+                                            <option>Văn phòng</option>
+                                            <option>Khác</option>
+                                        </select>
+                                    </div>
+
+                                    {/* NHÓM NÚT: Đã chỉnh lại để nút Hủy rõ ràng hơn */}
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button
+                                            onClick={() => setIsAdding(false)}
+                                            className="btn soft"
+                                            style={{ padding: '8px 20px', border: '1px solid #ccc', background: '#fff' }}
+                                        >
+                                            Hủy bỏ
+                                        </button>
+                                        <button
+                                            onClick={confirmAddAddress}
+                                            className="btn primary"
+                                            style={{ padding: '8px 25px' }}
+                                        >
+                                            Lưu địa chỉ này
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* HÀNG 2: Ô HIỂN THỊ ĐỊA CHỈ (ĐÂY LÀ Ô ĐỂ XEM BẠN CẦN) */}
+                                <div>
+                                    <label style={{ fontSize: '13px', fontWeight: '700', display: 'block', marginBottom: '8px', color: '#F97350' }}>
+                                        <i className="fa-solid fa-location-dot"></i> {editingIndex !== null ? "Chỉnh sửa địa chỉ:" : "Địa chỉ chi tiết (Tự nhập hoặc chọn trên bản đồ):"}
+                                    </label>
+                                    <input
+                                        placeholder="Đang chờ chọn vị trí..."
+                                        value={newAddrValue}
+                                        onChange={e => setNewAddrValue(e.target.value)}
+                                        onBlur={handleSearchAddress}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 15px',
+                                            borderRadius: '10px',
+                                            border: '1.5px solid #F97350',
+                                            background: '#fff',
+                                            fontSize: '14px',
+                                            outline: 'none'
+                                        }}
+                                    />
+                                </div>
+
+                                {/* HÀNG 3: BẢN ĐỒ HIỂN THỊ */}
+                                <div style={{ height: '250px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #ddd', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                    <MapContainer center={[newCoords.lat, newCoords.lng]} zoom={15} style={{ height: '100%', width: '100%' }}>
+                                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                        <RecenterMap lat={newCoords.lat} lng={newCoords.lng} />
+                                        <LocationMarker />
+                                    </MapContainer>
+                                </div>
                             </div>
                         ) : (
-                            <button onClick={() => setIsAdding(true)} style={{ width: '100%', padding: '12px', border: '2px dashed #ddd', background: '#fff', borderRadius: '10px', color: '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
-                                + Thêm địa chỉ mới
+                            <button onClick={() => setIsAdding(true)} style={{ width: '100%', padding: '15px', border: '2px dashed #ddd', background: '#fff', borderRadius: '10px', color: '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
+                                <i className="fa-solid fa-plus"></i> Thêm địa chỉ nhận hàng mới
                             </button>
                         )}
                     </div>

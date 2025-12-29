@@ -117,7 +117,7 @@ function LandingPage() {
                     <div className="mo-dau__van-ban">
                         <h1>HaFo – Giao món ngon tận tay!</h1>
                         <p>Dễ dàng đặt món ăn yêu thích từ những quán ngon quanh bạn – chỉ với vài chạm.</p>
-                        <button className="nut-chinh" onClick={() => window.scrollTo(0, 500)}>Đặt món ngay</button>
+                        <button className="nut-chinh" onClick={() => setShowLogin(true)}>Đặt món ngay</button>
                     </div>
 
                     <div className="the-doi-tac" onClick={handlePartnerClick} style={{

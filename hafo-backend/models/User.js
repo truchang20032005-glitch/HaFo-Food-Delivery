@@ -47,8 +47,10 @@ const UserSchema = new mongoose.Schema({
     // Mảng chứa danh sách địa chỉ
     addresses: [
         {
-            label: { type: String, default: 'Nhà riêng' }, // VD: Nhà, Cty
-            value: { type: String, required: true }        // VD: 123 Nguyễn Văn Cừ...
+            label: { type: String, default: 'Nhà riêng' }, // VD: Nhà riêng, Văn phòng
+            value: { type: String, required: true },       // Địa chỉ dạng chữ
+            lat: { type: Number },                         // Vĩ độ
+            lng: { type: Number }                          // Kinh độ
         }
     ],
 

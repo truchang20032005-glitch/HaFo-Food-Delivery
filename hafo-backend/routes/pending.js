@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const nodemailer = require('nodemailer');
 const uploadCloud = require('../config/cloudinary');
 
@@ -12,36 +10,22 @@ const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const User = require('../models/User');
 
-const fileFilter = (req, file, cb) => {
-    // Chấp nhận ảnh và PDF
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        // Lỗi này sẽ được bắt ở middleware bên dưới
-        cb(new Error('Sai định dạng! Chỉ chấp nhận file ảnh (JPEG, PNG) hoặc PDF.'), false);
-    }
-};
-
-// MIDDLEWARE XỬ LÝ LỖI UPLOAD (QUAN TRỌNG ĐỂ FIX LỖI 500) ---
+// MIDDLEWARE XỬ LÝ UPLOAD
 const handleUpload = (fields) => {
     return (req, res, next) => {
         const uploadFn = uploadCloud.fields(fields);
         uploadFn(req, res, (err) => {
             if (err instanceof multer.MulterError) {
-                // Lỗi do Multer (VD: File quá lớn, sai tên trường...)
                 return res.status(400).json({ message: "Lỗi upload file: " + err.message });
             } else if (err) {
-                // Lỗi do fileFilter (Sai định dạng)
                 return res.status(400).json({ message: err.message });
             }
-            // Không lỗi -> Đi tiếp vào logic lưu DB
             next();
         });
     };
 };
 
-// API ĐĂNG KÝ NHÀ HÀNG ---
+// API ĐĂNG KÝ NHÀ HÀNG
 router.post('/merchant', handleUpload([
     { name: 'avatar', maxCount: 1 },
     { name: 'idCardFront', maxCount: 1 },
@@ -51,139 +35,94 @@ router.post('/merchant', handleUpload([
     try {
         const files = req.files || {};
 
-        // Log để debug xem dữ liệu nhận được là gì
-        console.log("Body:", req.body);
-        console.log("Files:", req.files ? Object.keys(req.files) : "No files");
+        // Chuyển tọa độ từ string (nếu gửi qua FormData) sang mảng số
+        const lng = parseFloat(req.body.lng) || 106.660172;
+        const lat = parseFloat(req.body.lat) || 10.762622;
 
         const newReq = new PendingRestaurant({
             ...req.body,
+            location: {
+                type: 'Point',
+                coordinates: [lng, lat] // [Kinh độ, Vĩ độ]
+            },
             avatar: files.avatar ? files.avatar[0].path : '',
             idCardFront: files.idCardFront ? files.idCardFront[0].path : '',
             idCardBack: files.idCardBack ? files.idCardBack[0].path : '',
             businessLicense: files.businessLicense ? files.businessLicense[0].path : '',
-
-            // Xử lý mảng cuisine an toàn
             cuisine: req.body.cuisine ? (Array.isArray(req.body.cuisine) ? req.body.cuisine : [req.body.cuisine]) : []
         });
         await newReq.save();
-
-        await User.findByIdAndUpdate(req.body.userId, {
-            approvalStatus: 'pending'
-        });
-
-        res.status(201).json({ message: "Gửi hồ sơ nhà hàng thành công!", code: newReq._id });
+        await User.findByIdAndUpdate(req.body.userId, { approvalStatus: 'pending' });
+        res.status(201).json({ message: "Gửi hồ sơ thành công!", code: newReq._id });
     } catch (err) {
-        console.error("Lỗi lưu DB Merchant:", err); // Log lỗi ra terminal để dễ sửa
-        res.status(500).json({ error: "Lỗi server: " + err.message });
+        res.status(500).json({ error: err.message });
     }
 });
 
-// API ĐĂNG KÝ SHIPPER ---
+// API ĐĂNG KÝ SHIPPER 
 router.post('/shipper', handleUpload([
-    { name: 'cccdFront', maxCount: 1 },
-    { name: 'cccdBack', maxCount: 1 },
-    { name: 'licenseImage', maxCount: 1 },
-    { name: 'vehicleRegImage', maxCount: 1 },
+    { name: 'cccdFront', maxCount: 1 }, { name: 'cccdBack', maxCount: 1 },
+    { name: 'licenseImage', maxCount: 1 }, { name: 'vehicleRegImage', maxCount: 1 },
     { name: 'avatar', maxCount: 1 }
 ]), async (req, res) => {
     try {
         const files = req.files || {};
+        const lng = parseFloat(req.body.lng) || 106.660172;
+        const lat = parseFloat(req.body.lat) || 10.762622;
 
         const newReq = new PendingShipper({
             ...req.body,
+            location: { type: 'Point', coordinates: [lng, lat] }, // ✅ Lưu tọa độ
             cccdFront: files.cccdFront ? files.cccdFront[0].path : '',
             cccdBack: files.cccdBack ? files.cccdBack[0].path : '',
             licenseImage: files.licenseImage ? files.licenseImage[0].path : '',
             vehicleRegImage: files.vehicleRegImage ? files.vehicleRegImage[0].path : '',
             avatar: files.avatar ? files.avatar[0].path : ''
         });
-
         await newReq.save();
-
-        await User.findByIdAndUpdate(req.body.userId, {
-            approvalStatus: 'pending'
-        });
-
-        res.status(201).json({ message: "Gửi hồ sơ Shipper thành công!", code: newReq._id });
-    } catch (err) {
-        console.error("Lỗi lưu DB Shipper:", err);
-        res.status(500).json({ error: "Lỗi server: " + err.message });
-    }
-});
-
-// API ĐẾM SỐ LƯỢNG CHỜ (Dùng cho Sidebar Badge)
-router.get('/count', async (req, res) => {
-    try {
-        // Đếm Merchant đang pending
-        const mCount = await PendingRestaurant.countDocuments({ status: 'pending' });
-        // Đếm Shipper đang pending
-        const sCount = await PendingShipper.countDocuments({ status: 'pending' });
-
-        // Trả về tổng số
-        res.json({ total: mCount + sCount });
+        await User.findByIdAndUpdate(req.body.userId, { approvalStatus: 'pending' });
+        res.status(201).json({ message: "Gửi hồ sơ Shipper thành công!" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ADMIN LẤY DANH SÁCH CHỜ (Chỉnh lại để lấy real data)
-router.get('/all', async (req, res) => {
-    try {
-        const merchants = await PendingRestaurant.find({ status: 'pending' });
-        const shippers = await PendingShipper.find({ status: 'pending' });
-        res.json({ merchants, shippers });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// --- CẤU HÌNH GMAIL ---
+// CẤU HÌNH GMAIL GỬI THÔNG BÁO
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "sandbox.smtp.mailtrap.io", // ✅ Đúng host trong ảnh của bạn
+    port: 2525, // ✅ Bạn dùng cổng 2525 cho ổn định
     auth: {
-        user: process.env.EMAIL_USER, // Đọc từ .env
-        pass: process.env.EMAIL_PASS  // Đọc từ .env
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
-// Hàm gửi mail tiện ích
 const sendNotificationEmail = async (toEmail, subject, text) => {
     try {
-        await transporter.sendMail({
-            from: '"HaFo Admin" <no-reply@hafo.com>',
-            to: toEmail,
-            subject: subject,
-            text: text
-        });
-        console.log(`Đã gửi mail tới ${toEmail}`);
-    } catch (error) {
-        console.error("Lỗi gửi mail:", error);
-    }
+        await transporter.sendMail({ from: '"HaFo Admin" <no-reply@hafo.com>', to: toEmail, subject, text });
+    } catch (error) { console.error("Lỗi gửi mail:", error); }
 };
 
 // API DUYỆT HỒ SƠ
 router.put('/approve/:type/:id', async (req, res) => {
     const { type, id } = req.params;
-
     try {
         let emailToSend = "";
         let nameToSend = "";
 
-        // 1. TRƯỜNG HỢP DUYỆT NHÀ HÀNG (MERCHANT)
         if (type === 'merchant') {
             const pending = await PendingRestaurant.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
 
-            emailToSend = pending.email || pending.repEmail;
+            emailToSend = pending.email;
             nameToSend = pending.name;
 
-            // ✅ BƯỚC quan trọng: Chỉ tạo Nhà hàng tại đây (Khi duyệt)
             const newRestaurant = new Restaurant({
                 owner: pending.userId,
                 name: pending.name,
                 address: pending.address,
                 phone: pending.phone,
-                image: pending.avatar || pending.coverImage,
+                image: pending.avatar,
                 city: pending.city,
                 district: pending.district,
                 cuisine: pending.cuisine,
@@ -194,22 +133,14 @@ router.put('/approve/:type/:id', async (req, res) => {
                 bankAccount: pending.bankAccount,
                 bankOwner: pending.bankOwner,
                 bankBranch: pending.bankBranch,
+                location: pending.location,
                 isOpen: true
             });
             await newRestaurant.save();
-
-            // Cập nhật User: Đổi role và gắn ID nhà hàng vừa tạo
-            await User.findByIdAndUpdate(pending.userId, {
-                role: 'merchant',
-                restaurant: newRestaurant._id, // Liên kết user với nhà hàng mới
-                approvalStatus: 'approved'
-            });
-
-            // Đánh dấu hồ sơ chờ đã được duyệt
+            await User.findByIdAndUpdate(pending.userId, { role: 'merchant', restaurant: newRestaurant._id, approvalStatus: 'approved' });
             pending.status = 'approved';
             await pending.save();
 
-            // 2. TRƯỜNG HỢP DUYỆT SHIPPER
         } else if (type === 'shipper') {
             const pending = await PendingShipper.findById(id);
             if (!pending) return res.status(404).json({ message: 'Không tìm thấy hồ sơ' });
@@ -217,76 +148,58 @@ router.put('/approve/:type/:id', async (req, res) => {
             emailToSend = pending.email;
             nameToSend = pending.fullName;
 
-            // ✅ BƯỚC quan trọng: Chỉ tạo Shipper tại đây (Khi duyệt)
             const newShipper = new Shipper({
                 user: pending.userId,
                 vehicleType: pending.vehicleType,
                 licensePlate: pending.licensePlate,
-                currentLocation: pending.district || 'TP.HCM',
+                location: pending.location,
                 bankName: pending.bankName,
                 bankAccount: pending.bankAccount,
                 bankOwner: pending.bankOwner,
-                income: 0 // Thu nhập khởi điểm là 0
+                income: 0
             });
             await newShipper.save();
-
-            // Cập nhật User: Đổi role và gắn ID shipper vừa tạo
-            await User.findByIdAndUpdate(pending.userId, {
-                role: 'shipper',
-                shipper: newShipper._id, // Liên kết user với hồ sơ shipper
-                fullName: pending.fullName,
-                phone: pending.phone,
-                approvalStatus: 'approved'
-            });
-
+            await User.findByIdAndUpdate(pending.userId, { role: 'shipper', shipper: newShipper._id, fullName: pending.fullName, phone: pending.phone, approvalStatus: 'approved' });
             pending.status = 'approved';
             await pending.save();
         }
 
-        // 3. GỬI EMAIL THÔNG BÁO (Giữ nguyên logic cũ của bạn)
         if (emailToSend) {
-            const content = `Xin chào ${nameToSend},\n\nHồ sơ đối tác của bạn tại HaFo đã được DUYỆT THÀNH CÔNG!\nBây giờ bạn có thể đăng nhập để bắt đầu hoạt động.\n\nTrân trọng,\nHaFo Team.`;
-            await sendNotificationEmail(emailToSend, "Hồ sơ HaFo của bạn đã được duyệt! 🎉", content);
+            const content = `Xin chào ${nameToSend},\nHồ sơ đối tác tại HaFo đã được DUYỆT THÀNH CÔNG!\nTrân trọng.`;
+            await sendNotificationEmail(emailToSend, "Hồ sơ HaFo đã được duyệt! 🎉", content);
         }
-
-        res.json({ message: 'Đã duyệt thành công và gửi email thông báo!' });
-
+        res.json({ message: 'Đã duyệt thành công!' });
     } catch (err) {
-        console.error('Lỗi Duyệt hồ sơ:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-
 // API TỪ CHỐI HỒ SƠ
 router.put('/reject/:type/:id', async (req, res) => {
     const { type, id } = req.params;
-    const { reason } = req.body; // Nhận lý do từ Frontend
-
+    const { reason } = req.body;
     try {
-        let emailToSend = "";
-        let nameToSend = "";
-
-        if (type === 'merchant') {
-            const p = await PendingRestaurant.findByIdAndUpdate(id, { status: 'rejected' });
-            emailToSend = p.email || p.repEmail;
-            nameToSend = p.name;
-        } else {
-            const p = await PendingShipper.findByIdAndUpdate(id, { status: 'rejected' });
-            emailToSend = p.email;
-            nameToSend = p.fullName;
+        let p = (type === 'merchant') ? await PendingRestaurant.findByIdAndUpdate(id, { status: 'rejected' }) : await PendingShipper.findByIdAndUpdate(id, { status: 'rejected' });
+        const email = p.email;
+        const name = p.name || p.fullName;
+        if (email) {
+            const content = `Xin chào ${name},\nHồ sơ của bạn bị TỪ CHỐI.\nLý do: ${reason}\nTrân trọng.`;
+            await sendNotificationEmail(email, "Thông báo hồ sơ HaFo ⚠️", content);
         }
+        res.json({ message: 'Đã từ chối hồ sơ.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        // ---> GỬI MAIL THÔNG BÁO TỪ CHỐI <---
-        if (emailToSend) {
-            const content = `Xin chào ${nameToSend},\n\nRất tiếc, hồ sơ đăng ký của bạn tại HaFo đã bị TỪ CHỐI.\n\nLý do: ${reason}\n\nVui lòng kiểm tra và nộp lại hồ sơ mới.\n\nTrân trọng,\nHaFo Team.`;
-            await sendNotificationEmail(emailToSend, "Thông báo về hồ sơ đăng ký HaFo ⚠️", content);
-        }
+router.get('/count', async (req, res) => {
+    const mCount = await PendingRestaurant.countDocuments({ status: 'pending' });
+    const sCount = await PendingShipper.countDocuments({ status: 'pending' });
+    res.json({ total: mCount + sCount });
+});
 
-        res.json({ message: 'Đã từ chối và gửi email thông báo.' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+router.get('/all', async (req, res) => {
+    const merchants = await PendingRestaurant.find({ status: 'pending' });
+    const shippers = await PendingShipper.find({ status: 'pending' });
+    res.json({ merchants, shippers });
 });
 
 module.exports = router;

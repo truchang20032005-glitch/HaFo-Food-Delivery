@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../../services/api';
 import 'leaflet/dist/leaflet.css';
@@ -15,6 +15,17 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Component để tự động di chuyển tâm bản đồ khi tọa độ thay đổi
+function RecenterMap({ lat, lng }) {
+    const map = useMap();
+    useEffect(() => {
+        if (lat && lng) {
+            map.setView([lat, lng], 16);
+        }
+    }, [lat, lng, map]);
+    return null;
+}
+
 function Storefront() {
     const [shop, setShop] = useState(null);
     const [owner, setOwner] = useState(null);
@@ -22,7 +33,7 @@ function Storefront() {
     // Form Quán
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
-    const [formData, setFormData] = useState({ lat: 10.762, lng: 106.660 });
+    const [formData, setFormData] = useState({ lat: 10.762, lng: 106.660, address: '' });
 
     // Form Chủ quán
     const [userFormData, setUserFormData] = useState({});
@@ -31,13 +42,47 @@ function Storefront() {
 
     const [loadingUser, setLoadingUser] = useState(false);
     const [loadingShop, setLoadingShop] = useState(false);
+    const [isGeocoding, setIsGeocoding] = useState(false);
 
-    // Bắt sự kiện Click Map
+    // --- HÀM 1: TỪ TỌA ĐỘ -> ĐỊA CHỈ (Khi click Map) ---
+    const fetchAddressFromCoords = async (lat, lng) => {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+            const data = await res.json();
+            if (data && data.display_name) {
+                setFormData(prev => ({ ...prev, address: data.display_name }));
+            }
+        } catch (err) {
+            console.error("Lỗi lấy địa chỉ:", err);
+        }
+    };
+
+    // --- HÀM 2: TỪ ĐỊA CHỈ -> TỌA ĐỘ (Khi nhập text) ---
+    const handleSearchAddress = async () => {
+        if (!formData.address) return;
+        setIsGeocoding(true);
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.address)}`);
+            const data = await res.json();
+            if (data && data.length > 0) {
+                const { lat, lon } = data[0];
+                setFormData(prev => ({ ...prev, lat: parseFloat(lat), lng: parseFloat(lon) }));
+            } else {
+                alert("Không tìm thấy tọa độ cho địa chỉ này!");
+            }
+        } catch (err) {
+            console.error("Lỗi tìm tọa độ:", err);
+        } finally {
+            setIsGeocoding(false);
+        }
+    };
+
     function LocationMarker() {
         useMapEvents({
             click(e) {
                 const { lat, lng } = e.latlng;
                 setFormData(prev => ({ ...prev, lat, lng }));
+                fetchAddressFromCoords(lat, lng); // Cập nhật luôn địa chỉ string
             },
         });
         return formData.lat ? <Marker position={[formData.lat, formData.lng]} /> : null;
@@ -49,7 +94,13 @@ function Storefront() {
             api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     setShop(res.data);
-                    setFormData(res.data);
+                    // Đảm bảo lấy đủ lat, lng, address từ DB
+                    setFormData({
+                        ...res.data,
+                        lat: res.data.lat || 10.762,
+                        lng: res.data.lng || 106.660,
+                        address: res.data.address || ''
+                    });
                     if (res.data.image) setImagePreview(res.data.image);
                     return api.get(`/users/${user.id}`);
                 })
@@ -62,7 +113,6 @@ function Storefront() {
         }
     }, []);
 
-    // Lưu User
     const handleSaveUser = async () => {
         setLoadingUser(true);
         try {
@@ -72,31 +122,26 @@ function Storefront() {
             data.append('email', userFormData.email);
             if (userAvatarFile) data.append('avatar', userAvatarFile);
 
-            const res = await api.put(`/users/${owner._id}`, data, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await api.put(`/users/${owner._id}`, data);
             setOwner(res.data);
             alert("✅ Đã cập nhật thông tin chủ quán!");
         } catch (err) { alert(err.message); }
         finally { setLoadingUser(false); }
     };
 
-    // Lưu Quán
     const handleSaveShop = async () => {
         setLoadingShop(true);
         try {
             const data = new FormData();
             data.append('name', formData.name);
-            data.append('address', formData.address);
+            data.append('address', formData.address); // Lưu địa chỉ string mới
             data.append('openTime', formData.openTime);
             data.append('closeTime', formData.closeTime);
             data.append('lat', formData.lat);
             data.append('lng', formData.lng);
             if (imageFile) data.append('image', imageFile);
 
-            await api.put(`/restaurants/${shop._id}`, data, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await api.put(`/restaurants/${shop._id}`, data);
             alert("✅ Đã cập nhật thông tin cửa hàng!");
         } catch (err) { alert(err.message); }
         finally { setLoadingShop(false); }
@@ -104,7 +149,6 @@ function Storefront() {
 
     if (!shop || !owner) return <div style={{ padding: '20px' }}>Đang tải...</div>;
 
-    // CSS Nội bộ cho các thành phần đặc thù
     const S = {
         label: { display: 'block', fontWeight: '700', fontSize: '13px', color: '#64748b', marginBottom: '6px' },
         avatarCircle: { width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #FFF1ED', margin: '0 auto 10px', background: '#f8fafc' },
@@ -113,8 +157,7 @@ function Storefront() {
 
     return (
         <div className="storefront-container">
-
-            {/* PHẦN 1: THÔNG TIN CHỦ QUÁN - ĐỒNG BỘ PANEL */}
+            {/* PHẦN 1: THÔNG TIN CHỦ QUÁN */}
             <section className="panel">
                 <div className="head">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -155,7 +198,7 @@ function Storefront() {
                 </div>
             </section>
 
-            {/* PHẦN 2: THÔNG TIN CỬA HÀNG - ĐỒNG BỘ PANEL */}
+            {/* PHẦN 2: THÔNG TIN CỬA HÀNG */}
             <section className="panel">
                 <div className="head">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -183,7 +226,24 @@ function Storefront() {
                             <input className="f-input" name="name" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
 
                             <label style={{ ...S.label, marginTop: '15px' }}>Địa chỉ kinh doanh</label>
-                            <input className="f-input" name="address" value={formData.address || ''} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    className="f-input"
+                                    placeholder="Nhập địa chỉ để tìm trên bản đồ..."
+                                    name="address"
+                                    value={formData.address || ''}
+                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchAddress()}
+                                />
+                                <button
+                                    className="btn"
+                                    style={{ whiteSpace: 'nowrap', fontSize: '12px' }}
+                                    onClick={handleSearchAddress}
+                                    disabled={isGeocoding}
+                                >
+                                    <i className="fa-solid fa-location-dot"></i> Tìm vị trí
+                                </button>
+                            </div>
 
                             <div style={{ display: 'flex', gap: '20px', marginTop: '15px' }}>
                                 <div style={{ flex: 1 }}>
@@ -200,7 +260,12 @@ function Storefront() {
 
                     {/* MAP SECTION */}
                     <div style={{ marginTop: '30px', borderTop: '1px dashed #e2e8f0', paddingTop: '20px' }}>
-                        <label style={S.label}>Vị trí GPS (Click vào bản đồ để cập nhật tọa độ chính xác)</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <label style={S.label}>Vị trí GPS (Click vào bản đồ để cập nhật tọa độ & địa chỉ)</label>
+                            <div style={{ marginBottom: '6px', fontSize: '11px', color: '#94a3b8' }}>
+                                Tọa độ: {formData.lat?.toFixed(6)} , {formData.lng?.toFixed(6)}
+                            </div>
+                        </div>
                         <div style={{ height: '350px', borderRadius: '16px', overflow: 'hidden', border: '1.5px solid #e2e8f0', marginTop: '10px' }}>
                             <MapContainer
                                 center={[formData.lat || 10.762, formData.lng || 106.660]}
@@ -208,11 +273,9 @@ function Storefront() {
                                 style={{ height: '100%', width: '100%' }}
                             >
                                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                <RecenterMap lat={formData.lat} lng={formData.lng} />
                                 <LocationMarker />
                             </MapContainer>
-                        </div>
-                        <div style={{ textAlign: 'right', marginTop: '8px', fontSize: '11px', color: '#94a3b8' }}>
-                            Tọa độ: {formData.lat?.toFixed(6)} , {formData.lng?.toFixed(6)}
                         </div>
                     </div>
                 </div>

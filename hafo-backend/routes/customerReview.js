@@ -49,19 +49,30 @@ router.post('/', async (req, res) => {
             orderId, customerId, restaurantId, shipperId,
             rating, comment, itemReviews, shipperRating, shipperComment
         });
-
         await newReview.save();
 
-        // ✅ PHẢI MỞ DÒNG NÀY ĐỂ TRANG LỊCH SỬ CẬP NHẬT NÚT
+        // 1. Cập nhật trạng thái đơn hàng
         await Order.findByIdAndUpdate(orderId, {
             isReviewed: true,
-            restaurantRating: rating,      // Sao của quán (rating tổng)
-            shipperRating: shipperRating   // Sao của shipper
+            restaurantRating: rating,
+            shipperRating: shipperRating
         });
+
+        // 2. ✅ LOGIC MỚI: Tự động cập nhật Rating trung bình cho QUÁN
+        const resReviews = await CustomerReview.find({ restaurantId });
+        const avgResRating = resReviews.reduce((acc, r) => acc + r.rating, 0) / resReviews.length;
+        await Restaurant.findByIdAndUpdate(restaurantId, { rating: avgResRating.toFixed(1) });
+
+        // 3. ✅ LOGIC MỚI: Tự động cập nhật Rating trung bình cho SHIPPER
+        if (shipperId) {
+            const shipReviews = await CustomerReview.find({ shipperId });
+            const avgShipRating = shipReviews.reduce((acc, r) => acc + (r.shipperRating || 5), 0) / shipReviews.length;
+            // Lưu ý: Shipper ID trong CustomerReview là UserID, nên ta tìm theo UserID
+            await Shipper.findOneAndUpdate({ user: shipperId }, { rating: avgShipRating.toFixed(1) });
+        }
 
         res.status(201).json(newReview);
     } catch (err) {
-        console.error("LỖI LƯU ĐÁNH GIÁ:", err.message); // Xem lỗi cụ thể ở terminal
         res.status(400).json({ error: err.message });
     }
 });
