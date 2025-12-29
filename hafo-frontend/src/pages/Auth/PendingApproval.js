@@ -1,7 +1,20 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function PendingApproval() {
     const navigate = useNavigate();
+
+    // --- BIẾN CHECK: Kiểm tra xem có đang ở màn hình điện thoại không ---
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        // Lắng nghe sự kiện thay đổi kích thước màn hình
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('user');
@@ -10,20 +23,21 @@ function PendingApproval() {
         window.location.reload();
     };
 
-    // Style nội bộ cho các hiệu ứng đặc biệt
+    // Style nội bộ được điều chỉnh linh hoạt theo biến isMobile
     const S = {
         container: {
             height: '100vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #F7F2E5 0%, #FFF1ED 100%)', // Nền kem pha chút hồng cam nhạt
-            padding: '20px'
+            background: 'linear-gradient(135deg, #F7F2E5 0%, #FFF1ED 100%)',
+            padding: isMobile ? '10px' : '20px' // Giảm padding ngoài trên mobile
         },
         card: {
             background: '#fff',
-            padding: '50px 40px',
-            borderRadius: '24px',
+            // Laptop giữ 50px 40px, Mobile thu gọn còn 30px 20px
+            padding: isMobile ? '30px 20px' : '50px 40px',
+            borderRadius: isMobile ? '16px' : '24px', // Bo góc ít hơn trên mobile
             textAlign: 'center',
             boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
             maxWidth: '550px',
@@ -32,15 +46,15 @@ function PendingApproval() {
             overflow: 'hidden'
         },
         iconWrap: {
-            width: '100px',
-            height: '100px',
+            width: isMobile ? '80px' : '100px', // Icon nhỏ lại một chút
+            height: isMobile ? '80px' : '100px',
             background: '#FFF7E5',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 25px',
-            fontSize: '40px',
+            fontSize: isMobile ? '32px' : '40px',
             color: '#FAD06C'
         },
         stepContainer: {
@@ -48,11 +62,11 @@ function PendingApproval() {
             justifyContent: 'center',
             alignItems: 'center',
             gap: '10px',
-            margin: '30px 0'
+            margin: isMobile ? '20px 0' : '30px 0'
         },
         dot: (active, done) => ({
             height: '8px',
-            width: done ? '40px' : '20px',
+            width: done ? (isMobile ? '30px' : '40px') : '20px',
             borderRadius: '4px',
             background: done ? '#22C55E' : (active ? '#F97350' : '#E2E8F0'),
             transition: 'all 0.3s ease'
@@ -69,11 +83,21 @@ function PendingApproval() {
                     <i className="fa-solid fa-hourglass-half fa-spin-pulse"></i>
                 </div>
 
-                <h2 style={{ color: '#3A2E2E', fontSize: '24px', fontWeight: '800', marginBottom: '15px' }}>
+                <h2 style={{
+                    color: '#3A2E2E',
+                    fontSize: isMobile ? '20px' : '24px', // Chữ tiêu đề nhỏ hơn trên mobile
+                    fontWeight: '800',
+                    marginBottom: '15px'
+                }}>
                     Hồ sơ đang được xét duyệt
                 </h2>
 
-                <p style={{ color: '#64748b', lineHeight: '1.7', fontSize: '15px', marginBottom: '10px' }}>
+                <p style={{
+                    color: '#64748b',
+                    lineHeight: '1.7',
+                    fontSize: isMobile ? '14px' : '15px',
+                    marginBottom: '10px'
+                }}>
                     Cảm ơn bạn đã tin tưởng và đăng ký đối tác với <b>HaFo</b>.
                 </p>
 
@@ -84,14 +108,20 @@ function PendingApproval() {
                     <div style={S.dot(false, false)}></div>
                 </div>
 
-                <div style={{ background: '#F8FAFC', padding: '15px', borderRadius: '12px', border: '1px solid #F1F5F9', marginBottom: '30px' }}>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#475569' }}>
+                <div style={{
+                    background: '#F8FAFC',
+                    padding: '15px',
+                    borderRadius: '12px',
+                    border: '1px solid #F1F5F9',
+                    marginBottom: '30px'
+                }}>
+                    <p style={{ margin: 0, fontSize: isMobile ? '13px' : '14px', color: '#475569' }}>
                         <i className="fa-solid fa-circle-info" style={{ color: '#3B82F6', marginRight: '8px' }}></i>
-                        Thời gian xét duyệt dự kiến: <b>1 - 3 ngày làm việc</b>
+                        Thời gian xét duyệt dự kiến:<br /> <b>1 - 3 ngày làm việc</b>
                     </p>
                 </div>
 
-                <p style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', marginBottom: '30px' }}>
+                <p style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic', marginBottom: '30px' }}>
                     Chúng tôi sẽ gửi thông báo kết quả qua email ngay sau khi hoàn tất kiểm tra hồ sơ.
                 </p>
 
@@ -100,8 +130,8 @@ function PendingApproval() {
                         onClick={handleLogout}
                         className="btn primary"
                         style={{
-                            width: '220px',       // Độ rộng cố định
-                            margin: '0 auto',     // Căn giữa nút trong khối
+                            width: isMobile ? '100%' : '220px', // Full width trên mobile
+                            margin: '0 auto',
                             padding: '12px',
                             fontSize: '15px',
                             boxShadow: '0 4px 12px rgba(249, 115, 80, 0.2)',
@@ -114,7 +144,7 @@ function PendingApproval() {
                     <button
                         onClick={() => window.location.reload()}
                         className="btn soft"
-                        style={{ background: 'transparent', border: 'none', color: '#F97350', fontSize: '14px', fontWeight: '700' }}
+                        style={{ background: 'transparent', border: 'none', color: '#F97350', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}
                     >
                         Làm mới trạng thái
                     </button>

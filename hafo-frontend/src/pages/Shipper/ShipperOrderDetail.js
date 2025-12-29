@@ -7,7 +7,8 @@ const styles = {
     container: {
         background: '#f3f4f6',
         minHeight: '100vh',
-        paddingBottom: '160px',
+        // ✅ GIẢM paddingBottom xuống vì nút đã hạ thấp
+        paddingBottom: '100px',
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
         maxWidth: '500px',
         margin: '0 auto',
@@ -69,28 +70,36 @@ const styles = {
     },
     fixedBottom: {
         position: 'fixed',
-        bottom: '100px',
+        // ✅ ĐƯA XUỐNG DƯỚI (Thay vì 100px) để shipper dễ bấm bằng ngón cái
+        bottom: '66px',
         left: '50%',
         transform: 'translateX(-50%)',
         width: '92%',
         maxWidth: '460px',
         display: 'flex',
-        gap: '10px',
+        gap: '12px',
         zIndex: 9999
     },
     btn: (variant) => ({
         flex: 1,
-        padding: '14px',
-        borderRadius: '15px',
+        padding: '16px', // Tăng độ dày cho nút dễ bấm hơn
+        borderRadius: '20px', // Bo tròn nhiều hơn cho hiện đại
         border: 'none',
         fontSize: '16px',
         fontWeight: '800',
         color: 'white',
         cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: '8px',
-        background: variant === 'primary' ? '#F97350' : (variant === 'success' ? '#10B981' : '#EF4444'),
-        boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+        gap: '10px',
+        // ✅ SỬ DỤNG GRADIENT cho variant primary (Đã lấy món)
+        background: variant === 'primary'
+            ? 'linear-gradient(135deg, #F97350 0%, #f08c2eff 100%)'
+            : (variant === 'success' ? '#10B981' : '#EF4444'),
+        // ✅ TĂNG ĐỘ ĐẬM CỦA ĐỔ BÓNG
+        boxShadow: variant === 'primary'
+            ? '0 8px 20px rgba(249, 115, 80, 0.4)'
+            : '0 4px 15px rgba(0,0,0,0.2)',
+        transition: 'all 0.3s ease'
     }),
     chatOverlay: {
         position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
@@ -109,6 +118,7 @@ function ShipperOrderDetail() {
     const timerRef = useRef(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [hasNewMsg, setHasNewMsg] = useState(false);
+    const [lastNotifiedMsgId, setLastNotifiedMsgId] = useState(null);
 
     // DÙNG useCallback ĐỂ FIX WARNING
     const fetchOrder = useCallback(async () => {
@@ -125,18 +135,18 @@ function ShipperOrderDetail() {
             const messages = res.data;
             if (messages.length > 0) {
                 const lastMsg = messages[messages.length - 1];
-                const lastView = localStorage.getItem(`lastViewChat_${id}`);
                 const currentUserId = localStorage.getItem('userId');
-                if (lastMsg.senderId !== currentUserId) {
-                    if (!lastView || new Date(lastMsg.createdAt) > new Date(lastView)) {
-                        setHasNewMsg(true);
-                    } else {
-                        setHasNewMsg(false);
-                    }
+
+                // ✅ Nếu tin nhắn mới từ người khác VÀ chưa được báo âm thanh
+                if (lastMsg.senderId !== currentUserId && lastMsg._id !== lastNotifiedMsgId) {
+                    const audio = new Audio('/sounds/message.mp3'); // Bạn nhớ thêm file này vào public/sounds
+                    audio.play().catch(e => console.log("Autoplay blocked"));
+                    setLastNotifiedMsgId(lastMsg._id); // Lưu lại để không kêu lần nữa
+                    setHasNewMsg(true);
                 }
             }
         } catch (err) { console.error(err); }
-    }, [id]); // Phụ thuộc vào id
+    }, [id, lastNotifiedMsgId]);
 
     useEffect(() => {
         fetchOrder();

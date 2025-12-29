@@ -181,11 +181,14 @@ function Pending() {
                                             <tr><th>Biển số xe</th><td>{selectedReq.licensePlate}</td></tr>
                                             <tr><th>Ngân hàng</th><td>{selectedReq.bankName} - {selectedReq.bankAccount}</td></tr>
 
-                                            <tr><td colSpan="2" style={{ background: '#eee', fontWeight: 'bold', padding: '8px' }}>Hồ sơ ảnh</td></tr>
-                                            {renderImageRow("Ảnh chân dung", selectedReq.avatar)}
-                                            {renderImageRow("Cà vẹt xe", selectedReq.vehicleRegImage)}
-                                            {renderImageRow("Bằng lái xe", selectedReq.licenseImage)}
-                                            {renderImageRow("CCCD Mặt trước", selectedReq.cccdFront)}
+                                            <tr><td colSpan="2" style={{ background: '#eee', fontWeight: 'bold', padding: '8px' }}>Hồ sơ ảnh (Shipper)</td></tr>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', padding: '10px' }}>
+                                                {renderImageRow("Ảnh chân dung", selectedReq.avatar)}
+                                                {renderImageRow("Cà vẹt xe", selectedReq.vehicleRegImage)}
+                                                {renderImageRow("Bằng lái xe", selectedReq.licenseImage)}
+                                                {renderImageRow("CCCD Mặt trước", selectedReq.cccdFront)}
+                                                {renderImageRow("CCCD Mặt sau", selectedReq.cccdBack)} {/* ✅ ĐÃ THÊM DÒNG NÀY */}
+                                            </div>
                                         </>
                                     )}
                                 </tbody>

@@ -8,10 +8,12 @@ function Home() {
     const [searchTerm, setSearchTerm] = useState("");
 
     // State cho bộ lọc
+    const [selectedCity, setSelectedCity] = useState("Tất cả"); // MỚI: Thêm state Thành phố
     const [selectedDistrict, setSelectedDistrict] = useState("Tất cả");
     const [selectedCuisine, setSelectedCuisine] = useState("Tất cả");
 
-    // State danh sách các option cho bộ lọc (Tự động lấy từ DB)
+    // State danh sách các option cho bộ lọc
+    const [cities, setCities] = useState([]); // MỚI: Danh sách thành phố
     const [districts, setDistricts] = useState([]);
     const [cuisines, setCuisines] = useState([]);
 
@@ -25,15 +27,11 @@ function Home() {
                 const data = res.data;
                 setRestaurants(data);
 
-                // --- XỬ LÝ DỮ LIỆU ĐỂ TẠO BỘ LỌC ĐỘNG ---
+                // A. Lấy danh sách Thành phố duy nhất từ dữ liệu thật
+                const uniqueCities = ["Tất cả", ...new Set(data.map(r => r.city).filter(Boolean))];
+                setCities(uniqueCities);
 
-                // A. Lấy danh sách Quận/Huyện duy nhất từ dữ liệu thật
-                const uniqueDistricts = ["Tất cả", ...new Set(data.map(r => r.district).filter(Boolean))];
-                setDistricts(uniqueDistricts);
-
-                // B. Lấy danh sách Loại món duy nhất (Flatten mảng cuisine)
-                // data.map(r => r.cuisine) sẽ ra mảng lồng nhau: [['Cơm'], ['Phở', 'Bún'], ...]
-                // .flat() sẽ làm phẳng thành: ['Cơm', 'Phở', 'Bún', ...]
+                // B. Lấy danh sách Loại món duy nhất
                 const uniqueCuisines = ["Tất cả", ...new Set(data.map(r => r.cuisine).flat().filter(Boolean))];
                 setCuisines(uniqueCuisines);
 
@@ -41,32 +39,54 @@ function Home() {
                 console.error("Lỗi lấy quán:", err);
             }
         };
-
         fetchRestaurants();
     }, []);
 
-    // 2. LOGIC LỌC TỔNG HỢP (Real-time Filtering)
+    useEffect(() => {
+        if (selectedCity === "Tất cả") {
+            setDistricts(["Tất cả"]);
+            setSelectedDistrict("Tất cả");
+        } else {
+            // Lọc ra các quận thuộc về thành phố đã chọn
+            const filteredDist = restaurants
+                .filter(r => r.city === selectedCity)
+                .map(r => r.district)
+                .filter(Boolean);
+
+            const uniqueDistricts = ["Tất cả", ...new Set(filteredDist)];
+            setDistricts(uniqueDistricts);
+            setSelectedDistrict("Tất cả"); // Reset quận về "Tất cả" khi đổi thành phố
+        }
+    }, [selectedCity, restaurants]);
+
+    // 2. Logic lọc tổng hợp: Đã tách biệt hoàn toàn
     const filteredRestaurants = restaurants.filter(res => {
-        // a. Lọc theo tên quán (searchTerm)
-        const matchesSearch = !searchTerm ||
-            res.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const searchLow = searchTerm.trim().toLowerCase();
 
-        // b. Lọc theo Khu vực (Dựa vào field 'district' trong DB)
-        const matchesDistrict = selectedDistrict === "Tất cả" ||
-            (res.district && res.district === selectedDistrict);
+        // ✅ QUY TẮC TÁCH BIỆT: Nếu ô tìm kiếm có chữ, CHỈ LỌC THEO TÌM KIẾM
+        if (searchLow !== "") {
+            return (
+                res.name.toLowerCase().includes(searchLow) ||
+                (res.address && res.address.toLowerCase().includes(searchLow)) ||
+                (res.cuisine && res.cuisine.some(c => c.toLowerCase().includes(searchLow)))
+            );
+        }
 
-        // c. Lọc theo Loại món (Dựa vào mảng 'cuisine' trong DB)
-        // Kiểm tra xem mảng cuisine của quán có chứa loại món đang chọn không
-        const matchesCuisine = selectedCuisine === "Tất cả" ||
-            (res.cuisine && res.cuisine.includes(selectedCuisine));
+        // ✅ Nếu ô tìm kiếm TRỐNG, mới áp dụng bộ lọc Khu vực / Món ăn
+        const matchesCity = selectedCity === "Tất cả" || (res.city && res.city === selectedCity);
+        const matchesDistrict = selectedDistrict === "Tất cả" || (res.district && res.district === selectedDistrict);
+        const matchesCuisine = selectedCuisine === "Tất cả" || (res.cuisine && res.cuisine.includes(selectedCuisine));
 
-        // Quán phải thỏa mãn TẤT CẢ điều kiện
-        return matchesSearch && matchesDistrict && matchesCuisine;
+        return matchesCity && matchesDistrict && matchesCuisine;
     });
+
+    const handleSearch = (value) => {
+        setSearchTerm(value);
+    };
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh' }}>
-            <Navbar onSearch={setSearchTerm} />
+            <Navbar onSearch={handleSearch} searchValue={searchTerm} />
 
             {/* Subbar: Khu vực chứa các bộ lọc */}
             <div className="subbar" style={{ background: '#fff', padding: '15px 0', borderBottom: '1px solid #e9e4d8', position: 'sticky', top: '64px', zIndex: 40 }}>
@@ -75,14 +95,35 @@ function Home() {
                     <span style={{ fontWeight: 'bold', color: '#555', whiteSpace: 'nowrap' }}> <i className="fa-solid fa-filter"></i> Bộ lọc:</span>
 
                     {/* Bộ lọc Khu vực (Dynamic) */}
+                    {/* 1. Bộ lọc Thành phố (MỚI) */}
+                    <select
+                        style={selectStyle}
+                        value={selectedCity}
+                        onChange={(e) => {
+                            setSelectedCity(e.target.value);
+                            setSearchTerm(""); // ✅ Tách biệt: Chọn filter thì xóa search
+                        }}
+                    >
+                        {cities.map((city) => (
+                            <option key={city} value={city}>
+                                {city === "Tất cả" ? "Thành phố: Tất cả" : city}
+                            </option>
+                        ))}
+                    </select>
+
+                    {/* 2. Bộ lọc Quận/Huyện (Dynamic dựa trên City) */}
                     <select
                         style={selectStyle}
                         value={selectedDistrict}
-                        onChange={(e) => setSelectedDistrict(e.target.value)}
+                        onChange={(e) => {
+                            setSelectedDistrict(e.target.value);
+                            setSearchTerm(""); // ✅ Tách biệt: Chọn filter thì xóa search
+                        }}
+                        disabled={selectedCity === "Tất cả"} // Khóa nếu chưa chọn TP cụ thể
                     >
                         {districts.map((dist) => (
                             <option key={dist} value={dist}>
-                                {dist === "Tất cả" ? "Khu vực: Tất cả" : dist}
+                                {dist === "Tất cả" ? "Quận/Huyện: Tất cả" : dist}
                             </option>
                         ))}
                     </select>
@@ -91,7 +132,10 @@ function Home() {
                     <select
                         style={selectStyle}
                         value={selectedCuisine}
-                        onChange={(e) => setSelectedCuisine(e.target.value)}
+                        onChange={(e) => {
+                            setSelectedCuisine(e.target.value);
+                            setSearchTerm(""); // ✅ Tách biệt: Chọn filter thì xóa search
+                        }}
                     >
                         {cuisines.map((type) => (
                             <option key={type} value={type}>
@@ -101,9 +145,14 @@ function Home() {
                     </select>
 
                     {/* Nút Reset nếu đang lọc */}
-                    {(selectedDistrict !== "Tất cả" || selectedCuisine !== "Tất cả" || searchTerm) && (
+                    {(selectedCity !== "Tất cả" || selectedDistrict !== "Tất cả" || selectedCuisine !== "Tất cả" || searchTerm) && (
                         <button
-                            onClick={() => { setSelectedDistrict("Tất cả"); setSelectedCuisine("Tất cả"); setSearchTerm("") }}
+                            onClick={() => {
+                                setSelectedCity("Tất cả");
+                                setSelectedDistrict("Tất cả");
+                                setSelectedCuisine("Tất cả");
+                                setSearchTerm("");
+                            }}
                             style={{ ...btnResetStyle }}
                         >
                             Xóa lọc ✕
