@@ -88,7 +88,10 @@ function ShipperProfile() {
     const handleSaveProfile = async () => {
         try {
             setLoading(true);
-            await api.put(`/shippers/profile/${profile.user._id}`, formData);
+            await api.put(`/shippers/profile/${profile.user._id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
             const localUser = JSON.parse(localStorage.getItem('user'));
             if (localUser) {
                 localStorage.setItem('user', JSON.stringify({ ...localUser, fullName: formData.fullName }));

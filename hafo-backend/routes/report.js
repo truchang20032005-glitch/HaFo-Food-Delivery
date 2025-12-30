@@ -58,4 +58,39 @@ router.put('/:id/status', async (req, res) => {
     }
 });
 
+// API Đánh dấu đã đọc báo cáo dành cho Shipper/Merchant
+router.put('/mark-read-partner/:id', async (req, res) => {
+    try {
+        await Report.findByIdAndUpdate(req.params.id, { isReadByPartner: true });
+        res.json({ message: "Đã đánh dấu đã đọc báo cáo" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/notifications/partner/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        // Tìm các báo cáo do user này gửi mà đã được xử lý và chưa đọc
+        const reports = await Report.find({
+            reporterId: userId,
+            status: { $ne: 'pending' },
+            isReadByPartner: false // Bạn nên thêm trường này vào Model Report tương tự Khách hàng
+        }).sort({ updatedAt: -1 });
+
+        const list = reports.map(r => ({
+            id: r._id,
+            notificationId: r._id,
+            type: 'report_processed',
+            time: r.updatedAt,
+            msg: `Khiếu nại đơn #${r.orderId.toString().slice(-6).toUpperCase()} đã được Admin xử lý: ${r.adminNote}`,
+            time: r.updatedAt
+        }));
+
+        res.json(list);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

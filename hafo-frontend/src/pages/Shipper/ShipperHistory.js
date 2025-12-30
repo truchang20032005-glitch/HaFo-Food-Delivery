@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
+import { useLocation } from 'react-router-dom';
 
 const toVND = (n) => n?.toLocaleString('vi-VN') + 'đ';
 
@@ -14,7 +15,20 @@ function ShipperHistory() {
     const [isReporting, setIsReporting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const loadHistory = async () => {
+    const location = useLocation();
+
+    const handleSelectOrder = useCallback(async (order) => {
+        setSelectedOrder(order);
+        if (order.isReviewed) {
+            try {
+                const res = await api.get(`/customer-reviews/order/${order._id}`);
+                setReviewDetail(res.data);
+            } catch (err) { console.error("Lỗi tải đánh giá:", err); }
+        }
+    }, []);
+
+    // ✅ Dùng useCallback cho hàm loadHistory để fix cảnh báo ESLint
+    const loadHistory = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) return;
         try {
@@ -24,24 +38,27 @@ function ShipperHistory() {
             );
             myHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setAllOrders(myHistory);
+
+            // ✅ LOGIC ĐIỀU HƯỚNG THÔNG MINH: Tự động mở Modal nếu có ID từ chuông thông báo
+            if (location.state?.openId) {
+                const target = myHistory.find(o => o._id === location.state.openId);
+                if (target) {
+                    handleSelectOrder(target);
+                    // Xóa trạng thái state để tránh việc tự mở lại khi Admin F5 trang
+                    window.history.replaceState({}, document.title);
+                }
+            }
         } catch (err) {
             console.error("Lỗi lấy lịch sử:", err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [location.state, handleSelectOrder]); // Chỉ tạo lại khi 2 biến này đổi
 
-    useEffect(() => { loadHistory(); }, []);
-
-    const handleSelectOrder = async (order) => {
-        setSelectedOrder(order);
-        if (order.isReviewed) {
-            try {
-                const res = await api.get(`/customer-reviews/order/${order._id}`);
-                setReviewDetail(res.data);
-            } catch (err) { console.error("Lỗi tải đánh giá:", err); }
-        }
-    };
+    // ✅ Thêm loadHistory vào dependency array để đúng chuẩn React
+    useEffect(() => {
+        loadHistory();
+    }, [loadHistory]);
 
     const filteredOrders = useMemo(() => {
         const now = new Date();

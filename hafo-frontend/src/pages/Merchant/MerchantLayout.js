@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import './Merchant.css';
@@ -8,20 +8,55 @@ function MerchantLayout() {
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-    // State lưu thông tin quán thật của người dùng đang đăng nhập
+    // State cho quán và thông báo
     const [myShop, setMyShop] = useState(null);
+    const [notiList, setNotiList] = useState([]);
+    const [notiCount, setNotiCount] = useState(0);
+    const [showNoti, setShowNoti] = useState(false);
+    const prevNotiCount = useRef(0);
 
     const isActive = (path) => location.pathname.includes(path) ? 'active' : '';
 
-    // Khi vào trang, gọi API để biết mình là quán nào
+    // Hàm lấy dữ liệu thông báo
+    const fetchNotifications = async (shopId) => {
+        try {
+            const res = await api.get(`/reports/notifications/partner/${shopId}`);
+
+            // ✅ Backend trả về mảng list trực tiếp, không phải object {total, notifications}
+            const data = res.data || [];
+            const newCount = data.length;
+
+            // ✅ Bước 3: Phát âm thanh khi có tin mới
+            if (newCount > prevNotiCount.current) {
+                const audio = new Audio('/sounds/notification.mp3');
+                audio.play().catch(e => console.log("Audio play error"));
+            }
+
+            prevNotiCount.current = newCount;
+            setNotiCount(newCount);
+
+            // ✅ Gán trực tiếp data vào list vì data đã là mảng
+            setNotiList(data);
+        } catch (err) {
+            console.error("Lỗi lấy thông báo Merchant:", err);
+            setNotiList([]); // Phòng hờ lỗi thì set mảng rỗng để giao diện không bị crash
+        }
+    };
+
+    // Khi vào trang, gọi API để lấy thông tin quán
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
-            //axios.get(`http://localhost:5000/api/restaurants/my-shop/${user.id}`)
-            api.get(`/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${user.id || user._id}`)
                 .then(res => {
                     if (res.data) {
                         setMyShop(res.data);
+                        // Khi có shopId, bắt đầu lấy thông báo
+                        fetchNotifications(res.data._id);
+
+                        // Tự động làm mới mỗi 30 giây để hiện đơn mới
+                        const interval = setInterval(() => fetchNotifications(res.data._id), 30000);
+                        return () => clearInterval(interval);
                     }
                 })
                 .catch(err => console.error(err));
@@ -37,10 +72,20 @@ function MerchantLayout() {
         }
     };
 
+    const handleMarkRead = async (notificationId) => {
+        try {
+            await api.put(`/reports/mark-read-partner/${notificationId}`);
+            // Cập nhật lại số lượng thông báo bằng cách gọi lại hàm fetch
+            if (myShop) fetchNotifications(myShop._id);
+        } catch (err) {
+            console.error("Lỗi đánh dấu đã đọc:", err);
+        }
+    };
+
     return (
         <div className="merchant-app" style={{ background: 'var(--bg)', minHeight: '100vh' }}>
             {/* HEADER */}
-            <header className="top">
+            <header className="top" style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
                 <div className="top-inner">
                     {/* LOGO BÊN TRÁI */}
                     <div className="brand">
@@ -56,14 +101,82 @@ function MerchantLayout() {
                         <input type="text" placeholder="Tìm kiếm đơn hàng, món ăn..." />
                     </div>
 
-                    {/* AVATAR BÊN PHẢI */}
-                    <div className="top-actions">
+                    {/* KHU VỰC CHUÔNG VÀ AVATAR BÊN PHẢI */}
+                    <div className="top-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+
+                        {/* 🔔 CHUÔNG THÔNG BÁO (MỚI THÊM) */}
+                        <div style={{ position: 'relative' }}>
+                            <div
+                                style={{ fontSize: '20px', color: '#64748b', cursor: 'pointer', position: 'relative', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: '#f1f5f9' }}
+                                onClick={() => setShowNoti(!showNoti)}
+                            >
+                                <i className="fa-regular fa-bell"></i>
+                                {notiCount > 0 && (
+                                    <span style={{ position: 'absolute', top: '8px', right: '8px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid #fff' }}></span>
+                                )}
+                            </div>
+
+                            {/* DROPDOWN THÔNG BÁO */}
+                            {showNoti && (
+                                <div style={{
+                                    position: 'absolute', top: '120%', right: 0, width: '300px',
+                                    background: '#fff', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                                    zIndex: 2000, overflow: 'hidden', border: '1px solid #eee'
+                                }}>
+                                    <div style={{ padding: '15px', fontWeight: '800', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                        <span>Thông báo</span>
+                                        <span style={{ color: '#F97350', fontSize: '12px' }}>{notiCount} tin mới</span>
+                                    </div>
+
+                                    <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                                        {(notiList || []).length === 0 ? (
+                                            <div style={{ padding: '30px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                                                <i className="fa-solid fa- Inbox" style={{ display: 'block', fontSize: '24px', marginBottom: '10px', opacity: 0.2 }}></i>
+                                                Chưa có thông báo nào
+                                            </div>
+                                        ) : (
+                                            notiList.map((n, i) => (
+                                                <Link
+                                                    key={i}
+                                                    to={n.link}
+                                                    state={{ openId: n.id }}
+                                                    onClick={() => {
+                                                        setShowNoti(false);
+                                                        // ✅ GỌI HÀM ĐÁNH DẤU ĐÃ ĐỌC
+                                                        if (n.notificationId || n.id) {
+                                                            handleMarkRead(n.notificationId || n.id);
+                                                        }
+                                                    }}
+                                                    style={{ display: 'block', padding: '12px 15px', borderBottom: '1px solid #f8fafc', textDecoration: 'none', transition: '0.2s', background: '#fff' }}
+                                                    onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
+                                                    onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                                                >
+                                                    <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.4' }}>
+                                                        <i className={n.type === 'order' ? "fa-solid fa-box" : "fa-solid fa-star"}
+                                                            style={{ color: '#F97350', marginRight: '10px' }}></i>
+                                                        {n.msg}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '5px', marginLeft: '24px' }}>
+                                                        {new Date(n.time).toLocaleString('vi-VN')}
+                                                    </div>
+                                                </Link>
+                                            ))
+                                        )}
+                                    </div>
+                                    <div style={{ padding: '10px', textAlign: 'center', background: '#f8fafc', fontSize: '12px', borderTop: '1px solid #eee' }}>
+                                        HaFo Merchant System
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* AVATAR QUÁN */}
                         <div className="profile" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setShowProfileMenu(!showProfileMenu)}>
                             <img
                                 className="avatar"
                                 src={myShop?.image || "https://via.placeholder.com/40"}
                                 alt="Avatar"
-                                style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                                style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
                             />
 
                             {showProfileMenu && (
@@ -96,7 +209,6 @@ function MerchantLayout() {
                                             alt=""
                                         />
                                         <div>
-                                            {/* Hiển thị TÊN QUÁN THẬT từ Database */}
                                             <div style={{ fontWeight: '800', fontSize: '15px', lineHeight: '1.2' }}>
                                                 {myShop ? myShop.name : "Đang cập nhật..."}
                                             </div>
@@ -123,7 +235,8 @@ function MerchantLayout() {
                     </aside>
 
                     <div className="main-content">
-                        <Outlet />
+                        {/* Truyền setMyShop qua context của Outlet để đồng bộ ảnh khi cập nhật ở Storefront */}
+                        <Outlet context={{ setMyShop }} />
                     </div>
                 </div>
             </main>

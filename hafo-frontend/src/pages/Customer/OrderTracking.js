@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useMap, MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -49,6 +49,7 @@ function OrderTracking() {
     const [shipperPos, setShipperPos] = useState([10.762, 106.660]);
     const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
     const [lastNotifiedMsgId, setLastNotifiedMsgId] = useState(null);
+    const navigate = useNavigate();
     const socket = io(SOCKET_URL, {
         transports: ['websocket'], // Ép dùng websocket để Render chạy mượt hơn
         withCredentials: true
@@ -113,8 +114,8 @@ function OrderTracking() {
 
     const realStats = useMemo(() => {
         if (!order) return { distance: 0, eta: 0 };
-        const fromLat = shipper?.lat || restaurant?.lat;
-        const fromLng = shipper?.lng || restaurant?.lng;
+        const fromLat = shipper?.lat || restaurant?.location?.coordinates[1];
+        const fromLng = shipper?.lng || restaurant?.location?.coordinates[0];
         const dist = calculateDistance(fromLat, fromLng, order.lat, order.lng);
         return { distance: dist.toFixed(1), eta: Math.ceil(dist * 4 + 3) };
     }, [order, shipper, restaurant]);
@@ -134,6 +135,18 @@ function OrderTracking() {
         { title: 'Đang làm món', icon: 'fa-fire-burner' }, { title: 'Chờ shipper', icon: 'fa-box' },
         { title: 'Đang giao hàng', icon: 'fa-motorcycle' }, { title: 'Hoàn tất đơn hàng', icon: 'fa-flag-checkered' }
     ];
+
+    const handleCancelOrder = async () => {
+        if (window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) {
+            try {
+                await api.put(`/orders/${id}/customer-cancel`);
+                alert("✅ Đã hủy đơn hàng thành công!");
+                navigate('/history'); // Quay về lịch sử
+            } catch (err) {
+                alert(err.response?.data?.message || "Lỗi khi hủy đơn");
+            }
+        }
+    };
 
     // ✅ COPY 100% STYLE TỪ CHECKOUT.JS
     const S = {
@@ -342,6 +355,29 @@ function OrderTracking() {
                             <span style={{ fontWeight: '900', fontSize: '26px', color: '#F97350' }}>{toVND(order.total)}đ</span>
                         </div>
                     </div>
+
+                    {order.status === 'new' && (
+                        <button
+                            onClick={handleCancelOrder}
+                            style={{
+                                width: '100%',
+                                padding: '15px',
+                                borderRadius: '40px',
+                                background: '#fff',
+                                color: '#EF4444',
+                                border: '2px solid #EF4444',
+                                fontSize: '16px',
+                                fontWeight: '900',
+                                cursor: 'pointer',
+                                marginBottom: '5px', // Khoảng cách với nút bên dưới
+                                transition: '0.2s'
+                            }}
+                            onMouseOver={e => e.currentTarget.style.background = '#FFF1F0'}
+                            onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                        >
+                            <i className="fa-solid fa-trash-can"></i> HỦY ĐƠN HÀNG
+                        </button>
+                    )}
 
                     <button
                         className={`btn-receive-big ${order.status === 'pickup' ? 'active' : ''}`}

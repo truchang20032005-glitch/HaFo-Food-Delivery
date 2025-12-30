@@ -21,7 +21,9 @@ const ReportSchema = new mongoose.Schema({
     },
 
     // Ghi chú của Admin sau khi xem xét
-    adminNote: { type: String, default: '' }
+    adminNote: { type: String, default: '' },
+    isReadByCustomer: { type: Boolean, default: false }, // Đã đọc bởi khách bị báo cáo
+    isReadByPartner: { type: Boolean, default: false }   // Đã đọc bởi shipper/nhà hàng đi báo cáo
 }, { timestamps: true });
 
 module.exports = mongoose.model('Report', ReportSchema);

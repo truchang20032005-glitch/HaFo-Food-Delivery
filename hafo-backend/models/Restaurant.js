@@ -26,8 +26,6 @@ const RestaurantSchema = new mongoose.Schema({
     bankBranch: { type: String },
     rating: { type: Number, default: 0 },
     isOpen: { type: Boolean, default: true },
-    lat: { type: Number, default: 10.762622 },
-    lng: { type: Number, default: 106.660172 }
 }, { timestamps: true });
 
 // ✅ DÒNG NÀY CỰC KỲ QUAN TRỌNG: Để MongoDB tính được khoảng cách $near

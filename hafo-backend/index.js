@@ -28,6 +28,7 @@ const customerReviewRoutes = require('./routes/customerReview');
 const transactionRoutes = require('./routes/transaction');
 const reportRoutes = require('./routes/report');
 const messageRoutes = require('./routes/message');
+const momoRoutes = require('./routes/momo');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -89,6 +90,7 @@ app.use('/api/customer-reviews', customerReviewRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/momo', momoRoutes);
 
 app.use("/api/health", (req, res) => {
     console.log('[PING]');

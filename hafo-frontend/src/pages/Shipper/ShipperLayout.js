@@ -1,27 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import './Shipper.css';
 
 function ShipperLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-
-    // ✅ Định nghĩa hàm isActive (dùng includes để nhận diện cả trang con)
-    const isActive = (path) => location.pathname.includes(path);
-
-    const user = JSON.parse(localStorage.getItem('user')) || {};
     const [showMenu, setShowMenu] = useState(false);
+
+    // State cho thông báo
+    const [notiList, setNotiList] = useState([]);
+    const [notiCount, setNotiCount] = useState(0);
+    const [showNoti, setShowNoti] = useState(false);
+    const prevNotiCount = useRef(0);
+
+    const isActive = (path) => location.pathname.includes(path);
+    const user = JSON.parse(localStorage.getItem('user')) || {};
 
     const getAvatarUrl = (path) => {
         if (!path) return '/images/user.png';
         return path;
     };
 
-    // ✅ SỬA TẠI ĐÂY: Xài hàm isActive thay vì viết dài
     let title = "Đơn có thể nhận";
     if (isActive('history')) title = "Lịch sử hoạt động";
     else if (isActive('profile')) title = "Hồ sơ tài xế";
     else if (isActive('wallet')) title = "Ví tiền của tôi";
+
+    // Hàm lấy dữ liệu thông báo từ Backend
+    const fetchNotifications = useCallback(async () => {
+        if (!user.id) return;
+        try {
+            const res = await api.get(`/reports/notifications/partner/${user.id}`);
+            // ✅ KIỂM TRA DỮ LIỆU: Backend trả về mảng list trực tiếp
+            const data = res.data || [];
+            const newCount = data.length;
+
+            // Phát âm thanh nếu có tin mới
+            if (newCount > prevNotiCount.current) {
+                const audio = new Audio('/sounds/notification.mp3');
+                audio.play().catch(e => console.log("Sound error"));
+            }
+
+            prevNotiCount.current = newCount;
+            setNotiCount(newCount);
+
+            // ✅ GÁN TRỰC TIẾP data (vì nó là mảng)
+            setNotiList(data);
+        } catch (err) {
+            console.error("Lỗi lấy thông báo:", err);
+            setNotiList([]); // Nếu lỗi thì set mảng rỗng để không bị crash trang
+        }
+    }, [user.id]);
+
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
+    }, [fetchNotifications]);
 
     const handleLogout = () => {
         if (window.confirm("Đăng xuất tài khoản Shipper?")) {
@@ -34,63 +70,116 @@ function ShipperLayout() {
 
     useEffect(() => {
         setShowMenu(false);
+        setShowNoti(false); // Đóng thông báo khi chuyển trang
     }, [location.pathname]);
 
+    const handleMarkRead = async (notificationId) => {
+        try {
+            // Chỉ gọi API nếu đây là thông báo loại khiếu nại (bạn có thể check n.type)
+            await api.put(`/reports/mark-read-partner/${notificationId}`);
+            fetchNotifications(); // Tải lại danh sách để số chuông giảm xuống ngay lập tức
+        } catch (err) {
+            console.error("Lỗi đánh dấu đã đọc:", err);
+        }
+    };
+
     return (
-        <div className="shipper-app" style={{
-            paddingBottom: '70px',
-            paddingTop: '60px',
-            minHeight: '100vh',
-            background: '#F7F2E5'
-        }}>
-            <header className="ship-header" style={{
-                position: 'fixed', top: 0, left: 0, right: 0,
-                zIndex: 1000, display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', padding: '0 15px', height: '60px',
-                background: '#fff', borderBottom: '1px solid #eee'
-            }}>
+        <div className="shipper-app" style={{ paddingBottom: '70px', paddingTop: '60px', minHeight: '100vh', background: '#F7F2E5' }}>
+
+            {/* HEADER CỐ ĐỊNH PHÍA TRÊN */}
+            <header className="ship-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 15px', height: '60px', background: '#fff', borderBottom: '1px solid #eee' }}>
+
                 <Link to="/shipper/dashboard" className="ship-logo" style={{ textDecoration: 'none', color: '#F97350', fontWeight: '900', fontSize: '18px' }}>
                     <i className="fa-solid fa-motorcycle"></i> HaFo
                 </Link>
 
                 <div style={{ fontWeight: 800, fontSize: '15px' }}>{title}</div>
 
-                <div style={{ position: 'relative' }}>
-                    <div
-                        className="ship-avatar"
-                        onClick={() => setShowMenu(!showMenu)}
-                        style={{
-                            width: '35px', height: '35px', borderRadius: '50%',
-                            backgroundImage: `url(${getAvatarUrl(user.avatar)})`,
-                            backgroundSize: 'cover', backgroundPosition: 'center',
-                            border: '2px solid #F97350', cursor: 'pointer'
-                        }}
-                    ></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
 
-                    {showMenu && (
-                        <div style={{
-                            position: 'absolute', top: '45px', right: 0,
-                            background: '#fff', borderRadius: '12px',
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                            padding: '10px', minWidth: '180px', zIndex: 9999
-                        }}>
-                            <div style={{ padding: '5px 10px', borderBottom: '1px solid #f5f5f5', marginBottom: '5px' }}>
-                                <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{user.fullName || 'Tài xế'}</div>
-                                <div style={{ fontSize: '11px', color: '#888' }}>{user.phone}</div>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                style={{
-                                    width: '100%', border: 'none', background: 'none',
-                                    color: '#EF4444', fontWeight: 'bold', textAlign: 'left',
-                                    padding: '8px 10px', cursor: 'pointer', display: 'flex',
-                                    alignItems: 'center', gap: '8px', fontSize: '14px'
-                                }}
-                            >
-                                <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
-                            </button>
+                    {/* 🔔 CHUÔNG THÔNG BÁO MOBILE-FRIENDLY */}
+                    <div style={{ position: 'relative' }}>
+                        <div
+                            style={{ fontSize: '20px', color: '#64748b', cursor: 'pointer', position: 'relative' }}
+                            onClick={() => { setShowNoti(!showNoti); setShowMenu(false); }}
+                        >
+                            <i className="fa-regular fa-bell"></i>
+                            {notiCount > 0 && (
+                                <span style={{ position: 'absolute', top: '-5px', right: '-5px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '1.5px solid #fff' }}></span>
+                            )}
                         </div>
-                    )}
+
+                        {showNoti && (
+                            <div style={{
+                                position: 'fixed', // Sử dụng fixed để căn giữa chuẩn mobile
+                                top: '65px',
+                                left: '10px',
+                                right: '10px',
+                                background: '#fff',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                                zIndex: 2000,
+                                overflow: 'hidden',
+                                border: '1px solid #eee',
+                                maxWidth: '400px', // Giới hạn chiều rộng nếu dùng tablet/pc
+                                margin: '0 auto'
+                            }}>
+                                <div style={{ padding: '15px', fontWeight: '800', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                    <span>Thông báo mới</span>
+                                    <span style={{ color: '#F97350', fontSize: '12px' }}>{notiCount} mục</span>
+                                </div>
+                                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    {notiList.length === 0 ? (
+                                        <div style={{ padding: '30px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>Chưa có thông báo nào</div>
+                                    ) : (
+                                        notiList.map((n, i) => (
+                                            <Link
+                                                key={i}
+                                                to={n.link || '/shipper/history'}
+                                                state={{ openId: n.id }}
+                                                style={{ display: 'block', padding: '15px', borderBottom: '1px solid #f8fafc', textDecoration: 'none', color: 'inherit' }}
+                                                onClick={() => {
+                                                    setShowNoti(false);
+                                                    // ✅ GỌI HÀM ĐÁNH DẤU ĐÃ ĐỌC
+                                                    handleMarkRead(n.id);
+                                                }}
+                                            >
+                                                <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
+                                                    <i className={n.type === 'review' ? "fa-solid fa-star" : "fa-solid fa-circle-check"} style={{ color: '#F97350', marginRight: '10px' }}></i>
+                                                    {n.msg}
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '5px', marginLeft: '24px' }}>
+                                                    {new Date(n.time).toLocaleString('vi-VN')}
+                                                </div>
+                                            </Link>
+                                        ))
+                                    )}
+                                </div>
+                                <div style={{ padding: '10px', textAlign: 'center', background: '#f8fafc', fontSize: '11px', color: '#94a3b8' }} onClick={() => setShowNoti(false)}>Đóng thông báo</div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* AVATAR SHIPPER */}
+                    <div style={{ position: 'relative' }}>
+                        <div
+                            className="ship-avatar"
+                            onClick={() => { setShowMenu(!showMenu); setShowNoti(false); }}
+                            style={{ width: '35px', height: '35px', borderRadius: '50%', backgroundImage: `url(${getAvatarUrl(user.avatar)})`, backgroundSize: 'cover', backgroundPosition: 'center', border: '2px solid #F97350', cursor: 'pointer' }}
+                        ></div>
+
+                        {showMenu && (
+                            <div style={{ position: 'absolute', top: '45px', right: 0, background: '#fff', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '10px', minWidth: '180px', zIndex: 9999 }}>
+                                <div style={{ padding: '5px 10px', borderBottom: '1px solid #f5f5f5', marginBottom: '5px' }}>
+                                    <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{user.fullName || 'Tài xế'}</div>
+                                    <div style={{ fontSize: '11px', color: '#888' }}>{user.phone}</div>
+                                </div>
+                                <button onClick={handleLogout} style={{ width: '100%', border: 'none', background: 'none', color: '#EF4444', fontWeight: 'bold', textAlign: 'left', padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                                    <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -98,13 +187,8 @@ function ShipperLayout() {
                 <Outlet />
             </main>
 
-            <nav className="bottom-nav" style={{
-                position: 'fixed', bottom: 0, left: 0, right: 0,
-                height: '65px', background: '#fff', borderTop: '1px solid #eee',
-                display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-                zIndex: 1000
-            }}>
-                {/* ✅ SỬA TẠI ĐÂY: Xài hàm isActive cho các nút Menu */}
+            {/* THANH ĐIỀU HƯỚNG DƯỚI CÙNG (BOTTOM NAV) */}
+            <nav className="bottom-nav" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: '65px', background: '#fff', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-around', alignItems: 'center', zIndex: 1000 }}>
                 <Link to="/shipper/dashboard" className={`nav-item ${isActive('dashboard') ? 'active' : ''}`} style={S.navLink}>
                     <i className="fa-solid fa-list-ul" style={S.icon}></i><span style={S.text}>Săn đơn</span>
                 </Link>
@@ -123,10 +207,7 @@ function ShipperLayout() {
 }
 
 const S = {
-    navLink: {
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        textDecoration: 'none', color: '#000000ff', gap: '4px', flex: 1
-    },
+    navLink: { display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#64748b', gap: '4px', flex: 1 },
     icon: { fontSize: '20px' },
     text: { fontSize: '11px', fontWeight: '700' }
 };

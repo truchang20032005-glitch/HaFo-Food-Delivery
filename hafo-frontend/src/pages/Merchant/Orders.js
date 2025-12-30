@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
+import { useLocation } from 'react-router-dom';
 
 function Orders() {
     const [orders, setOrders] = useState([]);
@@ -7,24 +8,39 @@ function Orders() {
     const [selectedOrder, setSelectedOrder] = useState(null); // Lưu đơn đang xem chi tiết
     const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
 
+    const location = useLocation();
+
     const fmtMoney = (n) => (n || 0).toLocaleString('vi-VN') + 'đ';
 
-    useEffect(() => {
+    const fetchOrdersData = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
-        if (user) {
-            api.get(`/restaurants/my-shop/${user.id}`)
-                .then(res => {
-                    if (res.data) {
-                        setMyShop(res.data);
-                        return api.get(`/orders?restaurantId=${res.data._id}`);
+        if (!user) return;
+
+        try {
+            const shopRes = await api.get(`/restaurants/my-shop/${user.id || user._id}`);
+            if (shopRes.data) {
+                setMyShop(shopRes.data); // ✅ Sử dụng setMyShop ở đây
+                const ordersRes = await api.get(`/orders?restaurantId=${shopRes.data._id}`);
+                const data = ordersRes.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setOrders(data);
+
+                // ✅ LOGIC THÔNG MINH: Tự mở modal nếu đi từ thông báo
+                if (location.state?.openId) {
+                    const target = data.find(o => o._id === location.state.openId);
+                    if (target) {
+                        setSelectedOrder(target);
+                        window.history.replaceState({}, document.title);
                     }
-                })
-                .then(res => {
-                    if (res) setOrders(res.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-                })
-                .catch(err => console.error("Lỗi lấy đơn hàng:", err));
+                }
+            }
+        } catch (err) {
+            console.error("Lỗi lấy đơn hàng:", err);
         }
-    }, []);
+    }, [location.state]); // Chạy lại khi trạng thái điều hướng thay đổi
+
+    useEffect(() => {
+        fetchOrdersData();
+    }, [fetchOrdersData]);
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {

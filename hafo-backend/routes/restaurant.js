@@ -4,11 +4,26 @@ const Restaurant = require('../models/Restaurant');
 const Food = require('../models/Food');
 const Order = require('../models/Order');
 const uploadCloud = require('../config/cloudinary');
+const CustomerReview = require('../models/CustomerReview');
+const ReviewReply = require('../models/ReviewReply');
+const Report = require('../models/Report');
 
 // 1. TẠO QUÁN MỚI
 router.post('/', async (req, res) => {
     try {
-        const newRest = new Restaurant(req.body);
+        const data = { ...req.body };
+
+        // ✅ Bắt buộc phải đóng gói tọa độ vào GeoJSON
+        if (data.lat && data.lng) {
+            data.location = {
+                type: 'Point',
+                coordinates: [parseFloat(data.lng), parseFloat(data.lat)]
+            };
+            delete data.lat;
+            delete data.lng;
+        }
+
+        const newRest = new Restaurant(data);
         await newRest.save();
         res.status(201).json(newRest);
     } catch (err) {
@@ -100,11 +115,14 @@ router.put('/:id', uploadCloud.single('image'), async (req, res) => {
 
         // ĐỒNG BỘ TỌA ĐỘ VÀO GEOJSON
         // Vì Leaflet dùng [lat, lng] nhưng MongoDB dùng [lng, lat]
-        if (updateData.lat && updateData.lng) {
+        if (updateData.lat !== undefined && updateData.lng !== undefined) {
             updateData.location = {
                 type: 'Point',
-                coordinates: [parseFloat(updateData.lng), parseFloat(updateData.lat)]
+                coordinates: [parseFloat(updateData.lng), parseFloat(updateData.lat)] // [lng, lat]
             };
+            // Xóa lat, lng khỏi updateData để không lưu vào DB nữa
+            delete updateData.lat;
+            delete updateData.lng;
         }
 
         const updatedRestaurant = await Restaurant.findByIdAndUpdate(
@@ -115,6 +133,92 @@ router.put('/:id', uploadCloud.single('image'), async (req, res) => {
         res.json(updatedRestaurant);
     } catch (err) {
         res.status(400).json({ error: err.message });
+    }
+});
+
+// API lấy thông báo cho Nhà hàng (Đơn mới & Đánh giá mới)
+router.get('/notifications/:shopId', async (req, res) => {
+    try {
+        const shopId = req.params.shopId;
+
+        // Bước 0: Lấy thông tin quán để biết ID của chủ quán (dùng để tìm báo cáo)
+        const restaurant = await Restaurant.findById(shopId);
+        if (!restaurant) return res.status(404).json({ message: "Không tìm thấy quán" });
+        const ownerId = restaurant.owner;
+
+        // 1. Lấy đơn hàng mới (Chỉ lấy đơn 'new')
+        const newOrders = await Order.find({
+            restaurantId: shopId,
+            status: 'new'
+        }).sort({ createdAt: -1 });
+
+        // 2. Lấy đánh giá chưa phản hồi
+        const allReviews = await CustomerReview.find({ restaurantId: shopId })
+            .populate('customerId', 'fullName')
+            .sort({ createdAt: -1 });
+
+        const unrepliedReviews = [];
+        for (const rev of allReviews) {
+            const merchantReply = await ReviewReply.findOne({
+                reviewId: rev._id,
+                userRole: 'merchant'
+            });
+            if (!merchantReply) unrepliedReviews.push(rev);
+            if (unrepliedReviews.length >= 5) break;
+        }
+
+        // 3. ✅ LOGIC MỚI: Lấy các báo cáo đã được Admin xử lý
+        // Tìm các báo cáo do chủ quán này gửi (reporterRole: 'merchant') mà status KHÁC 'pending'
+        const processedReports = await Report.find({
+            reporterId: ownerId,
+            reporterRole: 'merchant',
+            status: { $ne: 'pending' } // $ne là "not equal" (khác pending)
+        }).sort({ updatedAt: -1 }).limit(5);
+
+        // 4. Tổng hợp danh sách gửi về Frontend
+        let list = [];
+
+        // Thông báo Đơn hàng
+        newOrders.forEach(o => {
+            list.push({
+                id: o._id, // ✅ THÊM ID ĐỂ MỞ MODAL
+                type: 'order',
+                msg: `Đơn hàng mới: #${o._id.slice(-6).toUpperCase()}`,
+                time: o.createdAt,
+                link: '/merchant/orders'
+            });
+        });
+
+        unrepliedReviews.forEach(r => {
+            list.push({
+                id: r._id, // ✅ THÊM ID ĐỂ MỞ MODAL
+                type: 'review',
+                msg: `${r.customerId?.fullName || 'Khách'} đánh giá ${r.rating} sao - Chờ phản hồi`,
+                time: r.createdAt,
+                link: '/merchant/reviews'
+            });
+        });
+
+        // ✅ Thông báo Báo cáo đã xử lý
+        processedReports.forEach(rep => {
+            const statusText = rep.status === 'processed' ? 'ĐÃ XỬ LÝ' : 'ĐÃ TỪ CHỐI';
+            list.push({
+                type: 'report_resolved',
+                msg: `Báo cáo đánh giá: Admin ${statusText}`,
+                time: rep.updatedAt, // Lấy thời gian admin cập nhật
+                link: '/merchant/reviews' // Quay lại trang reviews để xem kết quả
+            });
+        });
+
+        // Sắp xếp tất cả theo thời gian mới nhất
+        list.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        res.json({
+            total: list.length,
+            notifications: list
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

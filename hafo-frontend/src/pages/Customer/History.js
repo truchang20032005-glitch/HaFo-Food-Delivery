@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // ✅ ĐÃ THÊM useLocation VÀO ĐÂY
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 
@@ -12,42 +12,56 @@ function History() {
     const [selectedReview, setSelectedReview] = useState(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation(); // ✅ Lấy thông tin điều hướng từ Navbar gửi qua
 
-    useEffect(() => {
-        const fetchHistory = async () => {
-            const user = JSON.parse(localStorage.getItem('user'));
-            if (!user) return;
 
-            try {
-                const res = await api.get(`/orders?userId=${user.id}`);
-                // Lọc đơn của user và sắp xếp mới nhất lên đầu
-                const myOrders = res.data.filter(o => o.userId === user.id || o.userId === user._id);
-                myOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setOrders(myOrders);
-            } catch (err) {
-                console.error("Lỗi tải lịch sử:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchHistory();
-    }, []);
-
-    // Hàm xử lý ảnh (Để hiển thị ảnh đại diện cho đơn hàng)
-    const getImageUrl = (path) => {
-        if (!path) return 'https://via.placeholder.com/80?text=HaFo';
-        return path;
-    };
-
-    // Hàm mở xem đánh giá
-    const handleViewReview = async (orderId) => {
+    // ✅ 2. LOGIC ĐIỀU HƯỚNG THÔNG MINH (Mở modal khi bấm từ chuông thông báo)
+    const handleViewReview = useCallback(async (orderId) => {
         try {
             const res = await api.get(`/customer-reviews/order/${orderId}`);
             setSelectedReview(res.data);
             setShowReviewModal(true);
         } catch (err) {
-            alert("Không thể tải đánh giá này.");
+            alert("Đơn hàng này hiện chưa có đánh giá hoặc phản hồi.");
         }
+    }, []);
+
+    // ✅ Hàm lấy dữ liệu (Dùng useCallback để fix warning)
+    const fetchHistory = useCallback(async () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) return;
+        try {
+            const res = await api.get(`/orders?userId=${user.id || user._id}`);
+            const myOrders = res.data.filter(o => o.userId === (user.id || user._id));
+            myOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setOrders(myOrders);
+        } catch (err) {
+            console.error("Lỗi tải lịch sử:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 1. Lấy dữ liệu lịch sử từ Backend
+    useEffect(() => {
+        // Chỉ chạy khi orders đã tải xong và có openOrderId trong state
+        if (!loading && orders.length > 0 && location.state?.openOrderId) {
+            const targetId = location.state.openOrderId;
+            const targetOrder = orders.find(o => o._id === targetId);
+
+            if (targetOrder) {
+                handleViewReview(targetOrder._id.toString());
+                window.history.replaceState({}, document.title);
+            }
+        }
+    }, [location.state, orders, loading, handleViewReview]);
+
+    useEffect(() => { fetchHistory(); }, [fetchHistory]);
+
+    // Hàm xử lý ảnh
+    const getImageUrl = (path) => {
+        if (!path) return 'https://via.placeholder.com/80?text=HaFo';
+        return path;
     };
 
     // Kiểm tra xem đơn hàng có trong vòng 24h không
@@ -68,9 +82,7 @@ function History() {
     });
 
     const getStatusBadge = (status) => {
-        const styles = {
-            padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', display: 'inline-block'
-        };
+        const styles = { padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', display: 'inline-block' };
         switch (status) {
             case 'new': return <span style={{ ...styles, background: '#FFF7E6', color: '#FA8C16' }}>⏳ Chờ xác nhận</span>;
             case 'prep': return <span style={{ ...styles, background: '#E6F7FF', color: '#1890FF' }}>👨‍🍳 Đang chuẩn bị</span>;
@@ -101,23 +113,7 @@ function History() {
                         { id: 'damua', label: 'Hoàn thành' },
                         { id: 'dahuy', label: 'Đã hủy' }
                     ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setFilter(tab.id)}
-                            style={{
-                                padding: '8px 18px',
-                                borderRadius: '25px',
-                                fontWeight: '700',
-                                fontSize: '14px',
-                                whiteSpace: 'nowrap',
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                background: filter === tab.id ? '#F97350' : '#fff',
-                                color: filter === tab.id ? '#fff' : '#666',
-                                boxShadow: filter === tab.id ? '0 4px 10px rgba(249, 115, 80, 0.3)' : '0 2px 5px rgba(0,0,0,0.05)'
-                            }}
-                        >
+                        <button key={tab.id} onClick={() => setFilter(tab.id)} style={{ padding: '8px 18px', borderRadius: '25px', fontWeight: '700', fontSize: '14px', whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: filter === tab.id ? '#F97350' : '#fff', color: filter === tab.id ? '#fff' : '#666', boxShadow: filter === tab.id ? '0 4px 10px rgba(249, 115, 80, 0.3)' : '0 2px 5px rgba(0,0,0,0.05)' }}>
                             {tab.label}
                         </button>
                     ))}
@@ -131,113 +127,57 @@ function History() {
                         <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                             <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-cart-7359557-6024626.png" alt="Empty" style={{ width: '150px', opacity: 0.7, marginBottom: '15px' }} />
                             <p style={{ fontSize: '16px', color: '#555', fontWeight: 'bold' }}>Chưa có đơn hàng nào ở mục này.</p>
-                            <Link to="/home" style={{ display: 'inline-block', marginTop: '15px', textDecoration: 'none', background: '#F97350', color: '#fff', padding: '10px 25px', borderRadius: '25px', fontWeight: 'bold' }}>
-                                Đặt món ngay
-                            </Link>
+                            <Link to="/home" style={{ display: 'inline-block', marginTop: '15px', textDecoration: 'none', background: '#F97350', color: '#fff', padding: '10px 25px', borderRadius: '25px', fontWeight: 'bold' }}>Đặt món ngay</Link>
                         </div>
                     ) : (
                         filteredOrders.map(order => {
-                            // Lấy ảnh của món đầu tiên để làm đại diện cho Card
                             const firstItemImage = order.items && order.items.length > 0 ? order.items[0].image : null;
-
                             return (
                                 <div key={order._id} style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid #eee', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', position: 'relative', overflow: 'hidden' }}>
-
-                                    {/* Header Card */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px dashed #eee', paddingBottom: '12px' }}>
                                         <div>
-                                            <div style={{ fontSize: '13px', color: '#888', fontWeight: '500' }}>
-                                                <i className="fa-regular fa-clock"></i> {formatDate(order.createdAt)}
-                                            </div>
+                                            <div style={{ fontSize: '13px', color: '#888', fontWeight: '500' }}><i className="fa-regular fa-clock"></i> {formatDate(order.createdAt)}</div>
                                             <div style={{ fontSize: '12px', color: '#ccc', marginTop: '2px' }}>#{order._id.slice(-8).toUpperCase()}</div>
                                         </div>
                                         <div>{getStatusBadge(order.status)}</div>
                                     </div>
-
-                                    {/* Body Card */}
                                     <div style={{ display: 'flex', gap: '15px' }}>
-                                        {/* Ảnh đại diện (Vuông bo góc) */}
                                         <div style={{ width: '80px', height: '80px', flexShrink: 0, borderRadius: '12px', overflow: 'hidden', border: '1px solid #f0f0f0', background: '#f9f9f9' }}>
-                                            <img
-                                                src={getImageUrl(firstItemImage)}
-                                                alt="Food"
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                onError={(e) => e.target.src = 'https://via.placeholder.com/80?text=HaFo'}
-                                            />
+                                            <img src={getImageUrl(firstItemImage)} alt="Food" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => e.target.src = 'https://via.placeholder.com/80?text=HaFo'} />
                                         </div>
-
-                                        {/* Danh sách món */}
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '15px', fontWeight: '700', color: '#333', marginBottom: '5px' }}>
-                                                {/* Hiển thị tên món đầu tiên + số lượng món khác */}
                                                 {order.items[0]?.name}
                                                 {order.items.length > 1 && <span style={{ fontWeight: 'normal', color: '#666', fontSize: '13px' }}> (+{order.items.length - 1} món khác)</span>}
                                             </div>
-
                                             <div style={{ fontSize: '13px', color: '#666' }}>
-                                                {order.items.map((item, idx) => (
-                                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                                        <span>{item.quantity}x {item.name}</span>
-                                                    </div>
-                                                )).slice(0, 2)} {/* Chỉ hiện tối đa 2 dòng món */}
+                                                {order.items.slice(0, 2).map((item, idx) => (
+                                                    <div key={idx}>{item.quantity}x {item.name}</div>
+                                                ))}
                                                 {order.items.length > 2 && <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#999' }}>...và các món khác</div>}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Footer Card */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #f5f5f5' }}>
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>Tổng tiền</div>
                                             <div style={{ fontSize: '18px', fontWeight: '800', color: '#F97350' }}>{toVND(order.total)}đ</div>
                                         </div>
-
                                         <div style={{ display: 'flex', gap: '10px' }}>
-                                            {/* Nút hành động tùy theo trạng thái */}
                                             {['new', 'prep', 'pickup'].includes(order.status) && (
-                                                <Link to={`/order-tracking/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#e0f2fe', color: '#0070f3', fontSize: '13px', fontWeight: 'bold' }}>
-                                                    Theo dõi
-                                                </Link>
+                                                <Link to={`/order-tracking/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#e0f2fe', color: '#0070f3', fontSize: '13px', fontWeight: 'bold' }}>Theo dõi</Link>
                                             )}
                                             {order.status === 'done' && (
                                                 <>
-                                                    <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                                        Mua lại
-                                                    </button>
+                                                    <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Mua lại</button>
                                                     {order.isReviewed ? (
-                                                        /* Nút Xem lại đánh giá (Dạng viền cam cho tinh tế) */
-                                                        <button
-                                                            onClick={() => handleViewReview(order._id)}
-                                                            style={{
-                                                                padding: '8px 16px', borderRadius: '20px',
-                                                                border: '1px solid #F97350', background: '#fff',
-                                                                color: '#F97350', fontSize: '13px', fontWeight: 'bold',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            Xem lại đánh giá
-                                                        </button>
+                                                        <button onClick={() => handleViewReview(order._id)} style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #F97350', background: '#fff', color: '#F97350', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Xem lại đánh giá</button>
                                                     ) : (
-                                                        /* Nút Đánh giá (Dạng cam đặc - Style cũ bạn muốn) */
-                                                        <Link
-                                                            to={`/review/${order._id}`}
-                                                            style={{
-                                                                textDecoration: 'none', padding: '8px 20px', borderRadius: '20px',
-                                                                background: '#F97350', color: '#fff', fontSize: '13px',
-                                                                fontWeight: 'bold', textAlign: 'center',
-                                                                boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)'
-                                                            }}
-                                                        >
-                                                            Đánh giá
-                                                        </Link>
+                                                        <Link to={`/review/${order._id}`} style={{ textDecoration: 'none', padding: '8px 20px', borderRadius: '20px', background: '#F97350', color: '#fff', fontSize: '13px', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)' }}>Đánh giá</Link>
                                                     )}
                                                 </>
                                             )}
-                                            {order.status === 'cancel' && (
-                                                <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                                    Đặt lại
-                                                </button>
-                                            )}
+                                            {order.status === 'cancel' && <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Đặt lại</button>}
                                         </div>
                                     </div>
                                 </div>
@@ -246,47 +186,29 @@ function History() {
                     )}
                 </div>
             </div>
+
+            {/* MODAL CHI TIẾT ĐÁNH GIÁ */}
             {showReviewModal && selectedReview && (
                 <div style={S.modalOverlay}>
-                    {/* Đã sửa lại className và style tách biệt */}
                     <div className="animate-pop-in" style={S.modalContainer}>
-                        {/* 1. Header */}
                         <div style={S.modalHeader}>
                             <div>
                                 <h3 style={S.modalTitle}>Chi tiết đánh giá</h3>
-                                {/* Sử dụng optional chaining để an toàn */}
                                 <p style={S.modalSubtitle}>Đơn hàng #{selectedReview.orderId?.slice ? selectedReview.orderId.slice(-6).toUpperCase() : '...'}</p>
                             </div>
-                            <button onClick={() => setShowReviewModal(false)} style={S.closeBtnCircle}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
+                            <button onClick={() => setShowReviewModal(false)} style={S.closeBtnCircle}><i className="fa-solid fa-xmark"></i></button>
                         </div>
-
                         <div style={S.modalBody}>
-                            {/* 2. Đánh giá Tài xế */}
                             <div style={S.shipperHighlightCard}>
-                                <div style={S.shipperAvatarLarge}>
-                                    <i className="fa-solid fa-motorcycle"></i>
-                                </div>
+                                <div style={S.shipperAvatarLarge}><i className="fa-solid fa-motorcycle"></i></div>
                                 <div style={{ flex: 1 }}>
                                     <div style={S.labelText}>Tài xế vận chuyển</div>
                                     <div style={S.shipperNameLarge}>{selectedReview.shipperId?.fullName || "Tài xế"}</div>
-                                    <div style={S.starRowLarge}>
-                                        {'★'.repeat(selectedReview.shipperRating || 0)}
-                                        <span style={{ color: '#E5E7EB' }}>{'★'.repeat(5 - (selectedReview.shipperRating || 0))}</span>
-                                    </div>
+                                    <div style={S.starRowLarge}>{'★'.repeat(selectedReview.shipperRating || 0)}<span style={{ color: '#E5E7EB' }}>{'★'.repeat(5 - (selectedReview.shipperRating || 0))}</span></div>
                                 </div>
                             </div>
-                            {selectedReview.shipperComment && (
-                                <div style={S.commentBubble}>
-                                    <i className="fa-solid fa-quote-left" style={{ color: '#F97350', marginRight: '8px', opacity: 0.5 }}></i>
-                                    {selectedReview.shipperComment}
-                                </div>
-                            )}
-
+                            {selectedReview.shipperComment && <div style={S.commentBubble}><i className="fa-solid fa-quote-left" style={{ color: '#F97350', marginRight: '8px', opacity: 0.5 }}></i>{selectedReview.shipperComment}</div>}
                             <div style={S.divider}></div>
-
-                            {/* 3. Đánh giá Món ăn */}
                             <div>
                                 <h4 style={S.sectionTitle}>🍴 Đánh giá món ăn ({selectedReview.itemReviews?.length || 0})</h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -294,18 +216,13 @@ function History() {
                                         <div key={idx} style={S.foodReviewCard}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
                                                 <div style={S.foodName}>{item.name}</div>
-                                                <div style={S.starRowSmall}>
-                                                    {'★'.repeat(item.rating || 0)}
-                                                    <span style={{ color: '#E5E7EB' }}>{'★'.repeat(5 - (item.rating || 0))}</span>
-                                                </div>
+                                                <div style={S.starRowSmall}>{'★'.repeat(item.rating || 0)}<span style={{ color: '#E5E7EB' }}>{'★'.repeat(5 - (item.rating || 0))}</span></div>
                                             </div>
                                             {item.comment && <div style={S.foodComment}>{item.comment}</div>}
                                         </div>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* 4. Phản hồi */}
                             {selectedReview.replies && selectedReview.replies.length > 0 && (
                                 <div style={S.replySectionContainer}>
                                     <h4 style={S.sectionTitle}>💬 Phản hồi từ đối tác</h4>
@@ -314,16 +231,9 @@ function History() {
                                             const isMerchant = reply.userRole === 'merchant';
                                             return (
                                                 <div key={i} style={S.replyChatBubble}>
-                                                    <div style={S.replyAvatar(isMerchant)}>
-                                                        <i className={`fa-solid ${isMerchant ? 'fa-store' : 'fa-motorcycle'}`}></i>
-                                                    </div>
+                                                    <div style={S.replyAvatar(isMerchant)}><i className={`fa-solid ${isMerchant ? 'fa-store' : 'fa-motorcycle'}`}></i></div>
                                                     <div style={{ flex: 1 }}>
-                                                        <div style={S.replyAuthorName}>
-                                                            {reply.userId?.fullName}
-                                                            <span style={S.replyRoleBadge(isMerchant)}>
-                                                                {isMerchant ? 'Quán' : 'Shipper'}
-                                                            </span>
-                                                        </div>
+                                                        <div style={S.replyAuthorName}>{reply.userId?.fullName}<span style={S.replyRoleBadge(isMerchant)}>{isMerchant ? 'Quán' : 'Shipper'}</span></div>
                                                         <div style={S.replyContent}>{reply.content}</div>
                                                     </div>
                                                 </div>
@@ -333,20 +243,11 @@ function History() {
                                 </div>
                             )}
                         </div>
-
                         <div style={S.modalFooter}>
                             {canEdit(selectedReview.createdAt) ? (
-                                <button
-                                    onClick={() => navigate(`/review/${selectedReview.orderId}?edit=true`)}
-                                    style={S.editBtnPrimary}
-                                >
-                                    <i className="fa-solid fa-pen-to-square" style={{ marginRight: '8px' }}></i>
-                                    Sửa đánh giá (Còn hiệu lực)
-                                </button>
+                                <button onClick={() => navigate(`/review/${selectedReview.orderId}?edit=true`)} style={S.editBtnPrimary}><i className="fa-solid fa-pen-to-square" style={{ marginRight: '8px' }}></i> Sửa đánh giá (Còn hiệu lực)</button>
                             ) : (
-                                <div style={S.expiredNotice}>
-                                    <i className="fa-solid fa-clock-rotate-left"></i> Đã hết thời hạn chỉnh sửa (24h)
-                                </div>
+                                <div style={S.expiredNotice}><i className="fa-solid fa-clock-rotate-left"></i> Đã hết thời hạn chỉnh sửa (24h)</div>
                             )}
                             <button onClick={() => setShowReviewModal(false)} style={S.closeBtnText}>Đóng lại</button>
                         </div>
@@ -358,115 +259,35 @@ function History() {
 }
 
 const S = {
-    modalOverlay: {
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, backdropFilter: 'blur(5px)', padding: '20px'
-    },
-    modalContainer: {
-        background: '#fff', width: '100%', maxWidth: '550px',
-        borderRadius: '24px', overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        display: 'flex', flexDirection: 'column', maxHeight: '90vh'
-    },
-    modalHeader: {
-        padding: '20px 25px', borderBottom: '1px solid #F3F4F6',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: '#fff'
-    },
+    modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', padding: '20px' },
+    modalContainer: { background: '#fff', width: '100%', maxWidth: '550px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', display: 'flex', flexDirection: 'column', maxHeight: '80vh' },
+    modalHeader: { padding: '20px 25px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' },
     modalTitle: { margin: 0, fontSize: '20px', fontWeight: '800', color: '#111827' },
     modalSubtitle: { margin: '4px 0 0', fontSize: '13px', color: '#6B7280' },
-    closeBtnCircle: {
-        width: '36px', height: '36px', borderRadius: '50%', border: 'none',
-        background: '#F3F4F6', color: '#4B5563', fontSize: '16px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-        transition: 'all 0.2s'
-    },
-
-    modalBody: {
-        padding: '25px', overflowY: 'auto', flex: 1,
-        background: '#F9FAFB' // Nền hơi xám nhẹ cho body
-    },
-
-    // Section Tài xế
-    shipperHighlightCard: {
-        display: 'flex', alignItems: 'center', gap: '15px',
-        padding: '20px', background: '#FFF7ED', // Màu cam rất nhạt
-        borderRadius: '16px', border: '1px solid #FFEDD5'
-    },
-    shipperAvatarLarge: {
-        width: '56px', height: '56px', borderRadius: '50%',
-        background: '#F97350', color: 'white', fontSize: '24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)'
-    },
+    closeBtnCircle: { width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: '#F3F4F6', color: '#4B5563', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' },
+    modalBody: { padding: '25px', overflowY: 'auto', flex: 1, background: '#F9FAFB' },
+    shipperHighlightCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '20px', background: '#FFF7ED', borderRadius: '16px', border: '1px solid #FFEDD5' },
+    shipperAvatarLarge: { width: '56px', height: '56px', borderRadius: '50%', background: '#F97350', color: 'white', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)' },
     labelText: { fontSize: '12px', color: '#9A3412', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' },
     shipperNameLarge: { fontSize: '18px', fontWeight: '800', color: '#9A3412', margin: '2px 0' },
     starRowLarge: { fontSize: '20px', color: '#FBBF24', letterSpacing: '2px' },
-    commentBubble: {
-        marginTop: '15px', padding: '15px 20px', background: '#fff',
-        borderRadius: '12px', border: '1px solid #E5E7EB',
-        fontSize: '14px', color: '#374151', fontStyle: 'italic', lineHeight: '1.5'
-    },
-
+    commentBubble: { marginTop: '15px', padding: '15px 20px', background: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: '14px', color: '#374151', fontStyle: 'italic', lineHeight: '1.5' },
     divider: { height: '1px', background: '#E5E7EB', margin: '25px 0' },
     sectionTitle: { fontSize: '16px', fontWeight: '700', color: '#111827', margin: '0 0 15px' },
-
-    // Section Món ăn
-    foodReviewCard: {
-        padding: '15px', background: '#fff', borderRadius: '12px',
-        border: '1px solid #F3F4F6', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
-    },
+    foodReviewCard: { padding: '15px', background: '#fff', borderRadius: '12px', border: '1px solid #F3F4F6', boxShadow: '0 2px 5px rgba(0,0,0,0.02)' },
     foodName: { fontWeight: '700', fontSize: '15px', color: '#374151' },
     starRowSmall: { fontSize: '14px', color: '#FBBF24' },
     foodComment: { fontSize: '13px', color: '#6B7280', marginTop: '8px', lineHeight: '1.4' },
-
-    // Section Phản hồi
-    replySectionContainer: {
-        marginTop: '30px', paddingTop: '25px', borderTop: '2px dashed #E5E7EB'
-    },
+    replySectionContainer: { marginTop: '30px', paddingTop: '25px', borderTop: '2px dashed #E5E7EB' },
     replyChatBubble: { display: 'flex', gap: '12px' },
-    replyAvatar: (isMerchant) => ({
-        width: '32px', height: '32px', borderRadius: '50%',
-        background: isMerchant ? '#EFF6FF' : '#F0FDF4',
-        color: isMerchant ? '#2563EB' : '#16A34A',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0
-    }),
+    replyAvatar: (isMerchant) => ({ width: '32px', height: '32px', borderRadius: '50%', background: isMerchant ? '#EFF6FF' : '#F0FDF4', color: isMerchant ? '#2563EB' : '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }),
     replyAuthorName: { fontWeight: '700', fontSize: '14px', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' },
-    replyRoleBadge: (isMerchant) => ({
-        fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
-        background: isMerchant ? '#DBEAFE' : '#DCFCE7',
-        color: isMerchant ? '#1E40AF' : '#166534',
-        fontWeight: '800', textTransform: 'uppercase'
-    }),
-    replyContent: {
-        marginTop: '4px', padding: '10px 14px', background: '#fff',
-        borderRadius: '4px 16px 16px 16px', border: '1px solid #E5E7EB',
-        fontSize: '13px', color: '#374151', lineHeight: '1.5'
-    },
-    replyTime: { fontSize: '11px', color: '#9CA3AF', marginTop: '4px' },
-
-    modalFooter: {
-        padding: '20px 25px', borderTop: '1px solid #F3F4F6',
-        display: 'flex', flexDirection: 'column', gap: '12px',
-        background: '#fff'
-    },
-    editBtnPrimary: {
-        width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
-        background: '#F97350', color: '#fff', fontWeight: '800', fontSize: '15px',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 12px rgba(249, 115, 80, 0.25)',
-        transition: 'all 0.2s'
-    },
-    expiredNotice: {
-        textAlign: 'center', fontSize: '13px', color: '#6B7280',
-        padding: '10px', background: '#F3F4F6', borderRadius: '12px', fontWeight: '600'
-    },
-    closeBtnText: {
-        width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
-        background: '#fff', color: '#6B7280', fontWeight: '700', fontSize: '14px',
-        cursor: 'pointer', transition: 'all 0.2s'
-    },
+    replyRoleBadge: (isMerchant) => ({ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: isMerchant ? '#DBEAFE' : '#DCFCE7', color: isMerchant ? '#1E40AF' : '#166534', fontWeight: '800', textTransform: 'uppercase' }),
+    replyContent: { marginTop: '4px', padding: '10px 14px', background: '#fff', borderRadius: '4px 16px 16px 16px', border: '1px solid #E5E7EB', fontSize: '13px', color: '#374151', lineHeight: '1.5' },
+    modalFooter: { padding: '20px 25px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff' },
+    editBtnPrimary: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#F97350', color: '#fff', fontWeight: '800', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(249, 115, 80, 0.25)', transition: 'all 0.2s' },
+    expiredNotice: { textAlign: 'center', fontSize: '13px', color: '#6B7280', padding: '10px', background: '#F3F4F6', borderRadius: '12px', fontWeight: '600' },
+    closeBtnText: { width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#fff', color: '#6B7280', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' },
 };
 
 export default History;
