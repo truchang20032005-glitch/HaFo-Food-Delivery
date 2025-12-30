@@ -3,6 +3,10 @@ const router = express.Router();
 const Shipper = require('../models/Shipper');
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Report = require('../models/Report'); //
+const CustomerReview = require('../models/CustomerReview'); //
+const ReviewReply = require('../models/ReviewReply'); //
+
 
 // 1. ĐĂNG KÝ HỒ SƠ SHIPPER (Giữ nguyên)
 router.post('/', async (req, res) => {
@@ -79,6 +83,67 @@ router.get('/', async (req, res) => {
             };
         }));
         res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// API lấy thông báo cho Shipper (Gần giống Merchant nhưng lọc cho Shipper)
+router.get('/notifications/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        // 1. Lấy đánh giá từ khách mà Shipper CHƯA phản hồi
+        const allReviews = await CustomerReview.find({ shipperId: userId })
+            .populate('customerId', 'fullName')
+            .sort({ createdAt: -1 });
+
+        const unrepliedReviews = [];
+        for (const rev of allReviews) {
+            const shipperReply = await ReviewReply.findOne({
+                reviewId: rev._id,
+                userRole: 'shipper'
+            });
+            if (!shipperReply) unrepliedReviews.push(rev);
+            if (unrepliedReviews.length >= 5) break;
+        }
+
+        // 2. Lấy báo cáo của Shipper đã được Admin xử lý
+        const processedReports = await Report.find({
+            reporterId: userId,
+            reporterRole: 'shipper',
+            status: { $ne: 'pending' }
+        }).sort({ updatedAt: -1 }).limit(5);
+
+        // 3. Tổng hợp danh sách
+        let list = [];
+
+        unrepliedReviews.forEach(r => {
+            list.push({
+                id: r.orderId, // ✅ Quan trọng: Gửi ID đơn hàng để Frontend tìm đơn
+                type: 'review',
+                msg: `Khách ${r.customerId?.fullName || ''} đánh giá bạn ${r.rating} sao`,
+                time: r.createdAt,
+                link: '/shipper/history'
+            });
+        });
+
+        processedReports.forEach(rep => {
+            const statusText = rep.status === 'processed' ? 'ĐÃ CHẤP NHẬN' : 'ĐÃ TỪ CHỐI';
+            list.push({
+                type: 'report_resolved',
+                msg: `Khiếu nại của bạn: Admin ${statusText}`,
+                time: rep.updatedAt,
+                link: '/shipper/history'
+            });
+        });
+
+        list.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        res.json({
+            total: list.length,
+            notifications: list
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

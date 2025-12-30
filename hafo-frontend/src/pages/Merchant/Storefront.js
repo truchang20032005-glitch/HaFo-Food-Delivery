@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import api from '../../services/api';
 import 'leaflet/dist/leaflet.css';
+import { useOutletContext } from 'react-router-dom';
 
 // Fix icon Marker Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -27,6 +28,7 @@ function RecenterMap({ lat, lng }) {
 }
 
 function Storefront() {
+    const { setMyShop } = useOutletContext();
     const [shop, setShop] = useState(null);
     const [owner, setOwner] = useState(null);
 
@@ -90,19 +92,22 @@ function Storefront() {
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
+        const userId = user?.id || user?._id;
         if (user) {
-            api.get(`/restaurants/my-shop/${user.id}`)
+            api.get(`/restaurants/my-shop/${userId}`)
                 .then(res => {
-                    setShop(res.data);
+                    const shopData = res.data;
+                    setShop(shopData);
                     // Đảm bảo lấy đủ lat, lng, address từ DB
                     setFormData({
-                        ...res.data,
-                        lat: res.data.lat || 10.762,
-                        lng: res.data.lng || 106.660,
-                        address: res.data.address || ''
+                        ...shopData,
+                        lat: shopData.location?.coordinates[1] || 10.762, // index 1 là Latitude
+                        lng: shopData.location?.coordinates[0] || 106.660, // index 0 là Longitude
+                        address: shopData.address || '',
+                        phone: shopData.phone || ''
                     });
-                    if (res.data.image) setImagePreview(res.data.image);
-                    return api.get(`/users/${user.id}`);
+                    if (shopData.image) setImagePreview(shopData.image);
+                    return api.get(`/users/${userId}`);
                 })
                 .then(res => {
                     setOwner(res.data);
@@ -122,29 +127,73 @@ function Storefront() {
             data.append('email', userFormData.email);
             if (userAvatarFile) data.append('avatar', userAvatarFile);
 
-            const res = await api.put(`/users/${owner._id}`, data);
+            // Gọi API cập nhật thông tin NGƯỜI DÙNG (Chủ quán)
+            const res = await api.put(`/users/${owner._id}`, data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // 1. Cập nhật state để giao diện thay đổi ngay
             setOwner(res.data);
+
+            // ✅ 2. QUAN TRỌNG: Cập nhật lại localStorage để khi F5 không bị mất ảnh
+            const currentUser = JSON.parse(localStorage.getItem('user'));
+            const updatedUser = { ...currentUser, ...res.data };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            // 3. Reset lại trạng thái chọn file
+            if (res.data.avatar) {
+                setUserAvatarPreview(res.data.avatar);
+                setUserAvatarFile(null);
+            }
+
             alert("✅ Đã cập nhật thông tin chủ quán!");
-        } catch (err) { alert(err.message); }
-        finally { setLoadingUser(false); }
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setLoadingUser(false);
+        }
     };
 
     const handleSaveShop = async () => {
         setLoadingShop(true);
         try {
             const data = new FormData();
-            data.append('name', formData.name);
-            data.append('address', formData.address); // Lưu địa chỉ string mới
-            data.append('openTime', formData.openTime);
-            data.append('closeTime', formData.closeTime);
+            // Chỉ append nếu có giá trị để tránh gửi "undefined" lên server
+            data.append('name', formData.name || '');
+            data.append('phone', formData.phone || '');
+            data.append('address', formData.address || '');
+            data.append('openTime', formData.openTime || '');
+            data.append('closeTime', formData.closeTime || '');
             data.append('lat', formData.lat);
             data.append('lng', formData.lng);
+
             if (imageFile) data.append('image', imageFile);
 
-            await api.put(`/restaurants/${shop._id}`, data);
-            alert("✅ Đã cập nhật thông tin cửa hàng!");
-        } catch (err) { alert(err.message); }
-        finally { setLoadingShop(false); }
+            // 1. Gọi API cập nhật
+            const res = await api.put(`/restaurants/${shop._id}`, data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // ✅ 2. CẬP NHẬT STATE SHOP ĐỂ UI THAY ĐỔI NGAY
+            setShop(res.data);
+            setMyShop(res.data);
+
+            // ✅ 3. ĐỒNG BỘ LOCALSTORAGE (Nếu bạn lưu restaurantId/name trong user object)
+            const currentUser = JSON.parse(localStorage.getItem('user'));
+            if (currentUser) {
+                const updatedUser = { ...currentUser, restaurant: res.data._id };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+            }
+
+            // 4. Reset file đã chọn
+            if (imageFile) setImageFile(null);
+
+            alert("✅ Đã cập nhật thông tin cửa hàng thành công!");
+        } catch (err) {
+            alert("❌ Lỗi cập nhật quán: " + (err.response?.data?.message || err.message));
+        } finally {
+            setLoadingShop(false);
+        }
     };
 
     if (!shop || !owner) return <div style={{ padding: '20px' }}>Đang tải...</div>;
@@ -222,8 +271,28 @@ function Storefront() {
                             }} accept="image/*" />
                         </div>
                         <div style={{ flex: 1 }}>
-                            <label style={S.label}>Tên quán hiển thị</label>
-                            <input className="f-input" name="name" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                            <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={S.label}>Tên quán hiển thị</label>
+                                    <input
+                                        className="f-input"
+                                        name="name"
+                                        value={formData.name || ''}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="Ví dụ: Cà phê Tấn Tài"
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={S.label}>Số điện thoại quán</label>
+                                    <input
+                                        className="f-input"
+                                        name="phone"
+                                        value={formData.phone || ''}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="Ví dụ: 090xxxxxxx"
+                                    />
+                                </div>
+                            </div>
 
                             <label style={{ ...S.label, marginTop: '15px' }}>Địa chỉ kinh doanh</label>
                             <div style={{ display: 'flex', gap: '8px' }}>

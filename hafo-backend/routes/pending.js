@@ -9,6 +9,8 @@ const PendingShipper = require('../models/PendingShipper');
 const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const User = require('../models/User');
+const Report = require('../models/Report');
+const Transaction = require('../models/Transaction');
 
 // MIDDLEWARE XỬ LÝ UPLOAD
 const handleUpload = (fields) => {
@@ -200,6 +202,37 @@ router.get('/all', async (req, res) => {
     const merchants = await PendingRestaurant.find({ status: 'pending' });
     const shippers = await PendingShipper.find({ status: 'pending' });
     res.json({ merchants, shippers });
+});
+
+router.get('/notifications', async (req, res) => {
+    try {
+        // 1. Lấy đơn chờ duyệt
+        const mPending = await PendingRestaurant.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
+        const sPending = await PendingShipper.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
+
+        // 2. Lấy khiếu nại chưa xử lý (Cần import Report model)
+        const reports = await Report.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
+
+        // 3. Lấy yêu cầu rút tiền (Cần import Transaction model)
+        const trans = await Transaction.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
+
+        // Tổng hợp tin nhắn
+        let list = [];
+        mPending.forEach(p => list.push({ id: p._id, type: 'reg', msg: `Quán mới: ${p.name}`, time: p.createdAt, link: '/admin/pending' }));
+        sPending.forEach(p => list.push({ id: p._id, type: 'reg', msg: `Shipper mới: ${p.fullName}`, time: p.createdAt, link: '/admin/pending' }));
+        reports.forEach(r => list.push({ id: r._id, type: 'report', msg: `Khiếu nại mới từ ${r.reporterRole}`, time: r.createdAt, link: '/admin/reports' }));
+        trans.forEach(t => list.push({ id: t._id, type: 'withdraw', msg: `Yêu cầu rút tiền: ${t.amount.toLocaleString()}đ`, time: t.createdAt, link: '/admin/transactions' }));
+
+        // Sắp xếp theo thời gian mới nhất
+        list.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        res.json({
+            total: list.length,
+            notifications: list.slice(0, 10) // Lấy 10 cái mới nhất
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../../services/api';
+import { useLocation } from 'react-router-dom';
 
 function Reviews() {
     const [reviews, setReviews] = useState([]);
@@ -12,17 +13,31 @@ function Reviews() {
     const [generalReplyText, setGeneralReplyText] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const loadData = async () => {
+    const location = useLocation();
+
+    const loadData = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) return;
         try {
             const shopRes = await api.get(`/restaurants/my-shop/${user.id || user._id}`);
             const res = await api.get(`/customer-reviews/restaurant/${shopRes.data._id}`);
-            setReviews(res.data);
-        } catch (err) { console.error(err); }
-    };
+            const data = res.data;
+            setReviews(data);
 
-    useEffect(() => { loadData(); }, []);
+            // ✅ LOGIC THÔNG MINH: Tự mở modal chi tiết đánh giá
+            if (location.state?.openId) {
+                const target = data.find(r => r._id === location.state.openId);
+                if (target) {
+                    setSelectedReview(target);
+                    window.history.replaceState({}, document.title);
+                }
+            }
+        } catch (err) { console.error("Lỗi lấy đánh giá:", err); }
+    }, [location.state]); // ✅ Chỉ khởi tạo lại khi location.state thay đổi
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     // Hàm gửi phản hồi (Dùng chung cho cả món ăn và phản hồi tổng quát)
     const handleSendReply = async (content, type = 'general') => {
@@ -112,11 +127,28 @@ function Reviews() {
                     </thead>
                     <tbody>
                         {reviews.map(r => {
-                            // 1. Logic lấy số sao: Ưu tiên rating tổng, nếu bằng 0 lấy của món đầu tiên có rating
-                            const displayRating = r.rating || (r.itemReviews?.find(it => it.rating)?.rating) || 0;
+                            // 1. Tính số sao trung bình của các món ăn trong đơn
+                            const validItemRatings = r.itemReviews?.filter(it => it.rating > 0) || [];
+                            const avgItemRating = validItemRatings.length > 0
+                                ? Math.round(validItemRatings.reduce((sum, it) => sum + it.rating, 0) / validItemRatings.length)
+                                : r.rating; // Fallback về rating tổng nếu không có item nào có sao
 
-                            // 2. Logic lấy nội dung: Ưu tiên nhận xét chung, nếu trống lấy nhận xét của món bất kỳ
-                            const displayComment = r.comment || (r.itemReviews?.find(it => it.comment)?.comment) || "Không có nội dung";
+                            // 2. Lấy ngẫu nhiên nội dung đánh giá của một món ăn (có chữ)
+                            const itemsWithComments = r.itemReviews?.filter(it => it.comment && it.comment.trim() !== "") || [];
+                            let randomItemComment = "Khách hàng không để lại nhận xét món.";
+
+                            if (itemsWithComments.length > 0) {
+                                const randomIndex = Math.floor(Math.random() * itemsWithComments.length);
+                                randomItemComment = itemsWithComments[randomIndex].comment;
+                            } else if (r.comment && r.comment.trim() !== "") {
+                                // Nếu các món không có chữ nhưng nhận xét chung của đơn có chữ thì lấy nhận xét chung
+                                randomItemComment = r.comment;
+                            }
+
+                            const displayRating = avgItemRating;
+                            const displayComment = randomItemComment;
+
+                            // --- KẾT THÚC LOGIC MỚI ---
 
                             return (
                                 // BỎ opacity: r.isReported ? 0.6 : 1 ĐỂ DÒNG LUÔN RÕ NÉT

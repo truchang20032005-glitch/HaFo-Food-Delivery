@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../../services/api';
 
 function AdminReports() {
@@ -7,18 +8,31 @@ function AdminReports() {
     const [selectedReport, setSelectedReport] = useState(null);
     const [adminNote, setAdminNote] = useState('');
 
-    const fetchReports = async () => {
+    const location = useLocation();
+
+    const fetchReports = useCallback(async () => {
         try {
             const res = await api.get('/reports');
-            setReports(res.data);
+            const data = res.data;
+            setReports(data);
+
+            if (location.state?.openId) {
+                const target = data.find(r => r._id === location.state.openId);
+                if (target) {
+                    setSelectedReport(target);
+                    window.history.replaceState({}, document.title);
+                }
+            }
         } catch (err) {
             console.error("Lỗi tải báo cáo:", err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [location.state]);
 
-    useEffect(() => { fetchReports(); }, []);
+    useEffect(() => {
+        fetchReports();
+    }, [fetchReports]);
 
     const handleUpdateStatus = async (id, status) => {
         if (!adminNote.trim()) return alert("Vui lòng nhập ghi chú xử lý!");

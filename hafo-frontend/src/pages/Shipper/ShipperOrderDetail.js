@@ -108,6 +108,13 @@ const styles = {
         boxShadow: '0 -10px 30px rgba(0,0,0,0.2)',
         borderRadius: '24px 24px 0 0', overflow: 'hidden',
         transition: 'transform 0.3s ease-out'
+    },
+    mapBtn: {
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: '#fff', color: '#F97350', borderRadius: '50px',
+        padding: '6px 15px', textDecoration: 'none', fontSize: '13px', fontWeight: '800',
+        marginTop: '10px', border: '1.5px solid #F97350', cursor: 'pointer',
+        gap: '6px', boxShadow: '0 2px 5px rgba(249, 115, 80, 0.1)'
     }
 };
 
@@ -182,6 +189,13 @@ function ShipperOrderDetail() {
     const isReady = order.status === 'ready';
     const isPickup = order.status === 'pickup';
 
+    const handleOpenMap = (lat, lng, label) => {
+        if (!lat || !lng) return alert("Không tìm thấy tọa độ vị trí này!");
+        // Mở Google Maps với tọa độ và nhãn tên
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        window.open(url, '_blank');
+    };
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -203,17 +217,38 @@ function ShipperOrderDetail() {
                 <div style={styles.sectionHeader}><i className="fa-solid fa-store" style={{ color: '#F97350' }}></i> ĐIỂM LẤY HÀNG</div>
                 <div style={styles.bigText}>{restaurant.name || "Đang tải tên quán..."}</div>
                 <div style={styles.subText}>{restaurant.address || "..."}</div>
-                {restaurant.phone && (
-                    <a href={`tel:${restaurant.phone}`} style={styles.callBtn}>
-                        <i className="fa-solid fa-phone"></i> Gọi quán: {restaurant.phone}
-                    </a>
-                )}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    {restaurant.phone && (
+                        <a href={`tel:${restaurant.phone}`} style={styles.callBtn}>
+                            <i className="fa-solid fa-phone"></i> Gọi quán
+                        </a>
+                    )}
+                    {/* ✅ NÚT CHỈ ĐƯỜNG TỚI QUÁN */}
+                    <button
+                        style={styles.mapBtn}
+                        onClick={() => handleOpenMap(restaurant.location.coordinates[1], restaurant.location.coordinates[0])}
+                    >
+                        <i className="fa-solid fa-map-location-dot"></i> Chỉ đường tới quán
+                    </button>
+                </div>
             </div>
 
             <div style={styles.section}>
                 <div style={styles.sectionHeader}><i className="fa-solid fa-location-dot" style={{ color: '#8B5CF6' }}></i> ĐIỂM GIAO HÀNG</div>
                 <div style={styles.bigText}>{custName}</div>
                 <div style={styles.subText}>{custAddr}</div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <a href={`tel:${custPhone}`} style={styles.callBtn}>
+                        <i className="fa-solid fa-phone"></i> Gọi khách
+                    </a>
+                    {/* ✅ NÚT CHỈ ĐƯỜNG TỚI NHÀ KHÁCH */}
+                    <button
+                        style={styles.mapBtn}
+                        onClick={() => handleOpenMap(order.lat, order.lng)}
+                    >
+                        <i className="fa-solid fa-map-location-dot"></i> Chỉ đường tới khách
+                    </button>
+                </div>
                 {order.note && (
                     <div style={{ marginTop: 8, background: '#FFF7ED', padding: 8, borderRadius: 6, color: '#C2410C', fontSize: 13 }}>
                         <b><i className="fa-regular fa-note-sticky"></i> Ghi chú:</b> {order.note}

@@ -107,9 +107,29 @@ function Checkout() {
             lat: formData.lat, lng: formData.lng
         };
         try {
-            const res = await api.post('/orders', orderData);
-            alert("🎉 Đặt hàng thành công!"); clearCart(); navigate(`/order-tracking/${res.data._id}`);
-        } catch (error) { alert("Lỗi đặt hàng: " + error.message); }
+            // 1. Tạo đơn hàng lấy ID trước
+            const resOrder = await api.post('/orders', orderData);
+            const newOrderId = resOrder.data._id;
+
+            if (paymentMethod === 'MOMO') {
+                // 2. Gọi Backend lấy link MoMo
+                const resMomo = await api.post('/momo/payment', {
+                    amount: FINAL_TOTAL,
+                    orderId: newOrderId
+                });
+
+                if (resMomo.data.payUrl) {
+                    // 3. Chuyển hướng khách sang trang MoMo (cái hình bạn gửi lúc nãy)
+                    window.location.href = resMomo.data.payUrl;
+                }
+            } else {
+                alert("🎉 Đặt hàng thành công!");
+                clearCart();
+                navigate(`/order-tracking/${newOrderId}`);
+            }
+        } catch (error) {
+            alert("Lỗi: " + error.message);
+        }
     };
 
     if (cartItems.length === 0) return <div style={{ padding: 50, textAlign: 'center' }}>Giỏ hàng trống! <Link to="/">Về trang chủ</Link></div>;

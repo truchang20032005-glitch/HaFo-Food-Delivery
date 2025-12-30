@@ -18,7 +18,8 @@ const ReviewReplySchema = new mongoose.Schema({
         type: String,
         enum: ['merchant', 'shipper', 'admin'],
         required: true
-    }
+    },
+    isReadByCustomer: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('ReviewReply', ReviewReplySchema);

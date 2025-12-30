@@ -121,6 +121,27 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// API Hủy đơn hàng dành cho khách hàng
+router.put('/:id/customer-cancel', async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+        // ✅ CHỈ CHO PHÉP HỦY KHI TRẠNG THÁI LÀ 'new' (Quán chưa xác nhận)
+        if (order.status !== 'new') {
+            return res.status(400).json({ message: "Quán đã xác nhận đơn, bạn không thể tự hủy lúc này!" });
+        }
+
+        order.status = 'cancel';
+        order.note = (order.note || "") + " [Khách tự hủy]";
+        await order.save();
+
+        res.json({ message: "Hủy đơn thành công!", order });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- 5. LẤY LỊCH SỬ ĐƠN CỦA 1 USER ---
 router.get('/user/:userId', async (req, res) => {
     try {

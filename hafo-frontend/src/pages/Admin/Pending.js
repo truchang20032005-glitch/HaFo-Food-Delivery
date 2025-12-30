@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
+import { useLocation } from 'react-router-dom';
 
 function Pending() {
+    const location = useLocation();
     const [requests, setRequests] = useState([]);
     const [selectedReq, setSelectedReq] = useState(null);
 
@@ -10,21 +12,29 @@ function Pending() {
     const [rejectReason, setRejectReason] = useState('');
 
     // 1. Hàm lấy dữ liệu thật từ Backend
-    const fetchPending = async () => {
+    const fetchPending = useCallback(async () => {
         try {
-            //const res = await axios.get('http://localhost:5000/api/pending/all');
             const res = await api.get('/pending/all');
             const merchants = res.data.merchants.map(m => ({ ...m, type: 'merchant' }));
             const shippers = res.data.shippers.map(s => ({ ...s, type: 'shipper' }));
-            setRequests([...merchants, ...shippers]);
+            const all = [...merchants, ...shippers];
+            setRequests(all);
+
+            if (location.state?.openId) {
+                const target = all.find(item => item._id === location.state.openId);
+                if (target) {
+                    setSelectedReq(target);
+                    window.history.replaceState({}, document.title);
+                }
+            }
         } catch (err) {
-            console.error("Lỗi tải danh sách chờ:", err);
+            console.error("Lỗi tải hồ sơ:", err);
         }
-    };
+    }, [location.state]);
 
     useEffect(() => {
         fetchPending();
-    }, []);
+    }, [fetchPending]);
 
     // Reset state khi đóng hoặc mở modal
     const closeDetail = () => {

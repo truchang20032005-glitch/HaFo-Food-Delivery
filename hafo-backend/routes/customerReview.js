@@ -3,6 +3,9 @@ const router = express.Router();
 const CustomerReview = require('../models/CustomerReview');
 const ReviewReply = require('../models/ReviewReply');
 const Order = require('../models/Order');
+const Restaurant = require('../models/Restaurant');
+const Shipper = require('../models/Shipper');
+const Report = require('../models/Report');
 
 // 1. Lấy tất cả đánh giá của 1 quán (Kèm các phản hồi)
 router.get('/restaurant/:restaurantId', async (req, res) => {
@@ -116,6 +119,79 @@ router.put('/:reviewId', async (req, res) => {
         );
         res.json(updatedReview);
     } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// API lấy thông báo cho Khách hàng
+router.get('/notifications/customer/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        // 1. Lấy review IDs của khách
+        const userReviews = await CustomerReview.find({ customerId: userId }).select('_id');
+        const reviewIds = userReviews.map(r => r._id);
+
+        // 2. Lấy phản hồi CHƯA ĐỌC
+        const replies = await ReviewReply.find({
+            reviewId: { $in: reviewIds },
+            userRole: { $in: ['merchant', 'shipper'] },
+            isReadByCustomer: false // ✅ Lọc tin chưa đọc
+        }).populate('reviewId');
+
+        // 3. Lấy đơn hàng của khách (Dùng trường 'customer')
+        const userOrders = await Order.find({ customer: userId }).select('_id');
+        const orderIds = userOrders.map(o => o._id);
+
+        // 4. Lấy khiếu nại Admin đã xử lý và CHƯA ĐỌC
+        const adminWarnings = await Report.find({
+            orderId: { $in: orderIds },
+            status: { $ne: 'pending' },
+            isReadByCustomer: false // ✅ Lọc tin chưa đọc
+        }).sort({ updatedAt: -1 });
+
+        let list = [];
+
+        replies.forEach(rep => {
+            list.push({
+                id: rep.reviewId?._id || rep.reviewId,
+                orderId: rep.reviewId?.orderId, // ✅ Lấy orderId từ review object
+                notificationId: rep._id, // Để mark-read
+                type: 'reply',
+                msg: `${rep.userRole === 'merchant' ? 'Nhà hàng' : 'Tài xế'} đã phản hồi đánh giá`,
+                time: rep.createdAt,
+                link: '/history'
+            });
+        });
+
+        adminWarnings.forEach(warn => {
+            list.push({
+                id: warn._id,
+                orderId: warn.orderId,
+                notificationId: warn._id, // Để mark-read
+                type: 'admin_warning',
+                msg: `Thông báo từ Admin: ${warn.adminNote || 'Yêu cầu kiểm tra lại đánh giá'}`,
+                time: warn.updatedAt,
+                link: '/history'
+            });
+        });
+
+        list.sort((a, b) => new Date(b.time) - new Date(a.time));
+        res.json({ total: list.length, notifications: list });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// API Đánh dấu đã đọc thông báo
+router.put('/notifications/mark-read/:type/:id', async (req, res) => {
+    const { type, id } = req.params;
+    try {
+        if (type === 'reply') {
+            await ReviewReply.findByIdAndUpdate(id, { isReadByCustomer: true });
+        } else {
+            await Report.findByIdAndUpdate(id, { isReadByCustomer: true });
+        }
+        res.json({ message: "Đã đánh dấu đã đọc" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;
