@@ -140,11 +140,11 @@ router.put('/:id', uploadCloud.single('image'), async (req, res) => {
 router.get('/notifications/:shopId', async (req, res) => {
     try {
         const shopId = req.params.shopId;
+        const ownerId = restaurant.owner;
 
         // Bước 0: Lấy thông tin quán để biết ID của chủ quán (dùng để tìm báo cáo)
         const restaurant = await Restaurant.findById(shopId);
         if (!restaurant) return res.status(404).json({ message: "Không tìm thấy quán" });
-        const ownerId = restaurant.owner;
 
         // 1. Lấy đơn hàng mới (Chỉ lấy đơn 'new')
         const newOrders = await Order.find({
@@ -175,6 +175,12 @@ router.get('/notifications/:shopId', async (req, res) => {
             status: { $ne: 'pending' } // $ne là "not equal" (khác pending)
         }).sort({ updatedAt: -1 }).limit(5);
 
+        // 3.5. ✅ LẤY CÁCH GIAO DỊCH RÚT TIỀN ĐÃ ĐƯỢC ADMIN XỬ LÝ
+        const processedTransactions = await Transaction.find({
+            userId: ownerId,
+            status: { $ne: 'pending' }
+        }).sort({ updatedAt: -1 }).limit(5);
+
         // 4. Tổng hợp danh sách gửi về Frontend
         let list = [];
 
@@ -196,6 +202,16 @@ router.get('/notifications/:shopId', async (req, res) => {
                 msg: `${r.customerId?.fullName || 'Khách'} đánh giá ${r.rating} sao - Chờ phản hồi`,
                 time: r.createdAt,
                 link: '/merchant/reviews'
+            });
+        });
+
+        processedTransactions.forEach(t => {
+            const statusText = t.status === 'approved' ? 'THÀNH CÔNG' : 'BỊ TỪ CHỐI';
+            list.push({
+                type: 'transaction',
+                msg: `Rút tiền ${t.amount.toLocaleString()}đ: ${statusText}`,
+                time: t.updatedAt,
+                link: '/merchant/wallet'
             });
         });
 

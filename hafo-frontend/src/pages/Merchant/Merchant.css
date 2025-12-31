@@ -144,7 +144,8 @@ header.top {
 
 .btn.soft {
     background: #fff;
-    border-style: dashed
+    border: 1px solid #E2E8F0;
+    /* ✅ Đổi border-style thành solid, nên thêm màu và độ dày cho đẹp */
 }
 
 .btn.small {
