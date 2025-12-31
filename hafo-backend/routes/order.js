@@ -46,11 +46,10 @@ router.get('/available-orders', async (req, res) => {
 
         const restaurantIds = nearbyRestaurants.map(r => r._id);
 
-        // ✅ SỬA TẠI ĐÂY: Chấp nhận các trạng thái đơn thực tế
         const orders = await Order.find({
             restaurantId: { $in: restaurantIds },
             shipperId: null, // Chỉ lấy đơn chưa có ai nhận
-            status: { $in: ['prep', 'ready'] } // Lấy các đơn mới hoặc đang làm/đã xong
+            status: { $in: ['new', 'prep', 'ready'] } // Lấy các đơn mới hoặc đang làm/đã xong
         }).populate('restaurantId');
 
         res.json(orders);
@@ -99,24 +98,44 @@ router.post('/', async (req, res) => {
 
 // --- 4. CẬP NHẬT TRẠNG THÁI ĐƠN ---
 router.put('/:id', async (req, res) => {
-    // Đổi rating -> restaurantRating, shipperRating
-    const { status, shipperId, restaurantRating, shipperRating, review, isReviewed } = req.body;
-    let updateData = {};
-
-    if (status) updateData.status = status;
-    if (shipperId) updateData.shipperId = shipperId;
-
-    // Cập nhật đúng tên trường mới
-    if (restaurantRating) updateData.restaurantRating = restaurantRating;
-    if (shipperRating) updateData.shipperRating = shipperRating;
-
-    if (review) updateData.review = review;
-    if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
-
     try {
-        const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        const { status, shipperId, restaurantRating, shipperRating, review, isReviewed } = req.body;
+
+        // 1. Tìm đơn hàng trước để kiểm tra tồn tại và lấy dữ liệu cũ
+        const order = await Order.findById(req.params.id);
+        if (!order) {
+            return res.status(404).json({ message: "Không tìm thấy đơn hàng này má ơi!" });
+        }
+
+        let updateData = {};
+        if (status) updateData.status = status;
+        if (shipperId) updateData.shipperId = shipperId;
+
+        // 2. ✅ LOGIC CỘNG TIỀN: Chỉ cộng khi trạng thái chuyển từ "chưa xong" sang "done"
+        if (status === 'done' && order.status !== 'done') {
+            await Restaurant.findByIdAndUpdate(order.restaurantId, {
+                $inc: { revenue: order.total } // Dùng $inc để cộng dồn tiền chính xác
+            });
+            console.log(`✅ Đã cộng ${order.total}đ vào doanh thu quán ${order.restaurantId}`);
+        }
+
+        // 3. Cập nhật các trường đánh giá
+        if (restaurantRating) updateData.restaurantRating = restaurantRating;
+        if (shipperRating) updateData.shipperRating = shipperRating;
+        if (review) updateData.review = review;
+        if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
+
+        // 4. Thực hiện cập nhật đơn hàng
+        const updatedOrder = await Order.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+
         res.json(updatedOrder);
+
     } catch (error) {
+        console.error("Lỗi cập nhật đơn:", error);
         res.status(400).json({ message: error.message });
     }
 });

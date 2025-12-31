@@ -100,6 +100,30 @@ router.get('/', async (req, res) => {
     }
 });
 
+// API CẬP NHẬT TỌA ĐỘ THỰC TẾ 
+router.put('/location/:userId', async (req, res) => {
+    try {
+        const { lat, lng } = req.body;
+
+        // Cập nhật vị trí chuẩn GeoJSON [lng, lat]
+        const updatedShipper = await Shipper.findOneAndUpdate(
+            { user: req.params.userId },
+            {
+                location: {
+                    type: 'Point',
+                    coordinates: [parseFloat(lng), parseFloat(lat)]
+                }
+            },
+            { new: true }
+        );
+
+        if (!updatedShipper) return res.status(404).json({ message: "Không tìm thấy shipper" });
+        res.json({ message: "Đã cập nhật vị trí", location: updatedShipper.location });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // API lấy thông báo cho Shipper (Gần giống Merchant nhưng lọc cho Shipper)
 router.get('/notifications/:userId', async (req, res) => {
     try {

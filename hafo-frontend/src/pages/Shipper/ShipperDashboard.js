@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { io } from 'socket.io-client';
@@ -15,7 +15,7 @@ function ShipperDashboard() {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user')) || {};
     // Thêm một state để lưu số lượng đơn cũ
-    const [prevOrderCount, setPrevOrderCount] = useState(0);
+    //const [prevOrderCount, setPrevOrderCount] = useState(0);
 
     // --- CÁC STATE QUẢN LÝ ---
     const [orders, setOrders] = useState([]);
@@ -25,6 +25,7 @@ function ShipperDashboard() {
     });
     const [myLocation, setMyLocation] = useState(null); // Lưu tọa độ hiện tại
     const [currentOrderId, setCurrentOrderId] = useState(null);
+    const prevOrderCountRef = useRef(0);
 
     // --- 1. LOGIC LẤY ĐƠN HÀNG ---
     const fetchOrders = useCallback(async () => {
@@ -42,19 +43,19 @@ function ShipperDashboard() {
             const newOrders = res.data;
 
             // ✅ SỬ DỤNG BIẾN ĐỂ PHÁT ÂM THANH (Dùng prevOrderCount ở đây)
-            if (newOrders.length > prevOrderCount) {
+            if (newOrders.length > prevOrderCountRef.current) {
                 const audio = new Audio('/sounds/notification.mp3');
                 audio.play().catch(e => console.log("Trình duyệt chặn âm thanh"));
             }
 
             // ✅ CẬP NHẬT TRẠNG THÁI (Dùng setPrevOrderCount ở đây)
+            prevOrderCountRef.current = newOrders.length;
             setOrders(newOrders);
-            setPrevOrderCount(newOrders.length);
 
         } catch (err) {
             console.error("Lỗi tìm đơn:", err);
         }
-    }, [isWorking, myLocation, prevOrderCount]);
+    }, [isWorking, myLocation]);
 
     // 2. Hàm sắp xếp dữ liệu: Tự động chạy khi 'orders' hoặc 'filter' thay đổi
     const sortedOrders = useMemo(() => {
@@ -118,8 +119,9 @@ function ShipperDashboard() {
     };
 
     const MOCK_LOCATIONS = [
+        { name: 'Quận 1 (TP.HCM)', lat: 10.762622, lng: 106.660172 },
         { name: 'Lý Thường Kiệt (Dĩ An)', lat: 10.907991, lng: 106.752177 },
-        { name: 'Thủ Đức (HCMUS)', lat: 10.8750, lng: 106.8008 },
+        { name: 'Thanh Xuân (Hà Nội)', lat: 21.015991, lng: 105.821124 },
     ];
 
     return (

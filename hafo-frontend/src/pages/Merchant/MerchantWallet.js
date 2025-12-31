@@ -15,6 +15,9 @@ function MerchantWallet() {
         bankOwner: '',
         bankBranch: ''
     });
+    const isOverBalance = Number(withdrawAmount) > balance;
+    const isBelowMin = withdrawAmount !== '' && Number(withdrawAmount) < 50000;
+    const isInvalid = isOverBalance || isBelowMin || !withdrawAmount;
 
     // Hàm để đổ dữ liệu cũ vào form khi nhấn "Chỉnh sửa"
     const openEditBank = () => {
@@ -30,7 +33,7 @@ function MerchantWallet() {
     // Hàm gọi API cập nhật
     const handleUpdateBank = async () => {
         if (!bankFormData.bankName || !bankFormData.bankAccount) {
-            return alert("Má ơi, điền tên và số tài khoản ngân hàng nha!");
+            return alert("Vui lòng điền tên và số tài khoản ngân hàng!");
         }
         setLoading(true);
         try {
@@ -51,26 +54,23 @@ function MerchantWallet() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
             try {
+                // 1. Lấy thông tin quán (đã có trường revenue mới cập nhật ở Backend)
                 const shopRes = await api.get(`/restaurants/my-shop/${user.id}`);
                 const currentShop = shopRes.data;
                 setShop(currentShop);
 
-                const ordersRes = await api.get(`/orders?restaurantId=${currentShop._id}`);
-                const totalRevenue = ordersRes.data
-                    .filter(o => o.status === 'done')
-                    .reduce((sum, o) => sum + o.total, 0);
+                // ✅ LẤY SỐ DƯ TRỰC TIẾP TỪ DB (Thay vì tính toán thủ công)
+                setBalance(currentShop.revenue || 0);
 
-                // Giả định có endpoint này để lấy lịch sử giao dịch
-                const transRes = await api.get(`/transactions/${currentShop._id}`);
-                const history = transRes.data;
-                setTransactions(history);
+                // 2. Lấy lịch sử giao dịch (Sửa lại đường dẫn cho đúng API)
+                const transRes = await api.get(`/transactions/user/${user.id}`); // Dùng /user/:userId
+                setTransactions(transRes.data);
 
-                const totalWithdrawn = history
-                    .filter(t => t.status !== 'rejected')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
-                setBalance(totalRevenue - totalWithdrawn);
-            } catch (err) { console.error(err); }
+                setLoading(false);
+            } catch (err) {
+                console.error("Lỗi lấy dữ liệu ví:", err);
+                setLoading(false);
+            }
         }
     };
 
@@ -78,7 +78,7 @@ function MerchantWallet() {
 
     const handleWithdraw = async () => {
         const amount = Number(withdrawAmount);
-        if (amount < 50000) return alert("Má ơi, rút tối thiểu 50.000đ nha!");
+        if (amount < 50000) return alert("Rút tối thiểu 50.000đ!");
         if (amount > balance) return alert("Số dư không đủ để rút số tiền này!");
 
         setLoading(true);
@@ -282,7 +282,6 @@ function MerchantWallet() {
                     <div style={S.sheet}>
                         <h2 style={{ margin: '0 0 25px', color: '#F97350', fontSize: '22px', fontWeight: '800' }}>Yêu cầu rút tiền</h2>
 
-                        {/* Khu vực ngân hàng - Đã nới rộng khoảng cách */}
                         <div style={S.bankCard}>
                             <div style={{ fontSize: '13px', color: '#64748B', marginBottom: '8px', fontWeight: '600' }}>Chuyển về tài khoản:</div>
                             <div style={{ fontSize: '18px', fontWeight: '800', color: '#1E293B', marginBottom: '4px' }}>
@@ -296,32 +295,79 @@ function MerchantWallet() {
                         <div style={{ marginBottom: '25px' }}>
                             <label style={S.label}>Số tiền muốn rút (VNĐ)</label>
                             <input
-                                style={S.input}
-                                type="number"
-                                value={withdrawAmount}
-                                onChange={e => setWithdrawAmount(e.target.value)}
-                                placeholder="Nhập số tiền..."
+                                style={{
+                                    ...S.input,
+                                    borderColor: isOverBalance ? '#EF4444' : (isBelowMin ? '#F59E0B' : '#E2E8F0'),
+                                    background: isOverBalance ? '#FFF1F0' : '#fff',
+                                    fontWeight: '800', // Cho chữ đậm lên nhìn cho rõ tiền
+                                    color: '#F97350'
+                                }}
+                                // ✅ Chuyển sang type="text" để cho phép hiển thị dấu chấm
+                                type="text"
+
+                                // ✅ Hiển thị số đã được định dạng dấu chấm khi gõ
+                                value={withdrawAmount ? Number(withdrawAmount).toLocaleString('vi-VN') : ''}
+
+                                onChange={e => {
+                                    // ✅ CHỈ LẤY SỐ: Loại bỏ tất cả ký tự không phải số (bao gồm cả dấu chấm cũ)
+                                    const rawValue = e.target.value.replace(/\D/g, '');
+                                    setWithdrawAmount(rawValue);
+                                }}
+                                placeholder="Nhập số tiền muốn rút"
                                 autoFocus
                             />
+
+                            {/* ✅ DÒNG CẢNH BÁO NHỎ ĐỎ */}
+                            <div style={{ marginTop: '8px', minHeight: '18px' }}>
+                                {isOverBalance && (
+                                    <span style={{ fontSize: '12px', color: '#EF4444', fontWeight: '700' }}>
+                                        <i className="fa-solid fa-circle-exclamation"></i> Số dư hiện tại không đủ để rút!
+                                    </span>
+                                )}
+                                {isBelowMin && (
+                                    <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: '700' }}>
+                                        <i className="fa-solid fa-triangle-exclamation"></i> Số tiền tối thiểu là 50.000đ
+                                    </span>
+                                )}
+                            </div>
+
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
                                 <span style={{ fontSize: '12px', color: '#94A3B8' }}>* Tối thiểu 50.000đ</span>
                                 <span style={{ fontSize: '12px', color: '#F97350', fontWeight: '700' }}>Khả dụng: {toVND(balance)}</span>
+                                {/* ✅ NÚT RÚT HẾT TIỆN LỢI */}
+                                <button
+                                    onClick={() => setWithdrawAmount(balance.toString())}
+                                    style={{
+                                        background: '#FFF5F2',
+                                        border: '1px solid #F97350',
+                                        color: '#F97350',
+                                        fontSize: '11px',
+                                        fontWeight: '800',
+                                        padding: '2px 8px',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        transition: '0.2s'
+                                    }}
+                                    onMouseOver={(e) => { e.target.style.background = '#F97350'; e.target.style.color = '#fff'; }}
+                                    onMouseOut={(e) => { e.target.style.background = '#FFF5F2'; e.target.style.color = '#F97350'; }}
+                                >
+                                    TẤT CẢ
+                                </button>
                             </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: '15px' }}>
-                            <button
-                                className="btn soft"
-                                style={{ flex: 1, padding: '14px', borderRadius: '14px', borderStyle: 'dashed' }}
-                                onClick={() => setShowWithdrawModal(false)}
-                            >
-                                Hủy bỏ
-                            </button>
+                            <button className="btn soft" style={{ flex: 1 }} onClick={() => setShowWithdrawModal(false)}>Hủy bỏ</button>
                             <button
                                 className="btn primary"
-                                style={{ flex: 1, padding: '14px', borderRadius: '14px', fontSize: '16px' }}
+                                style={{
+                                    flex: 1,
+                                    opacity: isInvalid ? 0.5 : 1,
+                                    cursor: isInvalid ? 'not-allowed' : 'pointer'
+                                }}
                                 onClick={handleWithdraw}
-                                disabled={loading}
+                                // ✅ KHÓA NÚT KHI SỐ TIỀN SAI
+                                disabled={loading || isInvalid}
                             >
                                 {loading ? 'Đang gửi...' : 'Xác nhận rút'}
                             </button>
