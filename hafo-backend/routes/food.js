@@ -17,7 +17,6 @@ const fileFilter = (req, file, cb) => {
 
 // ========== API THÊM MÓN ==========
 router.post('/', uploadCloud.single('image'), async (req, res) => {
-    // ... (Code cũ của bạn, đảm bảo có xử lý options/toppings)
     try {
         const { name, price, description, restaurantId, options, toppings } = req.body;
         const imagePath = req.file ? req.file.path : "";
@@ -34,7 +33,8 @@ router.post('/', uploadCloud.single('image'), async (req, res) => {
             image: imagePath,
             restaurant: restaurantId,
             options: parsedOptions,
-            toppings: parsedToppings
+            toppings: parsedToppings,
+            isAvailable: true
         });
 
         await newFood.save();
@@ -49,19 +49,24 @@ router.put('/:id', uploadCloud.single('image'), async (req, res) => {
     try {
         const { name, price, description, isAvailable, options, toppings } = req.body;
 
-        const updateData = {
-            name,
-            price: Number(price),
-            description,
-            isAvailable: isAvailable === 'true' // Chuyển string sang boolean
-        };
+        // ✅ TẠO ĐỐI TƯỢNG CẬP NHẬT TRỐNG
+        const updateData = {};
 
-        // Nếu có file ảnh mới thì cập nhật, không thì giữ nguyên
+        // ✅ CHỈ THÊM VÀO KHI CÓ DỮ LIỆU GỬI LÊN
+        if (name) updateData.name = name;
+        if (price) updateData.price = Number(price);
+        if (description) updateData.description = description;
+
+        // Kiểm tra isAvailable vì nó có thể là false (không dùng if(isAvailable) được)
+        if (isAvailable !== undefined) {
+            // Chấp nhận cả kiểu boolean từ JSON hoặc kiểu string từ Multipart Form
+            updateData.isAvailable = (isAvailable === true || isAvailable === 'true');
+        }
+
         if (req.file) {
             updateData.image = req.file.path;
         }
 
-        // Cập nhật Options & Toppings
         if (options) {
             try { updateData.options = JSON.parse(options); } catch (e) { }
         }
