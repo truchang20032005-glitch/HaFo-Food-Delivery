@@ -88,19 +88,25 @@ function ShipperProfile() {
     const handleSaveProfile = async () => {
         try {
             setLoading(true);
-            await api.put(`/shippers/profile/${profile.user._id}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
 
+            // ✅ Gửi formData (đã bao gồm fullName mới)
+            const res = await api.put(`/shippers/profile/${profile.user._id}`, formData);
+
+            // 1. Cập nhật localStorage để các trang khác (như Navbar) thấy tên mới
             const localUser = JSON.parse(localStorage.getItem('user'));
             if (localUser) {
-                localStorage.setItem('user', JSON.stringify({ ...localUser, fullName: formData.fullName }));
+                localStorage.setItem('user', JSON.stringify({
+                    ...localUser,
+                    fullName: formData.fullName // Cập nhật tên mới vào đây
+                }));
             }
-            alert("✅ Đã lưu hồ sơ!");
+
+            // 2. Cập nhật state để UI thay đổi ngay lập tức
+            setProfile(res.data);
+            alert("✅ Đã cập nhật hồ sơ và họ tên thành công!");
             setIsEditing(false);
-            fetchProfile();
         } catch (err) {
-            alert("❌ Lỗi: " + err.message);
+            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -139,13 +145,28 @@ function ShipperProfile() {
                     </div>
                     <div>
                         {isEditing ? (
-                            <>
-                                <button className="ship-btn" onClick={() => setIsEditing(false)} disabled={loading}>Hủy</button>
-                                <button className="ship-btn primary" onClick={handleSaveProfile} disabled={loading} style={{ background: '#F97350', color: '#fff' }}>
-                                    {loading ? 'Đang lưu...' : 'Lưu'}
-                                </button>
-                            </>
-
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {/* Ô nhập Họ tên mới */}
+                                <input
+                                    name="fullName"
+                                    value={formData.fullName}
+                                    onChange={handleInputChange}
+                                    placeholder="Nhập họ tên mới"
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: '2px solid #F97350',
+                                        fontSize: '18px',
+                                        fontWeight: '700'
+                                    }}
+                                />
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="ship-btn" onClick={() => setIsEditing(false)} disabled={loading}>Hủy</button>
+                                    <button className="ship-btn primary" onClick={handleSaveProfile} disabled={loading} style={{ background: '#F97350', color: '#fff' }}>
+                                        {loading ? 'Đang lưu...' : 'Lưu'}
+                                    </button>
+                                </div>
+                            </div>
                         ) : (
                             <div style={{ fontWeight: '900', fontSize: '22px' }}>{profile.user.fullName}</div>
                         )}

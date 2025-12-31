@@ -19,34 +19,46 @@ router.post('/', async (req, res) => {
     }
 });
 
-// ✅ 2. CẬP NHẬT HỒ SƠ SHIPPER (THÊM MỚI ĐỂ HẾT LỖI 404)
+// CẬP NHẬT HỒ SƠ SHIPPER
 router.put('/profile/:userId', async (req, res) => {
     try {
         const {
-            fullName, phone, email,
-            vehicleType, licensePlate, currentLocation,
+            fullName, phone, email, // Dữ liệu của bảng User
+            vehicleType, licensePlate, // Dữ liệu của bảng Shipper
             bankName, bankAccount, bankOwner, bankBranch
         } = req.body;
 
-        // 1. Cập nhật thông tin cơ bản ở bảng User
+        // 1. Cập nhật bảng User để đổi fullName
         if (fullName || phone || email) {
-            await User.findByIdAndUpdate(req.params.userId, { fullName, phone, email });
+            await User.findByIdAndUpdate(req.params.userId, {
+                fullName,
+                phone,
+                email
+            });
         }
 
-        // 2. Cập nhật thông tin shipper & ngân hàng
+        // 2. Cập nhật bảng Shipper và trả về dữ liệu mới nhất
         const updatedShipper = await Shipper.findOneAndUpdate(
             { user: req.params.userId },
             {
-                vehicleType, licensePlate, currentLocation,
-                bankName, bankAccount, bankOwner, bankBranch
+                vehicleType,
+                licensePlate,
+                bankName,
+                bankAccount,
+                bankOwner,
+                bankBranch
             },
-            { new: true }
-        ).populate('user', '-password');
+            { new: true, runValidators: true } // Trả về data sau khi sửa
+        ).populate('user', '-password'); // Lấy luôn thông tin User mới cập nhật
 
-        if (!updatedShipper) return res.status(404).json({ message: "Không tìm thấy hồ sơ" });
+        if (!updatedShipper) {
+            return res.status(404).json({ message: "Không tìm thấy hồ sơ shipper" });
+        }
+
         res.json(updatedShipper);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("Lỗi cập nhật profile:", err);
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
     }
 });
 
