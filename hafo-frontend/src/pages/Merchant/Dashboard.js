@@ -21,6 +21,8 @@ function Dashboard() {
     const [ownerName, setOwnerName] = useState('');
     const [loading, setLoading] = useState(true);
     const [chartData, setChartData] = useState(null);
+    const [isOpen, setIsOpen] = useState(true); // Trạng thái mở/đóng quán
+    const [shopId, setShopId] = useState('');   // Lưu ID quán để gọi API
 
     const fmtMoney = (num) => (num || 0).toLocaleString('vi-VN') + 'đ';
 
@@ -31,6 +33,8 @@ function Dashboard() {
             api.get(`/restaurants/my-shop/${user.id}`)
                 .then(res => {
                     if (res.data) {
+                        setShopId(res.data._id);    // ✅ Lưu ID quán
+                        setIsOpen(res.data.isOpen); // ✅ Lưu trạng thái mở cửa
                         fetchDashboardData(res.data._id);
                     } else { setLoading(false); }
                 })
@@ -38,40 +42,78 @@ function Dashboard() {
         }
     }, []);
 
+    // hàm xử lý Bật/Tắt quán
+    const handleToggleOpen = async () => {
+        try {
+            const newStatus = !isOpen;
+            // Gọi API cập nhật quán (đã có sẵn ở backend/routes/restaurant.js)
+            await api.put(`/restaurants/${shopId}`, { isOpen: newStatus });
+            setIsOpen(newStatus);
+            alert(newStatus ? "🔓 Quán đã mở cửa đón khách!" : "🔒 Quán đã tạm đóng cửa!");
+        } catch (err) {
+            alert("Lỗi: " + err.message);
+        }
+    };
+
     const fetchDashboardData = async (restaurantId) => {
         try {
-            const res = await api.get(`/orders?restaurantId=${restaurantId}`);
+            const res = await api.get(`/orders?restaurantId=${restaurantId}`); //
             const myOrders = res.data;
 
-            // --- TÍNH TOÁN SỐ LIỆU ---
+            // 1. Lọc đơn đã hoàn thành
             const doneOrders = myOrders.filter(o => o.status === 'done');
             const revenue = doneOrders.reduce((sum, o) => sum + o.total, 0);
 
+            // --- XỬ LÝ DỮ LIỆU BIỂU ĐỒ THẬT (7 ngày gần nhất) ---
+
+            // A. Tạo danh sách 7 ngày gần đây (từ 6 ngày trước đến hôm nay)
+            const labels = [];
+            const dailyRevenue = [];
+
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+
+                // Định dạng label: "Thứ X, DD/MM"
+                const label = d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                labels.push(label);
+
+                // B. Tính tổng doanh thu của ngày đó
+                const dayTotal = doneOrders.filter(o => {
+                    const orderDate = new Date(o.createdAt).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                    return orderDate === label;
+                }).reduce((sum, o) => sum + o.total, 0);
+
+                dailyRevenue.push(dayTotal);
+            }
+
+            setChartData({
+                labels: labels,
+                datasets: [{
+                    label: 'Doanh thu thực tế (7 ngày)',
+                    data: dailyRevenue, // Dữ liệu thật đã tính toán ở trên
+                    borderColor: '#F97350',
+                    backgroundColor: 'rgba(249, 115, 80, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#F97350'
+                }]
+            });
+
+            // Cập nhật các chỉ số khác
             setStats({
                 revenue,
                 orders: myOrders.length,
                 avgValue: doneOrders.length > 0 ? Math.round(revenue / doneOrders.length) : 0,
-                balance: revenue // Số dư tạm tính
+                balance: revenue
             });
-
-            // Lấy 5 đơn gần nhất
             setRecentOrders(myOrders.slice(0, 5));
-
-            // --- XỬ LÝ DỮ LIỆU BIỂU ĐỒ (DEMO) ---
-            setChartData({
-                labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
-                datasets: [{
-                    label: 'Doanh thu tuần này',
-                    data: [120000, 190000, 150000, 250000, 220000, 300000, revenue / 10], // Demo data
-                    borderColor: '#F97350',
-                    backgroundColor: 'rgba(249, 115, 80, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            });
-
             setLoading(false);
-        } catch (err) { console.error(err); setLoading(false); }
+        } catch (err) {
+            console.error(err);
+            setLoading(false);
+        }
     };
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Đang chuẩn bị dữ liệu...</div>;
@@ -121,15 +163,54 @@ function Dashboard() {
                 <div className="panel">
                     <div className="head">Xu hướng doanh thu</div>
                     <div className="body" style={{ height: '300px' }}>
-                        {chartData && <Line data={chartData} options={{ maintainAspectRatio: false }} />}
+                        {chartData && <Line
+                            data={chartData}
+                            options={{
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            // Biến số thành dạng "100k", "200k" cho gọn
+                                            callback: (value) => (value / 1000) + 'k'
+                                        }
+                                    }
+                                }
+                            }}
+                        />}
                     </div>
                 </div>
 
                 {/* BÊN PHẢI: THAO TÁC NHANH & VÍ */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
                     <section className="panel">
-                        <div className="head">Thao tác nhanh</div>
-                        <div className="body shortcut-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="head" style={{ justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                            Thao tác nhanh
+                        </div>
+                        <div className="body shortcut-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                            {/* NÚT BẬT/TẮT QUÁN MỚI */}
+                            <div
+                                onClick={handleToggleOpen}
+                                className="shortcut"
+                                style={{
+                                    cursor: 'pointer',
+                                    padding: '15px',
+                                    // Khi quán ĐANG MỞ (isOpen=true), hiện nền đỏ nhạt để chuẩn bị Đóng
+                                    background: isOpen ? '#FFF1F0' : '#F0FDF4',
+                                    border: isOpen ? '1px solid #FCA5A5' : '1px solid #BBF7D0'
+                                }}
+                            >
+                                {/* Icon cũng đảo ngược: Đang mở thì hiện icon đóng để nhắc hành động */}
+                                <i className={`fa-solid ${isOpen ? 'fa-door-closed' : 'fa-door-open'}`}
+                                    style={{ color: isOpen ? '#EF4444' : '#22C55E' }}></i>
+
+                                <div>
+                                    <b style={{ color: isOpen ? '#EF4444' : '#22C55E' }}>
+                                        {/* ✅ Đang mở thì hiện chữ "Đóng cửa", đang đóng thì hiện "Mở cửa" */}
+                                        {isOpen ? 'Đóng cửa' : 'Mở cửa'}
+                                    </b>
+                                </div>
+                            </div>
                             <Link to="/merchant/menu" className="shortcut" style={{ textDecoration: 'none', color: 'inherit', padding: '15px' }}>
                                 <i className="fa-solid fa-bowl-food"></i>
                                 <div><b>Sửa Menu</b></div>

@@ -8,6 +8,42 @@ function MerchantWallet() {
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showBankModal, setShowBankModal] = useState(false); // Modal chỉnh sửa ngân hàng
+    const [bankFormData, setBankFormData] = useState({
+        bankName: '',
+        bankAccount: '',
+        bankOwner: '',
+        bankBranch: ''
+    });
+
+    // Hàm để đổ dữ liệu cũ vào form khi nhấn "Chỉnh sửa"
+    const openEditBank = () => {
+        setBankFormData({
+            bankName: shop?.bankName || '',
+            bankAccount: shop?.bankAccount || '',
+            bankOwner: shop?.bankOwner || '',
+            bankBranch: shop?.bankBranch || ''
+        });
+        setShowBankModal(true);
+    };
+
+    // Hàm gọi API cập nhật
+    const handleUpdateBank = async () => {
+        if (!bankFormData.bankName || !bankFormData.bankAccount) {
+            return alert("Má ơi, điền tên và số tài khoản ngân hàng nha!");
+        }
+        setLoading(true);
+        try {
+            await api.put(`/restaurants/${shop._id}`, bankFormData); // Gọi API put của quán
+            alert("✅ Cập nhật thông tin ngân hàng thành công!");
+            setShowBankModal(false);
+            fetchData(); // Tải lại dữ liệu mới nhất
+        } catch (err) {
+            alert("Lỗi: " + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const toVND = (n) => n.toLocaleString('vi-VN') + 'đ';
 
@@ -101,22 +137,109 @@ function MerchantWallet() {
 
     return (
         <div className="wallet-container">
-            {/* PHẦN HIỂN THỊ SỐ DƯ (Gọn gàng như trước) */}
-            <section className="panel" style={{ marginBottom: '24px' }}>
-                <div className="head">
+            <section className="panel" style={{ marginBottom: '24px', overflow: 'hidden' }}>
+                <div className="head" style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <i className="fa-solid fa-wallet" style={{ color: '#F97350' }}></i>
-                        <span>Ví & Đối soát</span>
+                        <span style={{ fontWeight: '800' }}>Quản lý dòng tiền</span>
                     </div>
                 </div>
-                <div className="body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <div style={{ color: '#64748B', fontSize: '14px', fontWeight: '600' }}>Số dư khả dụng</div>
-                        <div style={{ fontSize: '30px', fontWeight: '800', color: '#F97350' }}>{toVND(balance)}</div>
+                <div className="body" style={{ padding: '24px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '25px' }}>
+
+                        {/* CỘT 1: THẺ SỐ DƯ (Gradient rực rỡ) */}
+                        <div style={{
+                            background: 'linear-gradient(135deg, #F97350 0%, #FF5F6D 100%)',
+                            padding: '24px',
+                            borderRadius: '24px',
+                            color: '#fff',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 10px 20px rgba(249, 115, 80, 0.2)',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}>
+                            {/* Hoa văn trang trí cho sang chảnh */}
+                            <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '100px', height: '100px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}></div>
+
+                            <div>
+                                <div style={{ fontSize: '13px', opacity: 0.9, fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>SỐ DƯ KHẢ DỤNG</div>
+                                <div style={{ fontSize: '36px', fontWeight: '900', letterSpacing: '0.5px' }}>{toVND(balance)}</div>
+                            </div>
+
+                            <button
+                                className="btn"
+                                onClick={() => setShowWithdrawModal(true)}
+                                style={{
+                                    marginTop: '25px',
+                                    background: '#fff',
+                                    color: '#F97350',
+                                    border: 'none',
+                                    padding: '14px',
+                                    borderRadius: '16px',
+                                    fontWeight: '900',
+                                    fontSize: '15px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '10px',
+                                    transition: 'all 0.3s'
+                                }}
+                            >
+                                <i className="fa-solid fa-paper-plane"></i> RÚT TIỀN NGAY
+                            </button>
+                        </div>
+
+                        {/* CỘT 2: THÔNG TIN NGÂN HÀNG (Style thẻ ATM tinh tế) */}
+                        <div style={{
+                            background: '#fff',
+                            border: '2px solid #215f9eff',
+                            padding: '20px',
+                            borderRadius: '24px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            position: 'relative'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div>
+                                    <div style={{ fontSize: '11px', color: '#3f5a7fff', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>Tài khoản nhận tiền</div>
+                                    <div style={{ fontWeight: '800', fontSize: '16px', color: '#1E293B' }}>{shop?.bankName || 'Chưa cập nhật'}</div>
+                                </div>
+                                <button
+                                    onClick={openEditBank}
+                                    style={{
+                                        background: '#FFF5F2', border: 'none', color: '#F97350',
+                                        width: '36px', height: '36px', borderRadius: '50%',
+                                        cursor: 'pointer', fontSize: '14px', display: 'flex',
+                                        alignItems: 'center', justifyContent: 'center'
+                                    }}
+                                    title="Chỉnh sửa thông tin"
+                                >
+                                    <i className="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            </div>
+
+                            <div style={{ marginTop: '15px' }}>
+                                {/* Số tài khoản cách 4 số một lần nhìn cho chuyên nghiệp */}
+                                <div style={{ fontSize: '18px', fontWeight: '800', color: '#F97350', letterSpacing: '2px', fontFamily: 'monospace' }}>
+                                    {shop?.bankAccount ? shop.bankAccount.replace(/(\d{4})/g, '$1 ').trim() : '**** **** ****'}
+                                </div>
+                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#3f5a7fff', textTransform: 'uppercase', marginTop: '6px' }}>
+                                    {shop?.bankOwner || 'CHỦ TÀI KHOẢN --'}
+                                </div>
+                            </div>
+
+                            <div style={{
+                                marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #F1F5F9',
+                                fontSize: '12px', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '6px'
+                            }}>
+                                <i className="fa-solid fa-location-dot"></i> {shop?.bankBranch || 'Chi nhánh mặc định'}
+                            </div>
+                        </div>
                     </div>
-                    <button className="btn primary" onClick={() => setShowWithdrawModal(true)} style={{ padding: '12px 24px', borderRadius: '12px' }}>
-                        Rút tiền ngay
-                    </button>
                 </div>
             </section>
 
@@ -201,6 +324,59 @@ function MerchantWallet() {
                                 disabled={loading}
                             >
                                 {loading ? 'Đang gửi...' : 'Xác nhận rút'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL CHỈNH SỬA NGÂN HÀNG */}
+            {showBankModal && (
+                <div style={S.overlay}>
+                    <div style={S.sheet}>
+                        <h2 style={{ margin: '0 0 20px', color: '#F97350', fontSize: '20px', fontWeight: '800' }}>
+                            Cập nhật ngân hàng
+                        </h2>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
+                            <div>
+                                <label style={S.label}>Tên ngân hàng (VD: Vietcombank)</label>
+                                <input
+                                    style={S.input}
+                                    value={bankFormData.bankName}
+                                    onChange={e => setBankFormData({ ...bankFormData, bankName: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label style={S.label}>Số tài khoản</label>
+                                <input
+                                    style={S.input}
+                                    value={bankFormData.bankAccount}
+                                    onChange={e => setBankFormData({ ...bankFormData, bankAccount: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label style={S.label}>Tên chủ tài khoản (Viết hoa không dấu)</label>
+                                <input
+                                    style={S.input}
+                                    value={bankFormData.bankOwner}
+                                    onChange={e => setBankFormData({ ...bankFormData, bankOwner: e.target.value.toUpperCase() })}
+                                />
+                            </div>
+                            <div>
+                                <label style={S.label}>Chi nhánh (Không bắt buộc)</label>
+                                <input
+                                    style={S.input}
+                                    value={bankFormData.bankBranch}
+                                    onChange={e => setBankFormData({ ...bankFormData, bankBranch: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button className="btn soft" style={{ flex: 1 }} onClick={() => setShowBankModal(false)}>Hủy</button>
+                            <button className="btn primary" style={{ flex: 1 }} onClick={handleUpdateBank} disabled={loading}>
+                                {loading ? 'Đang lưu...' : 'Lưu thông tin'}
                             </button>
                         </div>
                     </div>

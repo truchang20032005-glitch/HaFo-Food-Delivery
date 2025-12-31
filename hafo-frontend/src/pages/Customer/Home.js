@@ -195,7 +195,15 @@ function Home() {
                                         <img
                                             src={res.image || 'https://via.placeholder.com/300x200?text=HaFo+Quan'}
                                             alt={res.name}
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: '0.3s' }}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                transition: '0.3s',
+                                                // ✅ HIỆU ỨNG MỜ VÀ ĐEN TRẮNG KHI ĐÓNG CỬA
+                                                filter: res.isOpen ? 'none' : 'grayscale(0.8) blur(2px)',
+                                                opacity: res.isOpen ? 1 : 0.8
+                                            }}
                                             onError={(e) => e.target.src = 'https://via.placeholder.com/300x200?text=HaFo+App'}
                                         />
                                         {/* Badge trạng thái */}

@@ -41,6 +41,7 @@ function Storefront() {
     const [userFormData, setUserFormData] = useState({});
     const [userAvatarFile, setUserAvatarFile] = useState(null);
     const [userAvatarPreview, setUserAvatarPreview] = useState('');
+    const [newCuisine, setNewCuisine] = useState('');
 
     const [loadingUser, setLoadingUser] = useState(false);
     const [loadingShop, setLoadingShop] = useState(false);
@@ -101,6 +102,7 @@ function Storefront() {
                     // Đảm bảo lấy đủ lat, lng, address từ DB
                     setFormData({
                         ...shopData,
+                        cuisine: shopData.cuisine || [],
                         lat: shopData.location?.coordinates[1] || 10.762, // index 1 là Latitude
                         lng: shopData.location?.coordinates[0] || 106.660, // index 0 là Longitude
                         address: shopData.address || '',
@@ -154,6 +156,20 @@ function Storefront() {
         }
     };
 
+    const addCuisine = () => {
+        if (newCuisine.trim() && !formData.cuisine.includes(newCuisine.trim())) {
+            setFormData({ ...formData, cuisine: [...formData.cuisine, newCuisine.trim()] });
+            setNewCuisine(''); // Xóa ô nhập sau khi thêm
+        }
+    };
+
+    const removeCuisine = (tagToRemove) => {
+        setFormData({
+            ...formData,
+            cuisine: formData.cuisine.filter(tag => tag !== tagToRemove)
+        });
+    };
+
     const handleSaveShop = async () => {
         setLoadingShop(true);
         try {
@@ -166,6 +182,10 @@ function Storefront() {
             data.append('closeTime', formData.closeTime || '');
             data.append('lat', formData.lat);
             data.append('lng', formData.lng);
+
+            if (formData.cuisine && formData.cuisine.length > 0) {
+                formData.cuisine.forEach(item => data.append('cuisine', item));
+            }
 
             if (imageFile) data.append('image', imageFile);
 
@@ -322,6 +342,35 @@ function Storefront() {
                                 <div style={{ flex: 1 }}>
                                     <label style={S.label}>Giờ đóng cửa</label>
                                     <input type="time" className="f-input" value={formData.closeTime || ''} onChange={e => setFormData({ ...formData, closeTime: e.target.value })} />
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '20px' }}>
+                                <label style={S.label}>Loại món ăn phục vụ (VD: Bún bò, Cà phê, Tráng miệng...)</label>
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                                    <input
+                                        className="f-input"
+                                        placeholder="Nhập loại món rồi nhấn Thêm..."
+                                        value={newCuisine}
+                                        onChange={(e) => setNewCuisine(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCuisine())}
+                                    />
+                                    <button className="btn" onClick={addCuisine} type="button">Thêm</button>
+                                </div>
+
+                                {/* Hiển thị danh sách các Tag món ăn */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {formData.cuisine && formData.cuisine.map((tag, idx) => (
+                                        <span key={idx} style={{
+                                            background: '#FFF1ED', color: '#F97350', padding: '5px 12px',
+                                            borderRadius: '20px', fontSize: '13px', fontWeight: '700',
+                                            display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #F97350'
+                                        }}>
+                                            {tag}
+                                            <i className="fa-solid fa-xmark"
+                                                style={{ cursor: 'pointer', fontSize: '14px' }}
+                                                onClick={() => removeCuisine(tag)}></i>
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
                         </div>

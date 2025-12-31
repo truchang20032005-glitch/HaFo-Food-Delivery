@@ -222,7 +222,7 @@ function MerchantLayout() {
                                 <div className="hr"></div>
 
                                 <div className="list-col">
-                                    <Link to="/merchant/dashboard" className={`btn ${isActive('dashboard') ? 'active' : 'soft'}`}><i className="fa-solid fa-chart-line"></i> Tổng quan</Link>
+                                    <Link to="/merchant/dashboard" className={`btn ${isActive('dashboard') ? 'active' : ''}`}><i className="fa-solid fa-chart-line"></i> Tổng quan</Link>
                                     <Link to="/merchant/menu" className={`btn ${isActive('menu') ? 'active' : ''}`}><i className="fa-solid fa-utensils"></i> Quản lý Menu</Link>
                                     <Link to="/merchant/orders" className={`btn ${isActive('orders') ? 'active' : ''}`}><i className="fa-solid fa-clock-rotate-left"></i> Đơn hàng</Link>
                                     <Link to="/merchant/storefront" className={`btn ${isActive('storefront') ? 'active' : ''}`}><i className="fa-solid fa-store"></i> Thông tin quán</Link>
