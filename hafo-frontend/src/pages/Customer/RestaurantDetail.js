@@ -16,6 +16,9 @@ function RestaurantDetail() {
     const [showModal, setShowModal] = useState(false);
     const { addToCart } = useCart();
 
+    const [detailFood, setDetailFood] = useState(null); // Lưu món đang xem chi tiết
+    const [showDetailModal, setShowDetailModal] = useState(false);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -45,6 +48,19 @@ function RestaurantDetail() {
         setSelectedFood(food);
         setShowModal(true);
     };
+
+    // ✅ Logic tính khoảng giá tự động từ menu
+    const dynamicPriceRange = useMemo(() => {
+        if (!foods || foods.length === 0) return 'Đang cập nhật...';
+        const prices = foods.map(f => f.price);
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+
+        // Nếu giá min và max bằng nhau (chỉ có 1 mức giá)
+        if (minPrice === maxPrice) return `${minPrice.toLocaleString()}đ`;
+
+        return `${minPrice.toLocaleString()}đ - ${maxPrice.toLocaleString()}đ`;
+    }, [foods]);
 
     const getImageUrl = (path) => {
         if (!path) return 'https://via.placeholder.com/400x300?text=No+Image';
@@ -100,7 +116,9 @@ function RestaurantDetail() {
                             <div style={{ display: 'flex', gap: '10px' }}><i className="fa-solid fa-location-dot" style={{ color: '#F97350' }}></i><span>{restaurant.address}</span></div>
                             <div style={{ display: 'flex', gap: '30px' }}>
                                 <span><i className="fa-regular fa-clock" style={{ color: '#F97350' }}></i> {restaurant.openTime} - {restaurant.closeTime}</span>
-                                <span><i className="fa-solid fa-wallet" style={{ color: '#F97350' }}></i> {restaurant.priceRange || '20k - 100k'}</span>
+                                <span>
+                                    <i className="fa-solid fa-wallet" style={{ color: '#F97350' }}></i> {dynamicPriceRange}
+                                </span>
                             </div>
                         </div>
 
@@ -174,7 +192,20 @@ function RestaurantDetail() {
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                             <div>
                                                 <h4 style={{ margin: '0 0 5px', fontSize: '16px' }}>{food.name}</h4>
-                                                <p style={{ fontSize: '12px', color: '#777', margin: 0 }}>{food.description}</p>
+                                                {/* ✅ Giới hạn mô tả chỉ hiện 1 dòng, nếu dài quá sẽ hiện dấu ... */}
+                                                <p style={{
+                                                    fontSize: '12px', color: '#777', margin: 0,
+                                                    display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                                                }}>
+                                                    {food.description || 'Chưa có mô tả món.'}
+                                                </p>
+                                                {/* ✅ Nút xem chi tiết nhỏ xinh */}
+                                                <span
+                                                    onClick={() => { setDetailFood(food); setShowDetailModal(true); }}
+                                                    style={{ fontSize: '11px', color: '#F97350', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}
+                                                >
+                                                    Xem chi tiết
+                                                </span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span style={{ fontWeight: 'bold', color: '#F97350' }}>{food.price.toLocaleString()}đ</span>
@@ -197,6 +228,38 @@ function RestaurantDetail() {
             </div>
 
             {selectedFood && <FoodModal isOpen={showModal} onClose={() => setShowModal(false)} food={selectedFood} onAddToCart={addToCart} />}
+            {/* MODAL XEM CHI TIẾT MÔ TẢ MÓN */}
+            {showDetailModal && detailFood && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }} onClick={() => setShowDetailModal(false)}>
+                    <div style={{ background: '#fff', width: '400px', borderRadius: '24px', overflow: 'hidden', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                        {/* Ảnh món vừa vặn, không tràn */}
+                        <div style={{ width: '100%', height: '220px', background: '#f5f5f5' }}>
+                            <img src={detailFood.image || "/images/default-food.png"} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '10px' }} alt="Detail" />
+                        </div>
+
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                <h3 style={{ margin: 0, fontSize: '20px', color: '#333' }}>{detailFood.name}</h3>
+                                <b style={{ color: '#F97350', fontSize: '18px' }}>{detailFood.price.toLocaleString()}đ</b>
+                            </div>
+
+                            <div style={{ background: '#F8FAFC', padding: '15px', borderRadius: '12px', border: '1px solid #E2E8F0', minHeight: '80px' }}>
+                                <small style={{ color: '#94A3B8', fontWeight: '800', textTransform: 'uppercase', fontSize: '10px', display: 'block', marginBottom: '5px' }}>Mô tả món ăn</small>
+                                <p style={{ margin: 0, fontSize: '14px', color: '#475569', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                                    {detailFood.description || 'Quán chưa cập nhật mô tả cho món này.'}
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={() => setShowDetailModal(false)}
+                                style={{ width: '100%', marginTop: '20px', padding: '12px', background: '#F97350', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                                Đóng lại
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
