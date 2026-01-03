@@ -305,7 +305,6 @@ function ShipperDashboard() {
                     Bấm để đổi vị trí ảo
                 </p>
             </div>
-            )
         </div>
     );
 }
