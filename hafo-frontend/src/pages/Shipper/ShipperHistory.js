@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const toVND = (n) => n?.toLocaleString('vi-VN') + 'đ';
 
 function ShipperHistory() {
     const [allOrders, setAllOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState('delivering'); // ✅ Đặt mặc định là Đang giao để shipper thấy ngay đơn dở dang
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [reviewDetail, setReviewDetail] = useState(null);
     const [replyText, setReplyText] = useState('');
@@ -16,34 +16,52 @@ function ShipperHistory() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const location = useLocation();
+    const navigate = useNavigate(); // ✅ Dùng để chuyển hướng về trang xử lý đơn
 
+    // ✅ Định nghĩa hàm mở Modal ổn định với useCallback để tránh Warning ESLint
     const handleSelectOrder = useCallback(async (order) => {
         setSelectedOrder(order);
         if (order.isReviewed) {
             try {
                 const res = await api.get(`/customer-reviews/order/${order._id}`);
                 setReviewDetail(res.data);
-            } catch (err) { console.error("Lỗi tải đánh giá:", err); }
+            } catch (err) {
+                console.error("Lỗi tải đánh giá:", err);
+            }
         }
     }, []);
 
-    // ✅ Dùng useCallback cho hàm loadHistory để fix cảnh báo ESLint
+    // ✅ Logic xử lý click: Đang giao thì chuyển trang, Hoàn tất thì mở Modal
+    const handleItemClick = useCallback((order) => {
+        const isActive = ['prep', 'ready', 'pickup'].includes(order.status);
+        if (isActive) {
+            navigate(`/shipper/order/${order._id}`);
+        } else {
+            handleSelectOrder(order);
+        }
+    }, [navigate, handleSelectOrder]);
+
+    // ✅ Hàm lấy dữ liệu ổn định (Sửa điều kiện lọc để lấy thêm đơn đang xử lý)
     const loadHistory = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) return;
+        const currentUserId = String(user.id || user._id);
+
         try {
             const res = await api.get('/orders');
+            // SỬA: Lấy tất cả các trạng thái đơn hàng mà shipper này tham gia
             const myHistory = res.data.filter(o =>
-                (o.shipperId?._id === (user.id || user._id) || o.shipperId === (user.id || user._id)) && o.status === 'done'
+                (String(o.shipperId?._id || o.shipperId) === currentUserId) &&
+                ['prep', 'ready', 'pickup', 'done', 'cancel'].includes(o.status)
             );
             myHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setAllOrders(myHistory);
 
-            // ✅ LOGIC ĐIỀU HƯỚNG THÔNG MINH: Tự động mở Modal nếu có ID từ chuông thông báo
+            // ✅ LOGIC ĐIỀU HƯỚNG THÔNG MINH TỪ CHUÔNG (Bell Notification)
             if (location.state?.openId) {
                 const target = myHistory.find(o => o._id === location.state.openId);
                 if (target) {
-                    handleSelectOrder(target);
+                    handleItemClick(target);
                     // Xóa trạng thái state để tránh việc tự mở lại khi Admin F5 trang
                     window.history.replaceState({}, document.title);
                 }
@@ -53,27 +71,38 @@ function ShipperHistory() {
         } finally {
             setLoading(false);
         }
-    }, [location.state, handleSelectOrder]); // Chỉ tạo lại khi 2 biến này đổi
+    }, [location.state, handleItemClick]);
 
-    // ✅ Thêm loadHistory vào dependency array để đúng chuẩn React
+    // ✅ Gọi loadHistory chuẩn React (Fix warning dependency)
     useEffect(() => {
         loadHistory();
     }, [loadHistory]);
 
+    // ✅ Logic lọc đơn hàng cho các Tab (Fix lỗi thiếu startOfWeek)
     const filteredOrders = useMemo(() => {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 ngày trước
 
         return allOrders.filter(order => {
+            // MỤC MỚI: Đang giao
+            if (filter === 'delivering') {
+                return ['prep', 'ready', 'pickup'].includes(order.status);
+            }
+
             const orderDate = new Date(order.createdAt);
-            if (filter === 'today') return orderDate >= startOfToday;
-            if (filter === 'week') return orderDate >= startOfWeek;
-            return true;
+            const isFinished = ['done', 'cancel'].includes(order.status);
+
+            if (filter === 'today') return isFinished && orderDate >= startOfToday;
+            if (filter === 'week') return isFinished && orderDate >= startOfWeek;
+
+            // Tab 'all' chỉ hiện lịch sử các đơn đã kết thúc (Xong hoặc Hủy)
+            return isFinished;
         });
     }, [allOrders, filter]);
 
-    const totalEarnings = filteredOrders.length * 15000;
+    // Thu nhập chỉ tính trên đơn đã giao thành công (done)
+    const totalEarnings = allOrders.filter(o => o.status === 'done').length * 15000;
 
     const handleSendReply = async () => {
         if (!replyText.trim()) return;
@@ -92,33 +121,26 @@ function ShipperHistory() {
         finally { setIsSubmitting(false); }
     };
 
-    // ✅ ĐÃ SỬA: Đồng bộ với API report.js mới nhất
     const handleReportReview = async () => {
         if (!reportReason.trim()) return alert("Vui lòng nhập lý do!");
         setIsSubmitting(true);
         try {
             const user = JSON.parse(localStorage.getItem('user'));
-
             const reportData = {
                 orderId: selectedOrder._id,
-                reporterId: user.id || user._id, // Đổi shipperId thành reporterId cho đúng Model
-                reporterRole: 'shipper',          // Thêm reporterRole
+                reporterId: user.id || user._id,
+                reporterRole: 'shipper',
                 reason: reportReason,
                 reviewContent: reviewDetail.shipperComment
             };
-
             await api.post('/reports/review', reportData);
-
             alert("🚩 Đã gửi khiếu nại lên Admin!");
             setIsReporting(false);
             setReportReason('');
-            loadHistory(); // Tải lại danh sách để cập nhật trạng thái
+            loadHistory();
             setSelectedOrder(null);
-        } catch (err) {
-            alert("Lỗi báo cáo: " + err.message);
-        } finally {
-            setIsSubmitting(false);
-        }
+        } catch (err) { alert("Lỗi báo cáo: " + err.message); }
+        finally { setIsSubmitting(false); }
     };
 
     const renderStars = (n) => [...Array(5)].map((_, i) => (
@@ -145,58 +167,85 @@ function ShipperHistory() {
     return (
         <div style={{ maxWidth: '600px', margin: '0 auto', padding: '15px 15px 80px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#1E293B', marginBottom: '20px' }}>
-                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#F97350', marginRight: '8px' }}></i> Lịch sử đơn hàng
+                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#F97350', marginRight: '8px' }}></i> Lịch sử hoạt động
             </h2>
 
             <div style={S.summaryCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
                     <div>
                         <div style={{ fontSize: '11px', opacity: 0.9 }}>Đơn hoàn tất</div>
-                        <div style={{ fontSize: '24px', fontWeight: '900' }}>{filteredOrders.length}</div>
+                        <div style={{ fontSize: '24px', fontWeight: '900' }}>{allOrders.filter(o => o.status === 'done').length}</div>
                     </div>
                     <div>
-                        <div style={{ fontSize: '11px', opacity: 0.9 }}>Thu nhập ước tính</div>
+                        <div style={{ fontSize: '11px', opacity: 0.9 }}>Tổng thu nhập</div>
                         <div style={{ fontSize: '24px', fontWeight: '900' }}>{toVND(totalEarnings)}</div>
                     </div>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            {/* THANH TAB BỘ LỌC CẢI TIẾN */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '5px' }}>
+                <button onClick={() => setFilter('delivering')} style={{
+                    padding: '8px 16px', borderRadius: '20px', border: 'none', fontWeight: '700', fontSize: '12px',
+                    background: filter === 'delivering' ? '#F97350' : '#fff', color: filter === 'delivering' ? '#fff' : '#64748B',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer', whiteSpace: 'nowrap'
+                }}>Đang giao</button>
+
                 {['all', 'today', 'week'].map(t => (
                     <button key={t} onClick={() => setFilter(t)} style={{
                         padding: '6px 16px', borderRadius: '20px', border: 'none', fontWeight: '700', fontSize: '12px',
                         background: filter === t ? '#F97350' : '#fff', color: filter === t ? '#fff' : '#64748B',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer'
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer', whiteSpace: 'nowrap'
                     }}>
                         {t === 'all' ? 'Tất cả' : t === 'today' ? 'Hôm nay' : 'Tuần này'}
                     </button>
                 ))}
             </div>
 
-            {allOrders.map(order => (
-                <div key={order._id} style={S.orderCard} onClick={() => handleSelectOrder(order)}>
-                    <div>
-                        <div style={S.boldText}>#{order._id.slice(-6).toUpperCase()}</div>
-                        <div style={S.smallText}>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: '800', color: '#F97350', fontSize: '14px' }}>+15k</div>
-                        {/* ✅ ĐÃ SỬA: Sử dụng order.shipperRating cho đúng Model mới */}
-                        {order.isReviewed && (
-                            <div style={{ marginTop: '2px', display: 'flex', justifyContent: 'flex-end', gap: '2px' }}>
-                                {order.shipperRating > 0 ? (
-                                    [...Array(5)].map((_, i) => (
-                                        <i key={i} className="fa-solid fa-star"
-                                            style={{ color: i < order.shipperRating ? '#F5A524' : '#E2E8F0', fontSize: '10px' }} />
-                                    ))
+            {filteredOrders.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Không có đơn hàng nào ở mục này.</div>
+            ) : (
+                filteredOrders.map(order => {
+                    const isActive = ['prep', 'ready', 'pickup'].includes(order.status);
+                    return (
+                        <div key={order._id} style={S.orderCard} onClick={() => handleItemClick(order)}>
+                            <div>
+                                <div style={S.boldText}>#{order._id.slice(-6).toUpperCase()}</div>
+                                <div style={S.smallText}>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                {isActive ? (
+                                    <span style={{
+                                        fontSize: '10px', color: '#F97350', fontWeight: '800',
+                                        border: '1px solid #F97350', padding: '2px 8px', borderRadius: '10px',
+                                        display: 'inline-block'
+                                    }}>
+                                        TIẾP TỤC GIAO ➔
+                                    </span>
                                 ) : (
-                                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>Đã đánh giá</span>
+                                    <>
+                                        <div style={{ fontWeight: '800', color: '#F97350', fontSize: '14px' }}>
+                                            {order.status === 'done' ? '+15.000đ' : 'Đã hủy'}
+                                        </div>
+                                        {order.isReviewed && (
+                                            <div style={{ marginTop: '2px', display: 'flex', justifyContent: 'flex-end', gap: '2px' }}>
+                                                {order.shipperRating > 0 ? (
+                                                    [...Array(5)].map((_, i) => (
+                                                        <i key={i} className="fa-solid fa-star"
+                                                            style={{ color: i < order.shipperRating ? '#F5A524' : '#E2E8F0', fontSize: '10px' }} />
+                                                    ))
+                                                ) : (
+                                                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>Đã đánh giá</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
-                        )}
-                    </div>
-                </div>
-            ))}
+                        </div>
+                    );
+                })
+            )}
 
             {selectedOrder && (
                 <div style={S.overlay} onClick={() => { setSelectedOrder(null); setReviewDetail(null); }}>
