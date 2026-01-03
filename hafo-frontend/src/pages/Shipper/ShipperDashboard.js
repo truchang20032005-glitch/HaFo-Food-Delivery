@@ -268,44 +268,44 @@ function ShipperDashboard() {
                 </>
             )}
             {/* MENU GIẢ LẬP VỊ TRÍ - CHỈ HIỆN KHI ĐANG DEV */}
-            {window.location.hostname === 'localhost' && (
-                <div style={{
-                    position: 'fixed', bottom: '80px', right: '20px', zIndex: 9999,
-                    background: '#fff', padding: '15px', borderRadius: '16px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '2px solid #F97350',
-                    width: '200px'
-                }}>
-                    <div style={{ fontSize: '12px', fontWeight: '800', marginBottom: '10px', color: '#F97350', textAlign: 'center' }}>
-                        <i className="fa-solid fa-flask"></i> TESTER MODE
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {MOCK_LOCATIONS.map(loc => (
-                            <button
-                                key={loc.name}
-                                onClick={() => {
-                                    const coords = { lat: loc.lat, lng: loc.lng };
-                                    setMyLocation(coords);
-                                    // Cập nhật luôn lên Backend để đồng bộ đơn hàng
-                                    api.put(`/shippers/location/${user.id}`, coords).catch(() => { });
-                                    alert(`Đã "bay" đến: ${loc.name}`);
-                                }}
-                                style={{
-                                    padding: '8px', fontSize: '11px', borderRadius: '8px',
-                                    border: '1px solid #eee', cursor: 'pointer',
-                                    background: myLocation?.lat === loc.lat ? '#FFF5F2' : '#fff',
-                                    fontWeight: myLocation?.lat === loc.lat ? 'bold' : 'normal',
-                                    color: myLocation?.lat === loc.lat ? '#F97350' : '#333'
-                                }}
-                            >
-                                {loc.name}
-                            </button>
-                        ))}
-                    </div>
-                    <p style={{ fontSize: '10px', color: '#999', marginTop: '10px', textAlign: 'center' }}>
-                        Bấm để đổi vị trí ảo
-                    </p>
+
+            <div style={{
+                position: 'fixed', bottom: '80px', right: '20px', zIndex: 9999,
+                background: '#fff', padding: '15px', borderRadius: '16px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '2px solid #F97350',
+                width: '200px'
+            }}>
+                <div style={{ fontSize: '12px', fontWeight: '800', marginBottom: '10px', color: '#F97350', textAlign: 'center' }}>
+                    <i className="fa-solid fa-flask"></i> TESTER MODE
                 </div>
-            )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {MOCK_LOCATIONS.map(loc => (
+                        <button
+                            key={loc.name}
+                            onClick={() => {
+                                const coords = { lat: loc.lat, lng: loc.lng };
+                                setMyLocation(coords);
+                                // Cập nhật luôn lên Backend để đồng bộ đơn hàng
+                                api.put(`/shippers/location/${user.id}`, coords).catch(() => { });
+                                alert(`Đã "bay" đến: ${loc.name}`);
+                            }}
+                            style={{
+                                padding: '8px', fontSize: '11px', borderRadius: '8px',
+                                border: '1px solid #eee', cursor: 'pointer',
+                                background: myLocation?.lat === loc.lat ? '#FFF5F2' : '#fff',
+                                fontWeight: myLocation?.lat === loc.lat ? 'bold' : 'normal',
+                                color: myLocation?.lat === loc.lat ? '#F97350' : '#333'
+                            }}
+                        >
+                            {loc.name}
+                        </button>
+                    ))}
+                </div>
+                <p style={{ fontSize: '10px', color: '#999', marginTop: '10px', textAlign: 'center' }}>
+                    Bấm để đổi vị trí ảo
+                </p>
+            </div>
+            )
         </div>
     );
 }
