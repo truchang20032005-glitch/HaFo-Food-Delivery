@@ -27,6 +27,9 @@ function ShipperDashboard() {
     const [currentOrderId, setCurrentOrderId] = useState(null);
     const prevOrderCountRef = useRef(0);
 
+    const [testerPos, setTesterPos] = useState({ x: 20, y: 80 }); // Vị trí (cách bottom, right)
+    const [showTesterMenu, setShowTesterMenu] = useState(false); // Đóng/mở menu
+
     // --- 1. LOGIC LẤY ĐƠN HÀNG ---
     const fetchOrders = useCallback(async () => {
         if (!isWorking || !myLocation) return;
@@ -270,40 +273,105 @@ function ShipperDashboard() {
             {/* MENU GIẢ LẬP VỊ TRÍ - CHỈ HIỆN KHI ĐANG DEV */}
 
             <div style={{
-                position: 'fixed', bottom: '80px', right: '20px', zIndex: 9999,
-                background: '#fff', padding: '15px', borderRadius: '16px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '2px solid #F97350',
-                width: '200px'
+                position: 'fixed',
+                bottom: `${testerPos.y}px`,
+                right: `${testerPos.x}px`,
+                zIndex: 10000,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '10px'
             }}>
-                <div style={{ fontSize: '12px', fontWeight: '800', marginBottom: '10px', color: '#F97350', textAlign: 'center' }}>
-                    <i className="fa-solid fa-flask"></i> TESTER MODE
+                {/* 1. Menu xổ xuống (Chỉ hiện khi nhấn vào Avatar) */}
+                {showTesterMenu && (
+                    <div className="animate-pop-in" style={{
+                        background: '#fff',
+                        padding: '15px',
+                        borderRadius: '16px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                        border: '2px solid #F97350',
+                        width: '180px',
+                        marginBottom: '5px'
+                    }}>
+                        <div style={{ fontSize: '11px', fontWeight: '800', marginBottom: '10px', color: '#F97350', textAlign: 'center' }}>
+                            <i className="fa-solid fa-flask"></i> CHỌN ĐIỂM ĐẾN
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {MOCK_LOCATIONS.map(loc => (
+                                <button
+                                    key={loc.name}
+                                    onClick={() => {
+                                        const coords = { lat: loc.lat, lng: loc.lng };
+                                        setMyLocation(coords);
+                                        api.put(`/shippers/location/${user.id}`, coords).catch(() => { });
+                                        alert(`🚀 Đã bay đến: ${loc.name}`);
+                                        setShowTesterMenu(false);
+                                    }}
+                                    style={{
+                                        padding: '10px', fontSize: '11px', borderRadius: '10px',
+                                        border: '1px solid #eee', cursor: 'pointer',
+                                        background: myLocation?.lat === loc.lat ? '#FFF5F2' : '#f9fafb',
+                                        fontWeight: myLocation?.lat === loc.lat ? 'bold' : 'normal',
+                                        color: myLocation?.lat === loc.lat ? '#F97350' : '#333'
+                                    }}
+                                >
+                                    {loc.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. Nút Avatar (Bong bóng di chuyển) */}
+                <div
+                    onMouseDown={(e) => {
+                        // Logic di chuyển (Draggable)
+                        const startX = e.clientX;
+                        const startY = e.clientY;
+                        const initialX = testerPos.x;
+                        const initialY = testerPos.y;
+
+                        const onMouseMove = (moveEvent) => {
+                            setTesterPos({
+                                x: initialX + (startX - moveEvent.clientX),
+                                y: initialY + (startY - moveEvent.clientY)
+                            });
+                        };
+
+                        const onMouseUp = () => {
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                        };
+
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    }}
+                    onClick={(e) => {
+                        // Chỉ mở menu nếu không phải là đang kéo (Drag)
+                        setShowTesterMenu(!showTesterMenu);
+                    }}
+                    style={{
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '50%',
+                        background: '#F97350',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        cursor: 'grab',
+                        boxShadow: '0 4px 15px rgba(249, 115, 80, 0.4)',
+                        border: '3px solid #fff',
+                        fontSize: '20px',
+                        userSelect: 'none',
+                        transition: 'transform 0.2s active:scale-95'
+                    }}
+                    title="Kéo để di chuyển, Nhấn để đổi vị trí"
+                >
+                    <i className={showTesterMenu ? "fa-solid fa-xmark" : "fa-solid fa-flask"}></i>
+                    {/* Chấm đỏ nhỏ báo hiệu chế độ Tester */}
+                    <span style={{ position: 'absolute', top: 0, right: 0, width: '12px', height: '12px', background: '#22C55E', borderRadius: '50%', border: '2px solid #fff' }}></span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {MOCK_LOCATIONS.map(loc => (
-                        <button
-                            key={loc.name}
-                            onClick={() => {
-                                const coords = { lat: loc.lat, lng: loc.lng };
-                                setMyLocation(coords);
-                                // Cập nhật luôn lên Backend để đồng bộ đơn hàng
-                                api.put(`/shippers/location/${user.id}`, coords).catch(() => { });
-                                alert(`Đã "bay" đến: ${loc.name}`);
-                            }}
-                            style={{
-                                padding: '8px', fontSize: '11px', borderRadius: '8px',
-                                border: '1px solid #eee', cursor: 'pointer',
-                                background: myLocation?.lat === loc.lat ? '#FFF5F2' : '#fff',
-                                fontWeight: myLocation?.lat === loc.lat ? 'bold' : 'normal',
-                                color: myLocation?.lat === loc.lat ? '#F97350' : '#333'
-                            }}
-                        >
-                            {loc.name}
-                        </button>
-                    ))}
-                </div>
-                <p style={{ fontSize: '10px', color: '#999', marginTop: '10px', textAlign: 'center' }}>
-                    Bấm để đổi vị trí ảo
-                </p>
             </div>
         </div>
     );
