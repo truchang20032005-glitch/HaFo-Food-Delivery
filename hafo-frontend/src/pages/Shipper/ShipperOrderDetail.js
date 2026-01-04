@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'; // Thêm useCallback
+import { useEffect, useState, useCallback, useRef } from 'react'; // Thêm useCallback
 import { useParams, useNavigate } from 'react-router-dom';
 import Chat from '../../components/Chat';
 import api from '../../services/api';
@@ -122,10 +122,44 @@ function ShipperOrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
-    const timerRef = useRef(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [hasNewMsg, setHasNewMsg] = useState(false);
     const [lastNotifiedMsgId, setLastNotifiedMsgId] = useState(null);
+
+    const [btnPos, setBtnPos] = useState({ x: 20, y: 150 });
+    const movedRef = useRef(false); // Ref để kiểm tra xem có đang kéo hay không
+
+    const handleMouseDown = (e) => {
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const initialX = btnPos.x;
+        const initialY = btnPos.y;
+        movedRef.current = false; // Reset trạng thái mỗi khi nhấn xuống
+
+        const onMouseMove = (moveEvent) => {
+            // Tính toán khoảng cách di chuyển
+            const deltaX = startX - moveEvent.clientX;
+            const deltaY = startY - moveEvent.clientY;
+
+            // Nếu di chuyển hơn 5px thì coi như là đang kéo
+            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                movedRef.current = true;
+            }
+
+            setBtnPos({
+                x: initialX + deltaX,
+                y: initialY + deltaY
+            });
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
 
     // DÙNG useCallback ĐỂ FIX WARNING
     const fetchOrder = useCallback(async () => {
@@ -136,20 +170,31 @@ function ShipperOrderDetail() {
     }, [id]); // Phụ thuộc vào id
 
     // DÙNG useCallback ĐỂ FIX WARNING
-    const checkNewMessages = useCallback(async () => {
+    const checkMessages = useCallback(async () => {
         try {
             const res = await api.get(`/messages/${id}`);
             const messages = res.data;
             if (messages.length > 0) {
                 const lastMsg = messages[messages.length - 1];
+                const lastRead = localStorage.getItem(`lastRead_${id}`);
                 const currentUserId = localStorage.getItem('userId');
 
-                // ✅ Nếu tin nhắn mới từ người khác VÀ chưa được báo âm thanh
+                // A. Âm thanh báo tin nhắn (chỉ khi tin mới khác ID cũ)
                 if (lastMsg.senderId !== currentUserId && lastMsg._id !== lastNotifiedMsgId) {
-                    const audio = new Audio('/sounds/message.mp3'); // Bạn nhớ thêm file này vào public/sounds
-                    audio.play().catch(e => console.log("Autoplay blocked"));
-                    setLastNotifiedMsgId(lastMsg._id); // Lưu lại để không kêu lần nữa
-                    setHasNewMsg(true);
+                    const audio = new Audio('/sounds/message.mp3');
+                    audio.play().catch(() => { });
+                    setLastNotifiedMsgId(lastMsg._id);
+                }
+
+                // B. Logic Chấm đỏ: Nếu tin cuối từ đối phương VÀ chưa được đọc (mốc thời gian)
+                if (lastMsg.senderId !== currentUserId) {
+                    if (!lastRead || new Date(lastMsg.createdAt) > new Date(lastRead)) {
+                        setHasNewMsg(true);
+                    } else {
+                        setHasNewMsg(false);
+                    }
+                } else {
+                    setHasNewMsg(false); // Mình là người nhắn cuối thì không hiện chấm đỏ
                 }
             }
         } catch (err) { console.error(err); }
@@ -157,15 +202,16 @@ function ShipperOrderDetail() {
 
     useEffect(() => {
         fetchOrder();
-        timerRef.current = setInterval(fetchOrder, 5000);
-        return () => clearInterval(timerRef.current);
-    }, [fetchOrder]); // Bây giờ phụ thuộc vào hàm đã memoized
+        const t1 = setInterval(fetchOrder, 5000);
+        const t2 = setInterval(checkMessages, 4000);
+        return () => { clearInterval(t1); clearInterval(t2); };
+    }, [fetchOrder, checkMessages]);
 
-    useEffect(() => {
-        checkNewMessages();
-        const interval = setInterval(checkNewMessages, 5000);
-        return () => clearInterval(interval);
-    }, [checkNewMessages]); // Bây giờ phụ thuộc vào hàm đã memoized
+    const handleOpenChat = () => {
+        setIsChatOpen(true);
+        setHasNewMsg(false);
+        localStorage.setItem(`lastRead_${id}`, new Date().toISOString());
+    };
 
     const updateStatus = async (status, reason = '') => {
         try {
@@ -189,9 +235,9 @@ function ShipperOrderDetail() {
     const isReady = order.status === 'ready';
     const isPickup = order.status === 'pickup';
 
-    const handleOpenMap = (lat, lng, label) => {
-        if (!lat || !lng) return alert("Không tìm thấy tọa độ vị trí này!");
-        // Mở Google Maps với tọa độ và nhãn tên
+    const handleOpenMap = (lat, lng) => {
+        if (!lat || !lng) return alert("Không tìm thấy tọa độ!");
+        // Cấu trúc URL chuẩn để mở app bản đồ
         const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
         window.open(url, '_blank');
     };
@@ -273,15 +319,58 @@ function ShipperOrderDetail() {
                         <a href={`tel:${custPhone}`} style={styles.callBtn}>
                             <i className="fa-solid fa-phone"></i> Gọi khách
                         </a>
-                        <button
-                            onClick={() => setIsChatOpen(true)}
-                            style={{ ...styles.chatBtn, position: 'relative' }}
+                        <div
+                            style={{
+                                position: 'fixed',
+                                right: `${btnPos.x}px`,
+                                bottom: `${btnPos.y}px`,
+                                zIndex: 1000,
+                                touchAction: 'none' // Ngăn trình duyệt cuộn trang khi đang kéo trên mobile
+                            }}
                         >
-                            <i className="fa-solid fa-comment-dots"></i> Nhắn tin
-                            {hasNewMsg && (
-                                <span style={{ position: 'absolute', top: '0px', right: '5px', width: '10px', height: '10px', background: 'red', borderRadius: '50%', border: '2px solid white' }} />
-                            )}
-                        </button>
+                            <button
+                                onMouseDown={handleMouseDown} // Bắt đầu kéo
+                                onClick={() => {
+                                    // ✅ CHỈ MỞ CHAT NẾU KHÔNG PHẢI LÀ ĐANG KÉO
+                                    if (!movedRef.current) {
+                                        handleOpenChat();
+                                    }
+                                }}
+                                style={{
+                                    position: 'relative',
+                                    width: '60px',
+                                    height: '60px',
+                                    borderRadius: '50%',
+                                    background: '#F97350',
+                                    border: '3px solid #fff',
+                                    color: '#fff',
+                                    fontSize: '24px',
+                                    boxShadow: '0 8px 20px rgba(249, 115, 80, 0.4)',
+                                    cursor: 'grab',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: movedRef.current ? 'none' : 'transform 0.2s' // Mượt khi không kéo
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                                <i className="fa-solid fa-comments"></i>
+                                {hasNewMsg && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: '-2px',
+                                        right: '-2px',
+                                        width: '18px',
+                                        height: '18px',
+                                        background: '#EF4444',
+                                        borderRadius: '50%',
+                                        border: '3px solid #fff',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                                    }}></span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div style={{ marginTop: 15, paddingTop: 15, borderTop: '2px dashed #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

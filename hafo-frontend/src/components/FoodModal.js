@@ -49,7 +49,7 @@ function FoodModal({ isOpen, onClose, food, onAddToCart }) {
     const handleConfirm = () => {
         const cartItem = {
             ...food,
-            uniqueId: Date.now(),
+            uniqueId: Date.now() + Math.random(),
             selectedSize: size,
             sizePrice: sizePrice,
             selectedToppings: toppings,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
@@ -22,32 +22,124 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return 2; // Mặc định 2km nếu thiếu
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+const calculateShippingFee = (dist) => {
+    const BASE_FEE = 16000; // 2km đầu
+    const PER_KM_FEE = 5000; // Mỗi km tiếp theo
+    if (dist <= 2) return BASE_FEE;
+    return BASE_FEE + Math.ceil(dist - 2) * PER_KM_FEE;
+};
+
 function Checkout() {
     const { cartItems, totalAmount, clearCart } = useCart();
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({ name: '', phone: '', address: '', note: '', lat: null, lng: null });
     const [paymentMethod, setPaymentMethod] = useState('CASH');
-    const [vouchers, setVouchers] = useState([]); // Trong code của má là 'promos', ở đây con giữ 'vouchers' cho đồng bộ state cũ
+    const [vouchers, setVouchers] = useState([]);
     const [selectedVoucher, setSelectedVoucher] = useState(null);
     const [discountAmount, setDiscountAmount] = useState(0);
     const [showMapModal, setShowMapModal] = useState(false);
 
-    const SHIP_FEE = 22000;
     const APP_FEE = 2000;
-    const FINAL_TOTAL = Math.max(0, totalAmount + SHIP_FEE + APP_FEE - discountAmount);
+
+    const groups = useMemo(() => {
+        return cartItems.reduce((acc, item) => {
+            const resId = item.restaurantId || item.restaurant;
+            if (!acc[resId]) {
+                acc[resId] = {
+                    name: item.restaurantName,
+                    items: [],
+                    lat: item.resLat, // Lấy từ món ăn mình đã sửa ở bước 2
+                    lng: item.resLng
+                };
+            }
+            acc[resId].items.push(item);
+            return acc;
+        }, {});
+    }, [cartItems]);
+
+    const shippingInfo = useMemo(() => {
+        const details = {};
+        let total = 0;
+
+        Object.keys(groups).forEach(resId => {
+            const res = groups[resId];
+            const dist = calculateDistance(res.lat, res.lng, formData.lat, formData.lng);
+            const fee = calculateShippingFee(dist);
+            details[resId] = fee;
+            total += fee;
+        });
+
+        return { total, details };
+    }, [groups, formData.lat, formData.lng]);
+
+    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total + APP_FEE - discountAmount);
+
+    const handleSelectVoucher = (voucher) => {
+        if (selectedVoucher?._id === voucher._id) {
+            setSelectedVoucher(null); setDiscountAmount(0); return;
+        }
+
+        // Tìm tổng tiền của riêng quán có voucher này
+        const resId = voucher.restaurantId || voucher.restaurant;
+        const resSubtotal = groups[resId]?.items.reduce((sum, it) => sum + (it.finalPrice * it.quantity), 0) || 0;
+
+        if (resSubtotal < voucher.minOrder) {
+            return alert(`Đơn hàng của quán "${groups[resId]?.name}" phải từ ${toVND(voucher.minOrder)}đ mới dùng được mã này!`);
+        }
+
+        setSelectedVoucher(voucher);
+        setDiscountAmount(voucher.type === 'percent' ? (resSubtotal * voucher.value) / 100 : voucher.value);
+    };
 
     function LocationMarker() {
         useMapEvents({
-            click(e) {
-                setFormData(prev => ({ ...prev, lat: e.latlng.lat, lng: e.latlng.lng }));
-            },
+            async click(e) {
+                const { lat, lng } = e.latlng;
+
+                // 1. Hiện trạng thái đang xử lý
+                setFormData(prev => ({ ...prev, lat, lng, address: '📍 Đang xác định địa chỉ...' }));
+
+                try {
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`
+                    );
+                    const data = await response.json();
+
+                    if (data && data.display_name) {
+                        const newAddress = data.display_name;
+
+                        // 2. Cập nhật State
+                        setFormData(prev => ({ ...prev, address: newAddress }));
+
+                        // 3. LƯU VÀO LOCALSTORAGE để không bị mất khi reload
+                        const tempLoc = { lat, lng, address: newAddress };
+                        localStorage.setItem('temp_checkout_location', JSON.stringify(tempLoc));
+                    }
+                } catch (error) {
+                    setFormData(prev => ({ ...prev, address: 'Không tìm thấy địa chỉ, vui lòng nhập tay.' }));
+                }
+            }
         });
         return (formData.lat && formData.lng) ? <Marker position={[formData.lat, formData.lng]} /> : null;
     }
 
     useEffect(() => {
         const fetchUserInfo = async () => {
+            // Kiểm tra xem có địa chỉ vừa ghim trong máy không
+            const savedLoc = localStorage.getItem('temp_checkout_location');
+            const parsedLoc = savedLoc ? JSON.parse(savedLoc) : null;
+
             const userStr = localStorage.getItem('user');
             if (userStr) {
                 const userObj = JSON.parse(userStr);
@@ -58,9 +150,10 @@ function Checkout() {
                         ...prev,
                         name: userData.fullName || prev.name,
                         phone: userData.phone || prev.phone,
-                        address: userData.addresses?.[0]?.value || prev.address,
-                        lat: userData.addresses?.[0]?.lat || 10.762622,
-                        lng: userData.addresses?.[0]?.lng || 106.660172
+                        // Ưu tiên lấy từ parsedLoc (vừa ghim), nếu không có mới lấy từ userData
+                        address: parsedLoc?.address || userData.addresses?.[0]?.value || prev.address,
+                        lat: parsedLoc?.lat || userData.addresses?.[0]?.lat || 10.762622,
+                        lng: parsedLoc?.lng || userData.addresses?.[0]?.lng || 106.660172
                     }));
                 } catch (err) { console.error("Lỗi user info:", err); }
             }
@@ -70,65 +163,81 @@ function Checkout() {
 
     useEffect(() => {
         if (cartItems.length > 0) {
-            const restaurantId = cartItems[0].restaurant || cartItems[0].restaurantId;
-            api.get(`/promos/${restaurantId}`)
-                .then(res => setVouchers(res.data.filter(v => v.isActive)))
-                .catch(err => console.error("Lỗi voucher:", err));
+            const fetchAllPromos = async () => {
+                // Lấy danh sách ID nhà hàng duy nhất
+                const uniqueResIds = [...new Set(cartItems.map(item => item.restaurantId || item.restaurant))];
+                try {
+                    // Gọi API lấy promo của tất cả các quán cùng lúc
+                    const promises = uniqueResIds.map(id => api.get(`/promos/${id}`));
+                    const results = await Promise.all(promises);
+
+                    // Gộp tất cả promo vào 1 mảng duy nhất
+                    const allPromos = results.flatMap(res => res.data).filter(v => v.isActive);
+                    setVouchers(allPromos);
+                } catch (err) {
+                    console.error("Lỗi tải danh sách voucher:", err);
+                }
+            };
+            fetchAllPromos();
         }
     }, [cartItems]);
-
-    const handleSelectVoucher = (voucher) => {
-        if (selectedVoucher?._id === voucher._id) {
-            setSelectedVoucher(null); setDiscountAmount(0); return;
-        }
-        if (totalAmount < voucher.minOrder) {
-            return alert(`Đơn hàng phải từ ${toVND(voucher.minOrder)}đ mới dùng được mã này!`);
-        }
-        setSelectedVoucher(voucher);
-        setDiscountAmount(voucher.type === 'percent' ? (totalAmount * voucher.value) / 100 : voucher.value);
-    };
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
     const handleOrder = async () => {
         if (!formData.name || !formData.phone || !formData.address) return alert("Vui lòng điền đủ thông tin giao hàng!");
         const user = JSON.parse(localStorage.getItem('user'));
-        const orderData = {
-            userId: user.id,
-            restaurantId: cartItems[0]?.restaurant || cartItems[0]?.restaurantId,
-            customer: `${formData.name} | ${formData.phone} | ${formData.address} | ${paymentMethod}`,
-            items: cartItems.map(item => ({
-                foodId: item._id, name: item.name, price: item.finalPrice,
-                quantity: item.quantity, image: item.image,
-                options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
-            })),
-            total: FINAL_TOTAL,
-            note: formData.note + (selectedVoucher ? ` [Voucher: ${selectedVoucher.code}]` : ""),
-            lat: formData.lat, lng: formData.lng
-        };
+
         try {
-            // 1. Tạo đơn hàng lấy ID trước
-            const resOrder = await api.post('/orders', orderData);
-            const newOrderId = resOrder.data._id;
+            const orderIds = [];
+            // ✅ BƯỚC 2: Duyệt qua từng nhóm để tạo đơn riêng biệt
+            for (const resId in groups) {
+                const resGroup = groups[resId];
+                const subTotal = resGroup.items.reduce((sum, it) => sum + (it.finalPrice * it.quantity), 0);
 
-            if (paymentMethod === 'MOMO') {
-                // 2. Gọi Backend lấy link MoMo
-                const resMomo = await api.post('/momo/payment', {
-                    amount: FINAL_TOTAL,
-                    orderId: newOrderId
-                });
+                // Dùng phí ship đã tính ở trên
+                const currentResShipping = shippingInfo.details[resId];
 
-                if (resMomo.data.payUrl) {
-                    // 3. Chuyển hướng khách sang trang MoMo (cái hình bạn gửi lúc nãy)
-                    window.location.href = resMomo.data.payUrl;
+                // Voucher chỉ áp dụng cho đúng quán
+                let currentDiscount = 0;
+                if (selectedVoucher && (selectedVoucher.restaurantId === resId || selectedVoucher.restaurant === resId)) {
+                    currentDiscount = discountAmount;
                 }
+
+                const groupFinalTotal = subTotal + currentResShipping + APP_FEE - currentDiscount;
+
+                const orderData = {
+                    userId: user.id,
+                    restaurantId: resId,
+                    customer: `${formData.name} | ${formData.phone} | ${formData.address} | ${paymentMethod}`,
+                    items: resGroup.items.map(item => ({
+                        foodId: item._id, name: item.name, price: item.finalPrice,
+                        quantity: item.quantity, image: item.image,
+                        options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
+                    })),
+                    total: groupFinalTotal,
+                    note: formData.note + (currentDiscount > 0 ? ` [Voucher: ${selectedVoucher.code}]` : ""),
+                    lat: formData.lat, lng: formData.lng
+                };
+
+                const resOrder = await api.post('/orders', orderData);
+                orderIds.push(resOrder.data._id);
+            }
+
+            // ✅ BƯỚC 3: Xử lý sau khi đặt hàng thành công
+            if (paymentMethod === 'MOMO') {
+                // Nếu có nhiều đơn, có thể cộng tổng tiền để thanh toán 1 lần hoặc thanh toán đơn đầu tiên
+                // Ở đây tạm thời xử lý đơn đầu tiên để khớp logic cũ của bạn
+                const resMomo = await api.post('/momo/payment', { amount: FINAL_TOTAL, orderId: orderIds[0] });
+                if (resMomo.data.payUrl) window.location.href = resMomo.data.payUrl;
             } else {
-                alert("🎉 Đặt hàng thành công!");
+                alert(`🎉 Đã đặt thành công ${orderIds.length} đơn hàng!`);
                 clearCart();
-                navigate(`/order-tracking/${newOrderId}`);
+                // Điều hướng về lịch sử để xem tất cả các đơn
+                navigate('/history');
             }
         } catch (error) {
-            alert("Lỗi: " + error.message);
+            alert("Lỗi đặt hàng: " + error.message);
         }
     };
 
@@ -154,7 +263,24 @@ function Checkout() {
     };
 
     return (
+
         <div style={S.container}>
+            <style>{`
+                .checkout-scroll-container::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .checkout-scroll-container::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                    border-radius: 10px;
+                }
+                .checkout-scroll-container::-webkit-scrollbar-thumb {
+                    background: #F97350;
+                    border-radius: 10px;
+                }
+                .checkout-scroll-container::-webkit-scrollbar-thumb:hover {
+                    background: #e85d3a;
+                }
+            `}</style>
             <Navbar />
             <div className="container" style={{ maxWidth: '1200px', margin: '20px auto 0', padding: '0 20px' }}>
                 <Link to="/cart" style={{ textDecoration: 'none', color: '#F97350', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -209,24 +335,45 @@ function Checkout() {
 
                 {/* CỘT PHẢI: TÓM TẮT ĐƠN HÀNG */}
                 <div style={S.card}>
-                    <h3 style={S.h3}>Món đã chọn ({cartItems.length})</h3>
-                    <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px', scrollbarWidth: 'thin' }}>
-                        {cartItems.map((item, index) => (
-                            <div key={index} style={{ display: 'flex', gap: '15px', paddingBottom: '15px', marginBottom: '15px', borderBottom: '1px dashed #eee' }}>
-                                <img src={item.image || 'https://via.placeholder.com/80'} alt={item.name} style={{ width: '70px', height: '70px', borderRadius: '12px', objectFit: 'cover' }} />
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span style={{ fontWeight: '700', fontSize: '15px' }}>{item.quantity}x {item.name}</span>
-                                        <span style={{ fontWeight: '600' }}>{toVND(item.finalPrice * item.quantity)}đ</span>
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: '#777', marginTop: '5px' }}>
-                                        {/* Sử dụng selectedSize và mapping toppings giống bên Cart.js */}
-                                        <span style={{ marginRight: '5px', fontWeight: 'bold' }}>{item.selectedSize}</span>
-                                        {item.selectedToppings?.length > 0 && (
-                                            <span>+ {item.selectedToppings.map(t => t.name).join(', ')}</span>
-                                        )}
-                                        {item.note && <div style={{ fontStyle: 'italic' }}>📝 {item.note}</div>}
-                                    </div>
+                    <h3 style={S.h3}>Chi tiết đơn hàng</h3>
+                    <div
+                        className="checkout-scroll-container"
+                        style={{
+                            maxHeight: '300px', // Giới hạn chiều cao
+                            overflowY: 'auto',   // Hiện thanh cuộn khi vượt quá chiều cao
+                            paddingRight: '10px',
+                            marginBottom: '20px'
+                        }}
+                    >
+                        {/* DUYỆT THEO NHÓM NHÀ HÀNG (groups) */}
+                        {Object.entries(groups).map(([resId, group]) => (
+                            <div key={resId} style={{ marginBottom: '25px', border: '1px solid #f0f0f0', borderRadius: '12px', overflow: 'hidden' }}>
+
+                                {/* Header quán và Phí ship của quán đó */}
+                                <div style={{ background: '#F8FAFC', padding: '10px 15px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: '700', fontSize: '14px', color: '#333' }}>
+                                        <i className="fa-solid fa-shop" style={{ color: '#F97350', marginRight: '5px' }}></i>
+                                        {group.name}
+                                    </span>
+                                    <span style={{ fontSize: '13px', color: '#F97350', fontWeight: 'bold' }}>
+                                        Ship: {toVND(shippingInfo.details[resId])}đ
+                                    </span>
+                                </div>
+
+                                {/* Danh sách món của quán này */}
+                                <div style={{ padding: '15px' }}>
+                                    {group.items.map((item, index) => (
+                                        <div key={index} style={{ display: 'flex', gap: '12px', marginBottom: index === group.items.length - 1 ? 0 : '15px' }}>
+                                            <img src={item.image || 'https://via.placeholder.com/60'} alt={item.name} style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                                    <span style={{ fontWeight: '600' }}>{item.quantity}x {item.name}</span>
+                                                    <span>{toVND(item.finalPrice * item.quantity)}đ</span>
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: '#888' }}>{item.selectedSize} {item.selectedToppings?.length > 0 && `+ ${item.selectedToppings.map(t => t.name).join(', ')}`}</div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
@@ -289,7 +436,8 @@ function Checkout() {
 
                     <div>
                         <div style={S.summaryRow}><span>Tạm tính</span> <span>{toVND(totalAmount)}đ</span></div>
-                        <div style={S.summaryRow}><span>Phí vận chuyển</span> <span>{toVND(SHIP_FEE)}đ</span></div>
+                        <div style={S.summaryRow}><span>Phí vận chuyển ({Object.keys(groups).length} quán)</span>
+                            <span>{toVND(shippingInfo.total)}đ</span></div>
                         <div style={S.summaryRow}><span>Phí dịch vụ</span> <span>{toVND(APP_FEE)}đ</span></div>
                         {discountAmount > 0 && <div style={{ ...S.summaryRow, color: '#22C55E', fontWeight: 'bold' }}><span>Voucher giảm giá</span> <span>-{toVND(discountAmount)}đ</span></div>}
                         <div style={S.totalRow}><span>Tổng thanh toán</span> <span>{toVND(FINAL_TOTAL)}đ</span></div>

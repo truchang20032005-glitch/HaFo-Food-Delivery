@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
 import './ChatBot.css';
+import ReactMarkdown from 'react-markdown';
 
 function ChatBot() {
     const [isOpen, setIsOpen] = useState(false);
@@ -113,7 +114,7 @@ function ChatBot() {
                             <div key={idx} className={`chat-msg ${msg.sender}`} style={{ alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                 {/* Nội dung tin nhắn text */}
                                 <div className="msg-content">
-                                    {msg.text}
+                                    <ReactMarkdown>{msg.text}</ReactMarkdown>
                                 </div>
 
                                 {/* RENDER DANH SÁCH MÓN ĂN GỢI Ý (Nếu có) */}

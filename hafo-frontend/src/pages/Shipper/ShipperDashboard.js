@@ -24,11 +24,16 @@ function ShipperDashboard() {
         return localStorage.getItem('isWorking') === 'true';
     });
     const [myLocation, setMyLocation] = useState(null); // Lưu tọa độ hiện tại
-    const [currentOrderId, setCurrentOrderId] = useState(null);
     const prevOrderCountRef = useRef(0);
 
     const [testerPos, setTesterPos] = useState({ x: 20, y: 80 }); // Vị trí (cách bottom, right)
     const [showTesterMenu, setShowTesterMenu] = useState(false); // Đóng/mở menu
+
+    const [activeOrders, setActiveOrders] = useState([]); // ✅ Lưu danh sách đơn đang giao
+    const activeOrdersRef = useRef([]); // Dùng Ref để GPS không bị restart liên tục
+    useEffect(() => {
+        activeOrdersRef.current = activeOrders;
+    }, [activeOrders]);
 
     // --- 1. LOGIC LẤY ĐƠN HÀNG ---
     const fetchOrders = useCallback(async () => {
@@ -71,33 +76,44 @@ function ShipperDashboard() {
         return data;
     }, [orders, filter]);
 
+    useEffect(() => {
+        const fetchMyActiveOrders = async () => {
+            try {
+                // Giả sử API này trả về các đơn có shipperId = user.id và status !== 'done'
+                const res = await api.get(`/orders?shipperId=${user.id}`);
+                const ongoing = res.data.filter(o => o.status !== 'done' && o.status !== 'cancel');
+                setActiveOrders(ongoing);
+            } catch (err) { console.error(err); }
+        };
+        if (user.id) fetchMyActiveOrders();
+    }, [user.id]);
+
     // --- 2. THEO DÕI VỊ TRÍ (Chỉ chạy khi đang làm việc) ---
     useEffect(() => {
         let watchId = null;
-
         if (isWorking && "geolocation" in navigator && user.id) {
             watchId = navigator.geolocation.watchPosition(
                 (pos) => {
                     const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     setMyLocation(coords);
 
-                    // Phát tín hiệu Socket cho khách hàng theo dõi
-                    socket.emit('shipper_update_location', {
-                        shipperId: user.id,
-                        ...coords,
-                        orderId: currentOrderId
+                    // ✅ PHÁT TÍN HIỆU CHO TẤT CẢ ĐƠN ĐANG NHẬN
+                    activeOrders.forEach(order => {
+                        socket.emit('shipper_update_location', {
+                            shipperId: user.id,
+                            ...coords,
+                            orderId: order._id // Gửi cho từng đơn cụ thể
+                        });
                     });
 
-                    // Cập nhật vị trí vào DB để hệ thống biết shipper đang ở đâu
                     api.put(`/shippers/location/${user.id}`, coords).catch(e => { });
                 },
-                (err) => console.error("Lỗi GPS:", err),
+                (err) => console.error(err),
                 { enableHighAccuracy: true, distanceFilter: 10 }
             );
         }
-
         return () => { if (watchId) navigator.geolocation.clearWatch(watchId); };
-    }, [isWorking, currentOrderId, user.id]);
+    }, [isWorking, activeOrders, user.id]);
 
     // Tự động cập nhật danh sách đơn mỗi 5 giây nếu đang bật trực
     useEffect(() => {
@@ -108,15 +124,14 @@ function ShipperDashboard() {
 
     // --- 3. XỬ LÝ NHẬN ĐƠN ---
     const handleAccept = async (orderId) => {
-        if (window.confirm("Bạn chắc chắn muốn nhận đơn này?")) {
+        if (window.confirm("Bạn chắc chắn muốn nhận thêm đơn này?")) {
             try {
-                // Gán shipperId cho đơn hàng
-                await api.put(`/orders/${orderId}`, { shipperId: user.id });
-                setCurrentOrderId(orderId);
-                alert("🎉 Nhận đơn thành công! Hãy đi lấy hàng nào.");
-                navigate(`/shipper/order/${orderId}`);
+                const res = await api.put(`/orders/${orderId}`, { shipperId: user.id });
+                alert("🎉 Nhận đơn thành công!");
+                // ✅ Thêm vào danh sách đang làm mà không cần load lại trang
+                setActiveOrders(prev => [...prev, res.data]);
             } catch (err) {
-                alert("❌ Lỗi nhận đơn: " + (err.response?.data?.message || err.message));
+                alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
             }
         }
     };
@@ -157,6 +172,90 @@ function ShipperDashboard() {
                 </button>
             </div>
 
+            {activeOrders.length > 0 && (
+                <div style={{ marginBottom: '25px', padding: '0 5px' }}>
+                    <h3 style={{ fontSize: '15px', color: '#64748B', fontWeight: '800', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        🛵 Đơn hàng đang giao ({activeOrders.length})
+                    </h3>
+
+                    {activeOrders.map(order => (
+                        <div
+                            key={order._id}
+                            onClick={() => navigate(`/shipper/order/${order._id}`)}
+                            style={{
+                                background: '#fff',
+                                padding: '16px',
+                                borderRadius: '16px',
+                                marginBottom: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '15px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                border: '1px solid #F1F5F9',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.08)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                            }}
+                        >
+                            {/* 1. Icon nổi bật bên trái thay cho số thứ tự */}
+                            <div style={{
+                                width: '45px', height: '45px', borderRadius: '12px',
+                                background: '#FFF5F2', color: '#F97350',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '20px', flexShrink: 0
+                            }}>
+                                <i className="fa-solid fa-box-archive"></i>
+                            </div>
+
+                            {/* 2. Thông tin chính của đơn */}
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <span style={{ fontWeight: '800', fontSize: '14px', color: '#334155' }}>
+                                        #{order._id.slice(-6).toUpperCase()}
+                                    </span>
+                                    {/* Tag trạng thái nhỏ xinh thay cho nút bấm */}
+                                    <span style={{
+                                        fontSize: '10px',
+                                        background: order.status === 'pickup' ? '#8B5CF6' : '#F97350',
+                                        color: '#fff',
+                                        padding: '2px 8px',
+                                        borderRadius: '20px',
+                                        fontWeight: 'bold'
+                                    }}>
+                                        {order.status === 'pickup' ? 'ĐANG GIAO' : 'ĐANG LẤY ĐƠN'}
+                                    </span>
+                                </div>
+
+                                {/* Địa chỉ rút gọn */}
+                                <div style={{ fontSize: '13px', color: '#64748B', display: 'flex', alignItems: 'flex-start', gap: '5px' }}>
+                                    <i className="fa-solid fa-location-dot" style={{ marginTop: '3px', color: '#94A3B8', fontSize: '11px' }}></i>
+                                    <span style={{
+                                        lineHeight: '1.4',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 1,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {order.customer.split('|')[2]}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* 3. Mũi tên chỉ hướng (Visual Cue) thay cho nút "Xem chi tiết" */}
+                            <div style={{ color: '#CBD5E1', fontSize: '14px' }}>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
             {isWorking && (
                 <>
                     {/* BỘ LỌC */}

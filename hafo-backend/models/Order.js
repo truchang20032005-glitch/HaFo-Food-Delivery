@@ -27,6 +27,9 @@ const OrderSchema = new mongoose.Schema({
 
     review: { type: String, default: '' },
     isReviewed: { type: Boolean, default: false },
+    lat: { type: Number },
+    lng: { type: Number },
+    note: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
 });
 

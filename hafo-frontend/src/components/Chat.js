@@ -28,13 +28,16 @@ const Chat = ({ orderId: propOrderId, onClose, partnerAvatar }) => {
     useEffect(() => {
         fetchMessages();
         const interval = setInterval(fetchMessages, 3000);
+
+        //  Mỗi khi mở chat hoặc tin nhắn mới về, lưu lại mốc thời gian đã đọc
+        if (orderId) {
+            localStorage.setItem(`lastRead_${orderId}`, new Date().toISOString());
+        }
+
         return () => {
             clearInterval(interval);
-            if (orderId) {
-                localStorage.setItem(`lastViewChat_${orderId}`, new Date().toISOString());
-            }
         };
-    }, [fetchMessages, orderId]);
+    }, [fetchMessages, orderId, messages.length]);
 
     useEffect(() => {
         scrollRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -5,6 +5,7 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const modalTitle = (role && role !== 'customer') ? "Đăng ký đối tác" : "Đăng ký";
+    const [errors, setErrors] = useState({ email: '', username: '' });
 
     const [formData, setFormData] = useState({
         username: '', password: '', confirmPassword: '',
@@ -14,8 +15,20 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
+    // Hàm kiểm tra trùng lặp thực tế qua API
+    const checkDuplicate = async (field, value) => {
+        if (!value) return;
+        try {
+            await api.post('/auth/check-duplicate', { [field]: value });
+            setErrors(prev => ({ ...prev, [field]: '' })); // Xóa lỗi nếu hợp lệ
+        } catch (err) {
+            setErrors(prev => ({ ...prev, [field]: err.response?.data?.message || 'Đã có lỗi xảy ra' }));
+        }
+    };
+
     const handleSendOtp = async () => {
         if (!formData.email) return alert("Vui lòng nhập Email trước!");
+        if (errors.email) return alert("Email này không hợp lệ hoặc đã tồn tại!");
         setLoading(true);
         try {
             await api.post('/auth/send-otp', { email: formData.email });
@@ -90,12 +103,31 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
                             {/* --- BƯỚC 1: NHẬP THÔNG TIN (Chiếm 50% thanh trượt) --- */}
                             <div className="auth-step-pane" style={{ width: '50%', padding: '0 25px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                    <div className="nhom-input"><input name="username" placeholder="Tên đăng nhập *" value={formData.username} onChange={handleChange} /></div>
+                                    <div className="nhom-input">
+                                        <input
+                                            name="username"
+                                            placeholder="Tên đăng nhập *"
+                                            value={formData.username}
+                                            onChange={handleChange}
+                                            onBlur={(e) => checkDuplicate('username', e.target.value)} // Kiểm tra khi rời ô
+                                        />
+                                        {errors.username && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', display: 'block' }}>{errors.username}</span>}
+                                    </div>
                                     <div className="nhom-input"><input name="fullName" placeholder="Họ và tên *" value={formData.fullName} onChange={handleChange} /></div>
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                    <div className="nhom-input"><input name="email" type="email" placeholder="Email *" value={formData.email} onChange={handleChange} /></div>
+                                    <div className="nhom-input">
+                                        <input
+                                            name="email"
+                                            type="email"
+                                            placeholder="Email *"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            onBlur={(e) => checkDuplicate('email', e.target.value)} // Kiểm tra khi rời ô
+                                        />
+                                        {errors.email && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', display: 'block' }}>{errors.email}</span>}
+                                    </div>
                                     <div className="nhom-input"><input name="phone" placeholder="SĐT *" value={formData.phone} onChange={handleChange} /></div>
                                 </div>
 

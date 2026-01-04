@@ -199,24 +199,61 @@ function Profile() {
 
     // 5. ĐỔI MẬT KHẨU
     const handleChangePassword = async () => {
-        if (!passData.oldPass || !passData.newPass) return alert("Vui lòng nhập đầy đủ!");
+        // Validate cơ bản tại Client
+        if (!passData.oldPass || !passData.newPass) return alert("Vui lòng nhập đầy đủ mật khẩu cũ và mới!");
         if (passData.newPass !== passData.confirmPass) return alert("Mật khẩu xác nhận không khớp!");
 
         try {
-            await api.post('/auth/change-password', {
-                userId: user._id,
+            const res = await api.post('/auth/change-password', {
+                userId: user._id, // Gửi ID của user đang đăng nhập
                 oldPass: passData.oldPass,
                 newPass: passData.newPass
             });
-            alert("✅ Đổi mật khẩu thành công!");
+
+            alert("✅ " + res.data.message);
             setShowPassModal(false);
             setPassData({ oldPass: '', newPass: '', confirmPass: '' });
         } catch (err) {
-            alert("❌ " + (err.response?.data?.message || err.message));
+            // Hiển thị lỗi từ Backend (ví dụ: Mật khẩu cũ sai)
+            alert("❌ " + (err.response?.data?.message || "Có lỗi xảy ra"));
         }
     };
 
     if (loading) return <div style={{ textAlign: 'center', padding: 50 }}>Đang tải hồ sơ...</div>;
+
+    const labelStyle = {
+        display: 'block',
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#64748B',
+        marginBottom: '6px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    };
+
+    const inputContainerStyle = {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center'
+    };
+
+    const iconStyle = {
+        position: 'absolute',
+        left: '15px',
+        color: '#94A3B8',
+        fontSize: '14px'
+    };
+
+    const enhancedInputStyle = {
+        width: '100%',
+        padding: '12px 15px 12px 42px',
+        borderRadius: '12px',
+        border: '1.5px solid #E2E8F0',
+        outline: 'none',
+        fontSize: '14px',
+        transition: 'all 0.2s ease',
+        background: '#FDFDFD'
+    };
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh', paddingBottom: 50 }}>
@@ -425,17 +462,102 @@ function Profile() {
 
             {/* MODAL ĐỔI MẬT KHẨU */}
             {showPassModal && (
-                <div className="modal-bg" onClick={() => setShowPassModal(false)}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                        <h3 style={{ color: '#F97350', textAlign: 'center' }}>Đổi mật khẩu</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-                            <input type="password" placeholder="Mật khẩu cũ" value={passData.oldPass} onChange={e => setPassData({ ...passData, oldPass: e.target.value })} style={inputStyle} />
-                            <input type="password" placeholder="Mật khẩu mới" value={passData.newPass} onChange={e => setPassData({ ...passData, newPass: e.target.value })} style={inputStyle} />
-                            <input type="password" placeholder="Nhập lại mật khẩu mới" value={passData.confirmPass} onChange={e => setPassData({ ...passData, confirmPass: e.target.value })} style={inputStyle} />
+                <div className="modal-bg" onClick={() => setShowPassModal(false)} style={{
+                    position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)',
+                    backdropFilter: 'blur(4px)', zIndex: 10000, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', padding: '15px'
+                }}>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={{
+                        maxWidth: '420px', width: '100%', background: '#fff',
+                        borderRadius: '24px', padding: '30px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        position: 'relative', overflow: 'hidden'
+                    }}>
+                        {/* Header trang trí */}
+                        <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                            <div style={{
+                                width: '60px', height: '60px', background: '#FFF5F2',
+                                color: '#F97350', borderRadius: '50%', display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', fontSize: '24px',
+                                margin: '0 auto 15px'
+                            }}>
+                                <i className="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <h3 style={{ color: '#1E293B', margin: 0, fontSize: '22px', fontWeight: '800' }}>Thiết lập mật khẩu</h3>
+                            <p style={{ color: '#64748B', fontSize: '13px', marginTop: '5px' }}>Đảm bảo tài khoản của bạn được bảo mật an toàn</p>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                            <button className="btn soft" onClick={() => setShowPassModal(false)}>Hủy</button>
-                            <button className="btn primary" onClick={handleChangePassword}>Cập nhật</button>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                            {/* Mật khẩu cũ */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={labelStyle}>Mật khẩu hiện tại</label>
+                                <div style={inputContainerStyle}>
+                                    <i className="fa-solid fa-lock" style={iconStyle}></i>
+                                    <input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={passData.oldPass}
+                                        onChange={e => setPassData({ ...passData, oldPass: e.target.value })}
+                                        style={enhancedInputStyle}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Mật khẩu mới */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={labelStyle}>Mật khẩu mới</label>
+                                <div style={inputContainerStyle}>
+                                    <i className="fa-solid fa-key" style={iconStyle}></i>
+                                    <input
+                                        type="password"
+                                        value={passData.newPass}
+                                        onChange={e => setPassData({ ...passData, newPass: e.target.value })}
+                                        style={enhancedInputStyle}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Nhập lại mật khẩu mới */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={labelStyle}>Xác nhận mật khẩu</label>
+                                <div style={inputContainerStyle}>
+                                    <i className="fa-solid fa-check-double" style={iconStyle}></i>
+                                    <input
+                                        type="password"
+                                        placeholder="Nhập lại mật khẩu mới"
+                                        value={passData.confirmPass}
+                                        onChange={e => setPassData({ ...passData, confirmPass: e.target.value })}
+                                        style={enhancedInputStyle}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Nhóm nút bấm */}
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '30px' }}>
+                            <button
+                                className="btn soft"
+                                onClick={() => setShowPassModal(false)}
+                                style={{
+                                    flex: 1, padding: '12px', borderRadius: '12px',
+                                    fontWeight: '700', fontSize: '14px', border: '1px solid #E2E8F0',
+                                    background: '#F8FAFC', color: '#64748B', cursor: 'pointer'
+                                }}
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                className="btn primary"
+                                onClick={handleChangePassword}
+                                style={{
+                                    flex: 1, padding: '12px', borderRadius: '12px',
+                                    fontWeight: '800', fontSize: '14px', border: 'none',
+                                    background: 'linear-gradient(135deg, #F97350 0%, #FF5F6D 100%)',
+                                    color: '#fff', cursor: 'pointer',
+                                    boxShadow: '0 4px 12px rgba(249, 115, 80, 0.3)'
+                                }}
+                            >
+                                Lưu thay đổi
+                            </button>
                         </div>
                     </div>
                 </div>
