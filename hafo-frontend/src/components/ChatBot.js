@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import './ChatBot.css';
 import ReactMarkdown from 'react-markdown';
 
 function ChatBot() {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         { sender: 'bot', text: 'Chào bạn! 👋 HaFo có thể giúp gì cho bạn hôm nay? Bạn đang thèm món gì nè?' }
@@ -13,6 +15,13 @@ function ChatBot() {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
     const { addToCart } = useCart();
+
+    const quickReplies = [
+        "Món nào ngon nhất? 😋",
+        "Đơn hàng của tôi đâu? 🛵",
+        "Có mã giảm giá không? 🎫",
+        "Tìm nước uống giải khát 🥤"
+    ];
 
     // Tự động cuộn xuống cuối khi có tin nhắn mới
     const scrollToBottom = () => {
@@ -23,28 +32,47 @@ function ChatBot() {
         if (isOpen) scrollToBottom();
     }, [messages, isOpen]);
 
-    const handleSend = async () => {
-        if (!input.trim()) return;
+    useEffect(() => {
+        const loadChatHistory = async () => {
+            if (user?.id || user?._id) {
+                try {
+                    const res = await api.get(`/chat/history/${user.id || user._id}`);
+                    if (res.data.length > 0) {
+                        setMessages(res.data); // Đổ dữ liệu cũ vào state messages
+                    }
+                } catch (err) { console.error("Không thể tải lịch sử chat"); }
+            }
+        };
+        loadChatHistory();
+    }, [user]);
 
-        const userMsg = { sender: 'user', text: input };
+    const handleSend = async (msgText) => {
+        const textToSend = msgText || input;
+        if (!textToSend.trim()) return;
+
+        const userMsg = { sender: 'user', text: textToSend };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
 
         try {
-            // Gửi tin nhắn lên Backend
-            // const res = await axios.post('http://localhost:5000/api/chat'
-            const res = await api.post('/chat', { message: input, history: messages });
+            // 2. Gửi thêm thông tin User để AI cá nhân hóa
+            const res = await api.post('/chat', {
+                message: textToSend,
+                history: messages,
+                userId: user?.id || user?._id,
+                userName: user?.fullName,
+                address: localStorage.getItem('last_address') // Giả sử bạn lưu địa chỉ ở đây
+            });
 
-            // Backend trả về: reply (text) và foods (mảng món ăn gợi ý)
-            const botMsg = {
+            // Backend giờ trả về { reply, foods }
+            setMessages(prev => [...prev, {
                 sender: 'bot',
                 text: res.data.reply,
                 foods: res.data.foods || []
-            };
-            setMessages(prev => [...prev, botMsg]);
+            }]);
         } catch (error) {
-            setMessages(prev => [...prev, { sender: 'bot', text: 'Hic, mình đang bị mất kết nối một chút. Bạn thử lại sau nhé!' }]);
+            setMessages(prev => [...prev, { sender: 'bot', text: 'Kết nối không ổn định, vui lòng thử lại sau!' }]);
         } finally {
             setIsLoading(false);
         }
@@ -150,6 +178,16 @@ function ChatBot() {
                                 <div className="msg-content">
                                     <i className="fa-solid fa-ellipsis fa-fade"></i>
                                 </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+
+                        {/* 4. RENDER GỢI Ý NHANH (Khi không đang load) */}
+                        {!isLoading && messages.length < 3 && (
+                            <div className="quick-replies">
+                                {quickReplies.map((txt, i) => (
+                                    <button key={i} onClick={() => handleSend(txt)} className="qr-btn">{txt}</button>
+                                ))}
                             </div>
                         )}
                         <div ref={messagesEndRef} />
