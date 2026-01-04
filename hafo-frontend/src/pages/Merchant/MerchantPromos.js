@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
+import { alertError, alertWarning, confirmDialog, alertSuccess } from '../../utils/hafoAlert';
 
 function MerchantPromos() {
     const [promos, setPromos] = useState([]);
@@ -83,7 +84,7 @@ function MerchantPromos() {
     };
 
     const handleSave = async () => {
-        if (!formData.code || !formData.value) return alert("Má ơi, nhập đủ thông tin mã đã!");
+        if (!formData.code || !formData.value) return alertWarning("Thiếu thông tin", "Vui lòng nhập đủ thông tin mã!");
         setLoading(true);
         try {
             const payload = {
@@ -101,14 +102,35 @@ function MerchantPromos() {
             }
             fetchPromos(shopId);
             setShowModal(false);
-        } catch (err) { alert(err.message); }
+        } catch (err) { alertError("Lỗi", err.message); }
         finally { setLoading(false); }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Xóa thiệt hả má?")) {
-            await api.delete(`/promos/${id}`);
-            fetchPromos(shopId);
+        const isConfirmed = await confirmDialog(
+            "Xóa mã giảm giá?",
+            "Mã khuyến mãi này sẽ bị xóa vĩnh viễn. Bạn có chắc chắn không?"
+        );
+
+        if (isConfirmed) {
+            try {
+                // 2. Thực hiện gọi API xóa
+                await api.delete(`/promos/${id}`);
+
+                // 3. Thông báo thành công và ĐỢI 2 giây để Admin kịp thấy trước khi load lại data
+                await alertSuccess(
+                    "Đã xóa!",
+                    "Mã giảm giá đã được gỡ bỏ khỏi cửa hàng."
+                );
+
+                // 4. Cập nhật lại danh sách mã giảm giá
+                fetchPromos(shopId);
+
+            } catch (err) {
+                // 5. Xử lý lỗi nếu API gặp vấn đề
+                const errorMsg = err.response?.data?.message || "Không thể kết nối đến máy chủ để xóa mã.";
+                alertError("Lỗi xóa mã", errorMsg);
+            }
         }
     };
 

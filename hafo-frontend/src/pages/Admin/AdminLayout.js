@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import './Admin.css';
+import { alertSuccess, confirmDialog } from '../../utils/hafoAlert';
 
 function AdminLayout() {
     const location = useLocation();
@@ -70,10 +71,22 @@ function AdminLayout() {
     const currentTitle = getPageTitle(location.pathname);
     const isActive = (path) => location.pathname.includes(path) ? 'active' : '';
 
-    const handleLogout = () => {
-        if (window.confirm("Đăng xuất khỏi trang quản trị?")) {
+    const handleLogout = async () => {
+        // 2. Sử dụng confirmDialog (Nhớ có await)
+        const isConfirmed = await confirmDialog(
+            "Xác nhận đăng xuất?",
+            "Bạn có chắc chắn muốn thoát khỏi phiên làm việc của trang quản trị không?"
+        );
+
+        if (isConfirmed) {
+            // 3. Xóa thông tin đăng nhập
             localStorage.removeItem('user');
             localStorage.removeItem('token');
+
+            // 4. Thông báo thành công và ĐỢI 2 giây cho chuyên nghiệp
+            await alertSuccess("Đã đăng xuất", "Hẹn gặp lại bạn sớm!");
+
+            // 5. Điều hướng về trang chủ và làm mới ứng dụng
             navigate('/');
             window.location.reload();
         }

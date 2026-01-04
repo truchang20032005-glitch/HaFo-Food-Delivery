@@ -7,6 +7,7 @@ import L from 'leaflet';
 import Chat from '../../components/Chat';
 import 'leaflet/dist/leaflet.css';
 import { io } from 'socket.io-client';
+import { alertSuccess, alertError, confirmDialog } from '../../utils/hafoAlert';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
 const socket = io(SOCKET_URL, {
@@ -167,8 +168,8 @@ function OrderTracking() {
     const handleReceiveOrder = async () => {
         try {
             await api.put(`/orders/${id}`, { status: 'done' });
-            setShowModal(false); fetchData(); alert("🎉 Đã nhận đơn hàng!");
-        } catch (err) { alert(err.message); }
+            setShowModal(false); fetchData(); alertSuccess("Thành công", "Đã nhận đơn hàng!");
+        } catch (err) { alertError("Lỗi đặt hàng", err.message); }
     };
 
     // Khi nhấn mở chat, ẩn ngay dấu đỏ
@@ -190,13 +191,31 @@ function OrderTracking() {
     ];
 
     const handleCancelOrder = async () => {
-        if (window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) {
+        // 1. Dùng confirmDialog để xác nhận (Nhớ có await)
+        const isConfirmed = await confirmDialog(
+            "Xác nhận hủy đơn?",
+            "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác."
+        );
+
+        // 2. Nếu người dùng chọn "Đồng ý"
+        if (isConfirmed) {
             try {
+                // Gọi API hủy đơn
                 await api.put(`/orders/${id}/customer-cancel`);
-                alert("✅ Đã hủy đơn hàng thành công!");
-                navigate('/history'); // Quay về lịch sử
+
+                // 3. Thông báo thành công và ĐỢI 2 giây (để user kịp đọc)
+                await alertSuccess(
+                    "Đã hủy đơn!",
+                    "Đơn hàng của bạn đã được hủy thành công."
+                );
+
+                // 4. Sau khi thông báo đóng mới chuyển trang
+                navigate('/history');
+
             } catch (err) {
-                alert(err.response?.data?.message || "Lỗi khi hủy đơn");
+                // 5. Xử lý lỗi chuyên nghiệp hơn
+                const errorMessage = err.response?.data?.message || "Không thể kết nối đến máy chủ để hủy đơn.";
+                alertError("Lỗi khi hủy đơn", errorMessage);
             }
         }
     };

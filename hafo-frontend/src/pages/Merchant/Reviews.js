@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../services/api';
 import { useLocation } from 'react-router-dom';
+import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 
 function Reviews() {
     const [reviews, setReviews] = useState([]);
@@ -41,7 +42,7 @@ function Reviews() {
 
     // Hàm gửi phản hồi (Dùng chung cho cả món ăn và phản hồi tổng quát)
     const handleSendReply = async (content, type = 'general') => {
-        if (!content.trim()) return alert("Vui lòng nhập nội dung phản hồi!");
+        if (!content.trim()) return alertWarning("Vui lòng nhập nội dung phản hồi!");
 
         setLoading(true);
         try {
@@ -52,18 +53,18 @@ function Reviews() {
                 userRole: 'merchant' // Gắn role nhà hàng
             });
 
-            alert("✅ Đã gửi phản hồi thành công!");
+            alertSuccess("Đã gửi phản hồi thành công!");
             if (type === 'general') setGeneralReplyText('');
             loadData(); // Tải lại để cập nhật lịch sử phản hồi trong modal
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alertError("Lỗi", err.message);
         } finally {
             setLoading(false);
         }
     };
 
     const handleReport = async () => {
-        if (!reportReason.trim()) return alert("Nhập lý do!");
+        if (!reportReason.trim()) return alertWarning("Nhập lý do!");
         setLoading(true);
         try {
             const user = JSON.parse(localStorage.getItem('user'));
@@ -78,10 +79,10 @@ function Reviews() {
             // GỌI API MỚI (Tập trung)
             await api.post('/reports/review', reportData);
 
-            alert("🚩 Đã gửi khiếu nại lên Admin!");
+            alertSuccess("Thành công", "Đã gửi khiếu nại lên Admin!");
             setReportModal(null);
             loadData();
-        } catch (err) { alert(err.message); }
+        } catch (err) { alertError("Lỗi", err.message); }
         finally { setLoading(false); }
     };
 

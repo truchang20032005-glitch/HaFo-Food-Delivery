@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import FoodModal from '../../components/FoodModal';
 import { useCart } from '../../context/CartContext';
+import { alertInfo } from '../../utils/hafoAlert';
 
 function RestaurantDetail() {
     const { id } = useParams();
@@ -144,7 +145,7 @@ function RestaurantDetail() {
                                                 border: '1px dashed #F97350', background: '#FFF5F2',
                                                 padding: '8px 12px', borderRadius: '8px', minWidth: '140px',
                                                 display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', position: 'relative'
-                                            }} onClick={() => navigator.clipboard.writeText(promo.code) && alert(`Đã sao chép mã: ${promo.code}`)}>
+                                            }} onClick={() => navigator.clipboard.writeText(promo.code) && alertInfo(`Đã sao chép mã: ${promo.code}`)}>
                                                 <div style={{ fontWeight: 'bold', color: '#F97350', fontSize: '13px' }}>{promo.code}</div>
                                                 <div style={{ fontSize: '11px', color: '#666' }}>
                                                     Giảm {promo.type === 'amount' ? promo.value.toLocaleString() + 'đ' : promo.value + '%'}

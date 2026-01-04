@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'; // Thêm useCa
 import { useParams, useNavigate } from 'react-router-dom';
 import Chat from '../../components/Chat';
 import api from '../../services/api';
+import { alertError, alertSuccess, confirmDialog } from '../../utils/hafoAlert';
 
 const styles = {
     container: {
@@ -218,10 +219,10 @@ function ShipperOrderDetail() {
             const res = await api.put(`/orders/${id}`, { status, reason });
             setOrder(res.data);
             if (status === 'done') {
-                alert("🎉 Đã giao hàng thành công!");
+                await alertSuccess("Đã giao hàng thành công!");
                 navigate('/shipper');
             }
-        } catch (err) { alert("Lỗi: " + err.message); }
+        } catch (err) { alertError("Lỗi", err.message); }
     };
 
     if (!order) return <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>Đang tải dữ liệu...</div>;
@@ -236,10 +237,61 @@ function ShipperOrderDetail() {
     const isPickup = order.status === 'pickup';
 
     const handleOpenMap = (lat, lng) => {
-        if (!lat || !lng) return alert("Không tìm thấy tọa độ!");
+        if (!lat || !lng) return alertError("Lỗi", "Không tìm thấy tọa độ!");
         // Cấu trúc URL chuẩn để mở app bản đồ
         const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
         window.open(url, '_blank');
+    };
+
+    const handlePickupClick = async () => {
+        // Xác định nội dung thông báo dựa trên trạng thái món ăn
+        const title = isReady ? "Xác nhận đã lấy món?" : "Lấy món sớm?";
+        const message = isReady
+            ? "Bạn đã nhận gói hàng từ cửa hàng chưa?"
+            : "Cửa hàng chưa báo món xong, bạn chắc chắn muốn lấy món sớm không?";
+
+        // Gọi confirmDialog (đã import từ hafoAlert.js)
+        const isConfirmed = await confirmDialog(title, message);
+
+        if (isConfirmed) {
+            try {
+                // Cập nhật trạng thái
+                await updateStatus('pickup');
+
+                // Thông báo thành công cho Shipper yên tâm
+                await alertSuccess("Đã lấy món!", "Hãy bắt đầu hành trình giao hàng nhé.");
+            } catch (err) {
+                alertError("Lỗi", "Không thể cập nhật trạng thái lúc này.");
+            }
+        }
+    };
+
+    const handleCompleteOrder = async () => {
+        // 1. Hiện hộp thoại xác nhận chuyên nghiệp
+        const isConfirmed = await confirmDialog(
+            "Hoàn tất đơn hàng?",
+            "Xác nhận bạn đã giao món ăn thành công đến tay khách hàng và nhận đầy đủ thanh toán (nếu có)?"
+        );
+
+        if (isConfirmed) {
+            try {
+                // 2. Gọi hàm cập nhật trạng thái lên Server
+                await updateStatus('done');
+
+                // 3. Thông báo thành công và chúc mừng Shipper
+                // Await ở đây để Shipper thấy được thành quả trước khi UI thay đổi
+                await alertSuccess(
+                    "Tuyệt vời!",
+                    "Đơn hàng đã hoàn thành. Cảm ơn bạn đã nỗ lực giao hàng!"
+                );
+
+                // Nếu bạn có logic điều hướng hoặc đóng trang chi tiết thì thêm ở đây
+            } catch (err) {
+                // 4. Xử lý lỗi nếu mất mạng hoặc lỗi Server
+                const errorMsg = err.response?.data?.message || "Không thể cập nhật trạng thái đơn hàng.";
+                alertError("Lỗi hệ thống", errorMsg);
+            }
+        }
     };
 
     return (
@@ -391,7 +443,7 @@ function ShipperOrderDetail() {
 
             <div style={styles.fixedBottom}>
                 {(order.status === 'prep' || order.status === 'ready') && (
-                    <button style={styles.btn('primary')} onClick={() => { if (window.confirm("Xác nhận đã nhận món?")) updateStatus('pickup'); }}>
+                    <button style={styles.btn('primary')} onClick={handlePickupClick}>
                         <i className="fa-solid fa-box"></i> {isReady ? 'ĐÃ LẤY MÓN' : 'LẤY MÓN SỚM'}
                     </button>
                 )}
@@ -401,7 +453,7 @@ function ShipperOrderDetail() {
                         <button style={{ ...styles.btn('danger'), flex: 0.4 }} onClick={() => { const r = prompt("Lý do sự cố:"); if (r) updateStatus('cancel', r); }}>
                             <i className="fa-solid fa-triangle-exclamation"></i> SỰ CỐ
                         </button>
-                        <button style={styles.btn('success')} onClick={() => { if (window.confirm("Xác nhận đã giao thành công?")) updateStatus('done'); }}>
+                        <button style={styles.btn('success')} onClick={handleCompleteOrder}>
                             <i className="fa-solid fa-check-double"></i> HOÀN TẤT ĐƠN
                         </button>
                     </>

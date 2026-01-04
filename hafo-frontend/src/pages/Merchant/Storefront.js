@@ -8,6 +8,7 @@ import { useOutletContext } from 'react-router-dom';
 // Fix icon Marker Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 let DefaultIcon = L.icon({
     iconUrl: markerIcon,
     shadowUrl: markerShadow,
@@ -116,7 +117,7 @@ function Storefront() {
                     address: cleanAddr // ✅ Cập nhật lại ô input bằng địa chỉ đã lọc
                 }));
             } else {
-                alert("Không tìm thấy tọa độ cho địa chỉ này!");
+                alertWarning("Không tìm thấy tọa độ cho địa chỉ này!");
             }
         } catch (err) {
             console.error("Lỗi tìm tọa độ:", err);
@@ -193,9 +194,9 @@ function Storefront() {
                 setUserAvatarFile(null);
             }
 
-            alert("✅ Đã cập nhật thông tin chủ quán!");
+            alertSuccess("Thành công", "Đã cập nhật thông tin chủ quán!");
         } catch (err) {
-            alert(err.message);
+            alertError("Lỗi", err.message);
         } finally {
             setLoadingUser(false);
         }
@@ -253,9 +254,9 @@ function Storefront() {
             // 4. Reset file đã chọn
             if (imageFile) setImageFile(null);
 
-            alert("✅ Đã cập nhật thông tin cửa hàng thành công!");
+            alertSuccess("Thành công", "Đã cập nhật thông tin cửa hàng thành công!");
         } catch (err) {
-            alert("❌ Lỗi cập nhật quán: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi cập nhật quán", (err.response?.data?.message || err.message));
         } finally {
             setLoadingShop(false);
         }

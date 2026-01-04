@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { alertError, alertSuccess, confirmDialog } from '../../utils/hafoAlert';
 
 function ShipperProfile() {
     const navigate = useNavigate();
@@ -77,9 +78,9 @@ function ShipperProfile() {
                 user: updatedUser // Ghi đè nguyên object user mới từ server
             }));
 
-            alert("✅ Đã đổi ảnh đại diện thành công!");
+            alertSuccess("Đã đổi ảnh đại diện thành công!");
         } catch (err) {
-            alert("❌ Lỗi up ảnh: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi up ảnh", (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -103,19 +104,34 @@ function ShipperProfile() {
 
             // 2. Cập nhật state để UI thay đổi ngay lập tức
             setProfile(res.data);
-            alert("✅ Đã cập nhật hồ sơ và họ tên thành công!");
+            alertSuccess("Đã cập nhật hồ sơ và họ tên thành công!");
             setIsEditing(false);
         } catch (err) {
-            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi", (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
     };
 
-    const handleLogout = () => {
-        if (window.confirm("Bạn muốn đăng xuất?")) {
+    const handleLogout = async () => {
+        // 2. Sử dụng confirmDialog thay cho window.confirm (Nhớ có await)
+        const isConfirmed = await confirmDialog(
+            "Đăng xuất Shipper?",
+            "Bạn có chắc chắn muốn thoát khỏi phiên làm việc không?"
+        );
+
+        if (isConfirmed) {
+            // 3. Xóa dữ liệu phiên đăng nhập
             localStorage.removeItem('user');
             localStorage.removeItem('token');
+
+            // 4. Thông báo thành công và ĐỢI 2 giây cho mượt
+            await alertSuccess(
+                "Đã đăng xuất!",
+                "Chúc bạn một ngày làm việc tốt lành. Hẹn gặp lại!"
+            );
+
+            // 5. Điều hướng về trang chủ và tải lại trang
             navigate('/');
             window.location.reload();
         }

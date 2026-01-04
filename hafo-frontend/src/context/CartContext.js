@@ -1,6 +1,7 @@
 // CartContext.js
 
 import { createContext, useState, useContext, useEffect, useRef, useMemo } from 'react';
+import { confirmDialog, alertSuccess } from '../utils/hafoAlert';
 
 const CartContext = createContext();
 
@@ -112,9 +113,14 @@ export const CartProvider = ({ children }) => {
         window.dispatchEvent(new Event('hafo_cart_added'));
     };
 
-    const removeFromCart = (uniqueId) => {
-        if (window.confirm("Xóa món này khỏi giỏ?")) {
+    const removeFromCart = async (uniqueId) => {
+        const isConfirmed = await confirmDialog(
+            "Xác nhận xóa?",
+            "Món ăn này sẽ biến mất khỏi giỏ hàng của bạn đó!"
+        );
+        if (isConfirmed) {
             setCartItems(prev => prev.filter(item => item.uniqueId !== uniqueId));
+            await alertSuccess("Đã xóa!", "Giỏ hàng đã được cập nhật.");
         }
     };
 

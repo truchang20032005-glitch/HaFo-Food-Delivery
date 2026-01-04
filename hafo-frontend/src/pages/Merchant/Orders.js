@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { useLocation } from 'react-router-dom';
+import { alertError } from '../../utils/hafoAlert';
 
 function Orders() {
     const [orders, setOrders] = useState([]);
@@ -48,7 +49,7 @@ function Orders() {
             setOrders(orders.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
             if (selectedOrder?._id === orderId) setSelectedOrder({ ...selectedOrder, status: newStatus });
         } catch (error) {
-            alert("Lỗi cập nhật: " + error.message);
+            alertError("Lỗi cập nhật: " + error.message);
         }
     };
 

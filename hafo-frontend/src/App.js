@@ -1,4 +1,5 @@
 import React from 'react';
+import 'animate.css';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import 'leaflet/dist/leaflet.css';

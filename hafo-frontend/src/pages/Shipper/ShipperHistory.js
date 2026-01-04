@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN') + 'đ';
 
@@ -114,15 +115,15 @@ function ShipperHistory() {
                 content: replyText,
                 userRole: 'shipper'
             });
-            alert("✅ Đã gửi phản hồi!");
+            alertSuccess("Thành công", "Đã gửi phản hồi!");
             setReplyText('');
             handleSelectOrder(selectedOrder);
-        } catch (err) { alert("Lỗi: " + err.message); }
+        } catch (err) { alertError("Lỗi", err.message); }
         finally { setIsSubmitting(false); }
     };
 
     const handleReportReview = async () => {
-        if (!reportReason.trim()) return alert("Vui lòng nhập lý do!");
+        if (!reportReason.trim()) return alertWarning("Thiếu thông tin", "Vui lòng nhập lý do!");
         setIsSubmitting(true);
         try {
             const user = JSON.parse(localStorage.getItem('user'));
@@ -134,12 +135,12 @@ function ShipperHistory() {
                 reviewContent: reviewDetail.shipperComment
             };
             await api.post('/reports/review', reportData);
-            alert("🚩 Đã gửi khiếu nại lên Admin!");
+            alertSuccess("Thành công", "Đã gửi khiếu nại lên Admin!");
             setIsReporting(false);
             setReportReason('');
             loadHistory();
             setSelectedOrder(null);
-        } catch (err) { alert("Lỗi báo cáo: " + err.message); }
+        } catch (err) { alertError("Lỗi báo cáo", err.message); }
         finally { setIsSubmitting(false); }
     };
 

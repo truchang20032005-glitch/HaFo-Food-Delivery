@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import './Shipper.css';
+import { alertSuccess, confirmDialog } from '../../utils/hafoAlert';
 
 function ShipperLayout() {
     const location = useLocation();
@@ -59,10 +60,25 @@ function ShipperLayout() {
         return () => clearInterval(interval);
     }, [fetchNotifications]);
 
-    const handleLogout = () => {
-        if (window.confirm("Đăng xuất tài khoản Shipper?")) {
+    const handleLogout = async () => {
+        // 2. Sử dụng confirmDialog thay cho window.confirm (Nhớ có await)
+        const isConfirmed = await confirmDialog(
+            "Đăng xuất Shipper?",
+            "Bạn có chắc chắn muốn thoát khỏi phiên làm việc không?"
+        );
+
+        if (isConfirmed) {
+            // 3. Xóa dữ liệu phiên đăng nhập
             localStorage.removeItem('user');
             localStorage.removeItem('token');
+
+            // 4. Thông báo thành công và ĐỢI 2 giây cho mượt
+            await alertSuccess(
+                "Đã đăng xuất!",
+                "Chúc bạn một ngày làm việc tốt lành. Hẹn gặp lại!"
+            );
+
+            // 5. Điều hướng về trang chủ và tải lại trang
             navigate('/');
             window.location.reload();
         }

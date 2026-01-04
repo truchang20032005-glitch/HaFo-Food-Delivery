@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { alertError, alertWarning } from '../../utils/hafoAlert';
 
 function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
     const [formData, setFormData] = useState({ name: '', price: '', description: '' });
@@ -39,7 +40,7 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
     }, [isOpen, editFood]);
 
     const handleSave = async () => {
-        if (!formData.name || !formData.price) return alert("Vui lòng nhập tên và giá món!");
+        if (!formData.name || !formData.price) return alertWarning("Thiếu thông tin", "Vui lòng nhập tên và giá món!");
         setLoading(true);
         try {
             const data = new FormData();
@@ -62,7 +63,7 @@ function AddDishModal({ isOpen, onClose, onRefresh, restaurantId, editFood }) {
             }
             onRefresh(); onClose();
         } catch (error) {
-            alert("Lỗi rồi má: " + (error.response?.data?.message || error.message));
+            alertError("Lỗi: " + (error.response?.data?.message || error.message));
         } finally { setLoading(false); }
     };
 

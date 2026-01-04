@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 // Fix icon Marker Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { alertWarning } from '../../utils/hafoAlert';
 let DefaultIcon = L.icon({
     iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41]
 });
@@ -122,24 +123,24 @@ function MerchantRegister() {
     const handleNext = () => {
         // Bước 1: Loại hình
         if (step === 1) {
-            if (!data.serviceType) return alert("Vui lòng chọn loại hình kinh doanh!");
+            if (!data.serviceType) return alertWarning("Vui lòng chọn loại hình kinh doanh!");
         }
 
         // Bước 2: Thông tin cơ bản
         if (step === 2) {
-            if (!data.name.trim()) return alert("Vui lòng nhập tên quán!");
+            if (!data.name.trim()) return alertWarning("Vui lòng nhập tên quán!");
 
             // Validate SDT
-            if (!data.phone.trim()) return alert("Vui lòng nhập số điện thoại!");
+            if (!data.phone.trim()) return alertWarning("Vui lòng nhập số điện thoại!");
             const phoneRegex = /^(02|03|05|07|08|09|01[2|6|8|9])[0-9]{8}$/;
-            if (!phoneRegex.test(data.phone)) return alert("Số điện thoại không hợp lệ (Phải có 10 số, bắt đầu bằng 0)!");
+            if (!phoneRegex.test(data.phone)) return alertWarning("Số điện thoại không hợp lệ (Phải có 10 số, bắt đầu bằng 0)!");
 
             // Validate Email
-            if (!data.email.trim()) return alert("Vui lòng nhập Email!");
+            if (!data.email.trim()) return alertWarning("Vui lòng nhập Email!");
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(data.email)) return alert("Địa chỉ Email không hợp lệ!");
+            if (!emailRegex.test(data.email)) return alertWarning("Địa chỉ Email không hợp lệ!");
 
-            if (!data.address.trim()) return alert("Vui lòng nhập địa chỉ!");
+            if (!data.address.trim()) return alertWarning("Vui lòng nhập địa chỉ!");
         }
 
         // Bước 3: Vận hành
@@ -159,25 +160,25 @@ function MerchantRegister() {
 
             // Bây giờ mới check: nếu sau khi đã "gom" cả hàng nhập tay mà vẫn trống thì mới báo lỗi
             if (finalCuisines.length === 0) {
-                return alert("Vui lòng chọn ít nhất 1 loại hình ẩm thực hoặc nhập tay vào ô!");
+                return alertWarning("Vui lòng chọn ít nhất 1 loại hình ẩm thực hoặc nhập tay vào ô!");
             }
 
-            if (!data.openTime || !data.closeTime) return alert("Vui lòng nhập giờ mở/đóng cửa!");
-            if (!data.avatar) return alert("Vui lòng tải lên ảnh mặt tiền quán!");
+            if (!data.openTime || !data.closeTime) return alertWarning("Vui lòng nhập giờ mở/đóng cửa!");
+            if (!data.avatar) return alertWarning("Vui lòng tải lên ảnh mặt tiền quán!");
         }
 
         // Bước 4: Pháp lý
         if (step === 4) {
-            if (!data.ownerName.trim()) return alert("Vui lòng nhập họ tên chủ quán!");
-            if (!data.idCard.trim()) return alert("Vui lòng nhập số CCCD/CMND!");
-            if (!data.idCardFront || !data.idCardBack) return alert("Vui lòng tải lên ảnh 2 mặt CCCD!");
+            if (!data.ownerName.trim()) return alertWarning("Vui lòng nhập họ tên chủ quán!");
+            if (!data.idCard.trim()) return alertWarning("Vui lòng nhập số CCCD/CMND!");
+            if (!data.idCardFront || !data.idCardBack) return alertWarning("Vui lòng tải lên ảnh 2 mặt CCCD!");
         }
 
         // Bước 5: Ngân hàng
         if (step === 5) {
-            if (!data.bankName.trim()) return alert("Vui lòng nhập tên ngân hàng!");
-            if (!data.bankAccount.trim()) return alert("Vui lòng nhập số tài khoản!");
-            if (!data.bankOwner.trim()) return alert("Vui lòng nhập tên chủ tài khoản!");
+            if (!data.bankName.trim()) return alertWarning("Vui lòng nhập tên ngân hàng!");
+            if (!data.bankAccount.trim()) return alertWarning("Vui lòng nhập số tài khoản!");
+            if (!data.bankOwner.trim()) return alertWarning("Vui lòng nhập tên chủ tài khoản!");
         }
 
         // Nếu qua hết các bài kiểm tra thì cho Next
@@ -200,7 +201,7 @@ function MerchantRegister() {
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setIsSuccess(true);
             window.scrollTo(0, 0);
-        } catch (err) { alert(err.message); }
+        } catch (err) { alertWarning("Lỗi", err.message); }
         finally { setLoading(false); }
     };
 

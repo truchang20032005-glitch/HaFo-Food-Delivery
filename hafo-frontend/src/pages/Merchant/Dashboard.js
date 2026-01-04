@@ -12,6 +12,7 @@ import {
     Tooltip,
     Legend,
 } from 'chart.js';
+import { alertError, alertInfo } from '../../utils/hafoAlert';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -49,9 +50,9 @@ function Dashboard() {
             // Gọi API cập nhật quán (đã có sẵn ở backend/routes/restaurant.js)
             await api.put(`/restaurants/${shopId}`, { isOpen: newStatus });
             setIsOpen(newStatus);
-            alert(newStatus ? "🔓 Quán đã mở cửa đón khách!" : "🔒 Quán đã tạm đóng cửa!");
+            alertInfo(newStatus ? "🔓 Quán đã mở cửa đón khách!" : "🔒 Quán đã tạm đóng cửa!");
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alertError("Lỗi", err.message);
         }
     };
 
