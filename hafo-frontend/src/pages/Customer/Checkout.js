@@ -51,6 +51,14 @@ function Checkout() {
     const [discountAmount, setDiscountAmount] = useState(0);
     const [showMapModal, setShowMapModal] = useState(false);
 
+    const [tipAmount, setTipAmount] = useState(0);
+    const [customTip, setCustomTip] = useState('');
+
+    const formatTipInput = (val) => {
+        const number = val.replace(/\D/g, ''); // Chỉ lấy số
+        return number ? parseInt(number).toLocaleString('vi-VN') : '';
+    };
+
     const APP_FEE = 2000;
 
     const groups = useMemo(() => {
@@ -84,7 +92,7 @@ function Checkout() {
         return { total, details };
     }, [groups, formData.lat, formData.lng]);
 
-    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total + APP_FEE - discountAmount);
+    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total + APP_FEE - discountAmount + tipAmount);
 
     const handleSelectVoucher = (voucher) => {
         if (selectedVoucher?._id === voucher._id) {
@@ -216,7 +224,8 @@ function Checkout() {
                         quantity: item.quantity, image: item.image,
                         options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
                     })),
-                    total: groupFinalTotal,
+                    total: groupFinalTotal + (tipAmount / Object.keys(groups).length), // Chia đều tip nếu đặt nhiều quán
+                    tipAmount: tipAmount, // ✅ Gửi tiền tip thực tế
                     note: formData.note + (currentDiscount > 0 ? ` [Voucher: ${selectedVoucher.code}]` : ""),
                     lat: formData.lat, lng: formData.lng
                 };
@@ -438,13 +447,122 @@ function Checkout() {
                         )}
                     </div>
 
-                    <div>
-                        <div style={S.summaryRow}><span>Tạm tính</span> <span>{toVND(totalAmount)}đ</span></div>
-                        <div style={S.summaryRow}><span>Phí vận chuyển ({Object.keys(groups).length} quán)</span>
-                            <span>{toVND(shippingInfo.total)}đ</span></div>
-                        <div style={S.summaryRow}><span>Phí dịch vụ</span> <span>{toVND(APP_FEE)}đ</span></div>
-                        {discountAmount > 0 && <div style={{ ...S.summaryRow, color: '#22C55E', fontWeight: 'bold' }}><span>Voucher giảm giá</span> <span>-{toVND(discountAmount)}đ</span></div>}
-                        <div style={S.totalRow}><span>Tổng thanh toán</span> <span>{toVND(FINAL_TOTAL)}đ</span></div>
+                    {/* Giao diện chọn Tips */}
+                    <div style={{ ...S.card, marginTop: '20px', border: '1px solid #FFE0D1', background: 'linear-gradient(to bottom, #fff, #FFF9F6)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
+                            <h3 style={{ ...S.h3, margin: 0 }}>
+                                <i className="fa-solid fa-heart" style={{ color: '#F97350', fontSize: '18px' }}></i> Tip cho Shipper
+                            </h3>
+                            {tipAmount > 0 && (
+                                <span style={{ fontSize: '12px', color: '#22C55E', fontWeight: 'bold', background: '#F0FDF4', padding: '4px 10px', borderRadius: '20px' }}>
+                                    <i className="fa-solid fa-face-smile"></i> Cảm ơn bạn nhiều!
+                                </span>
+                            )}
+                        </div>
+
+                        <p style={{ fontSize: '13px', color: '#7a6f65', marginBottom: '18px', lineHeight: '1.4' }}>
+                            Gửi một chút "lòng thành" để Shipper có thêm động lực giao hàng nhanh và an toàn nhé!
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
+                            {[0, 5000, 10000, 20000].map(amt => {
+                                const isSelected = tipAmount === amt && !customTip;
+                                return (
+                                    <button
+                                        key={amt}
+                                        onClick={() => { setTipAmount(amt); setCustomTip(''); }}
+                                        style={{
+                                            position: 'relative',
+                                            minWidth: '100px',
+                                            padding: '12px 15px',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            fontWeight: '800',
+                                            fontSize: '14px',
+                                            transition: '0.3s',
+                                            // ✅ STYLE HÌNH CHIẾC VÉ
+                                            border: isSelected ? '1px solid #F97350' : '1px dashed #F97350',
+                                            background: isSelected ? '#F97350' : '#FFF5F2',
+                                            color: isSelected ? '#fff' : '#F97350',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        {/* Vòng tròn đục lỗ giả lập vé */}
+                                        <div style={{ position: 'absolute', left: -6, top: '50%', marginTop: -5, width: 10, height: 10, background: '#fff', borderRadius: '50%', borderRight: isSelected ? 'none' : '1px solid #F97350' }}></div>
+                                        <div style={{ position: 'absolute', right: -6, top: '50%', marginTop: -5, width: 10, height: 10, background: '#fff', borderRadius: '50%', borderLeft: isSelected ? 'none' : '1px solid #F97350' }}></div>
+
+                                        <span>{amt === 0 ? 'Không tip' : `+${toVND(amt)}đ`}</span>
+                                        {isSelected && <i className="fa-solid fa-check-circle" style={{ fontSize: '10px' }}></i>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Ô nhập tiền tùy chỉnh tinh tế hơn */}
+                        <div style={{ marginTop: '5px', position: 'relative' }}>
+                            <div style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: customTip ? '#F97350' : '#999' }}>
+                                <i className="fa-solid fa-pen-nib"></i>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Hoặc nhập số tiền khác..."
+                                value={customTip}
+                                onChange={(e) => {
+                                    const formatted = formatTipInput(e.target.value);
+                                    setCustomTip(formatted);
+                                    setTipAmount(parseInt(e.target.value.replace(/\D/g, '')) || 0);
+                                }}
+                                style={{
+                                    ...S.input,
+                                    paddingLeft: '40px',
+                                    paddingRight: '40px',
+                                    borderColor: customTip ? '#F97350' : '#ddd',
+                                    background: customTip ? '#FFF9F6' : '#fff',
+                                    fontSize: '14px',
+                                    fontWeight: customTip ? '700' : 'normal'
+                                }}
+                            />
+                            {customTip && (
+                                <span style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', color: '#F97350', fontWeight: 'bold' }}>đ</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '2px dashed #eee' }}>
+                        <div style={S.summaryRow}>
+                            <span>Tạm tính</span>
+                            <span>{toVND(totalAmount)}đ</span>
+                        </div>
+
+                        <div style={S.summaryRow}>
+                            <span>Phí vận chuyển ({Object.keys(groups).length} quán)</span>
+                            <span>{toVND(shippingInfo.total)}đ</span>
+                        </div>
+
+                        {/* Hiển thị dòng Tip nếu có chọn Tip */}
+                        {tipAmount > 0 && (
+                            <div style={{ ...S.summaryRow, color: '#F97350', fontWeight: '600' }}>
+                                <span>Tiền Tip cho Shipper</span>
+                                <span>+{toVND(tipAmount)}đ</span>
+                            </div>
+                        )}
+
+                        {discountAmount > 0 && (
+                            <div style={{ ...S.summaryRow, color: '#22C55E', fontWeight: 'bold' }}>
+                                <span>Voucher giảm giá</span>
+                                <span>-{toVND(discountAmount)}đ</span>
+                            </div>
+                        )}
+
+                        <div style={S.totalRow}>
+                            <span>Tổng thanh toán</span>
+                            <span>{toVND(FINAL_TOTAL)}đ</span>
+                        </div>
+
                         <button onClick={handleOrder} style={S.checkoutBtn}>ĐẶT HÀNG NGAY</button>
                     </div>
                 </div>

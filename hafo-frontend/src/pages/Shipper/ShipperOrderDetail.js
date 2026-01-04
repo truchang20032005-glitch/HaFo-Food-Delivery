@@ -219,7 +219,10 @@ function ShipperOrderDetail() {
             const res = await api.put(`/orders/${id}`, { status, reason });
             setOrder(res.data);
             if (status === 'done') {
-                await alertSuccess("Đã giao hàng thành công!");
+                await alertSuccess(
+                    "Tuyệt vời!",
+                    "Đơn hàng đã hoàn thành. Cảm ơn bạn đã nỗ lực giao hàng!"
+                );
                 navigate('/shipper');
             }
         } catch (err) { alertError("Lỗi", err.message); }
@@ -277,14 +280,6 @@ function ShipperOrderDetail() {
             try {
                 // 2. Gọi hàm cập nhật trạng thái lên Server
                 await updateStatus('done');
-
-                // 3. Thông báo thành công và chúc mừng Shipper
-                // Await ở đây để Shipper thấy được thành quả trước khi UI thay đổi
-                await alertSuccess(
-                    "Tuyệt vời!",
-                    "Đơn hàng đã hoàn thành. Cảm ơn bạn đã nỗ lực giao hàng!"
-                );
-
                 // Nếu bạn có logic điều hướng hoặc đóng trang chi tiết thì thêm ở đây
             } catch (err) {
                 // 4. Xử lý lỗi nếu mất mạng hoặc lỗi Server

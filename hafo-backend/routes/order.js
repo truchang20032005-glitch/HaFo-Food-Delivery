@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
+const Shipper = require('../models/Shipper');
 
 // --- 1. LẤY DANH SÁCH TẤT CẢ ĐƠN (Cho Admin/Chủ quán) ---
 router.get('/', async (req, res) => {
@@ -88,7 +89,7 @@ router.get('/:id', async (req, res) => {
 // --- 3. TẠO ĐƠN HÀNG MỚI (CẬP NHẬT) ---
 router.post('/', async (req, res) => {
     // Nhận thêm restaurantId từ Frontend gửi xuống
-    const { customer, items, total, userId, restaurantId, lat, lng, note } = req.body;
+    const { customer, items, total, userId, restaurantId, lat, lng, note, tipAmount } = req.body;
 
     try {
         const newOrder = new Order({
@@ -99,7 +100,8 @@ router.post('/', async (req, res) => {
             total,
             lat, // ✅ LƯU VĨ ĐỘ
             lng, // ✅ LƯU KINH ĐỘ
-            note // ✅ LƯU GHI CHÚ
+            note, // ✅ LƯU GHI CHÚ
+            tipAmount: tipAmount || 0
         });
         await newOrder.save();
         res.status(201).json(newOrder);
@@ -112,24 +114,40 @@ router.post('/', async (req, res) => {
 // --- 4. CẬP NHẬT TRẠNG THÁI ĐƠN ---
 router.put('/:id', async (req, res) => {
     try {
-        const { status, shipperId, restaurantRating, shipperRating, review, isReviewed } = req.body;
+        const { status, shipperId, restaurantRating, shipperRating, review, isReviewed, tipAmount } = req.body;
 
-        // 1. Tìm đơn hàng trước để kiểm tra tồn tại và lấy dữ liệu cũ
         const order = await Order.findById(req.params.id);
         if (!order) {
-            return res.status(404).json({ message: "Không tìm thấy đơn hàng này má ơi!" });
+            return res.status(404).json({ message: "Không tìm thấy đơn hàng này!" });
         }
 
         let updateData = {};
         if (status) updateData.status = status;
         if (shipperId) updateData.shipperId = shipperId;
 
-        // 2. ✅ LOGIC CỘNG TIỀN: Chỉ cộng khi trạng thái chuyển từ "chưa xong" sang "done"
+        // Nếu muốn cập nhật lại tipAmount vào đơn hàng (nếu có gửi lên)
+        if (tipAmount !== undefined) updateData.tipAmount = tipAmount;
+
+        // ✅ LOGIC CỘNG TIỀN: Chỉ chạy khi đơn hàng chuyển sang 'done' lần đầu tiên
         if (status === 'done' && order.status !== 'done') {
+            // Dùng tiền tip từ database (order.tipAmount) để an toàn tuyệt đối
+            const actualTip = order.tipAmount || 0;
+
+            // 1. Cộng doanh thu cho Quán (Trừ tip ra)
             await Restaurant.findByIdAndUpdate(order.restaurantId, {
-                $inc: { revenue: order.total } // Dùng $inc để cộng dồn tiền chính xác
+                $inc: { revenue: (order.total - actualTip) }
             });
-            console.log(`✅ Đã cộng ${order.total}đ vào doanh thu quán ${order.restaurantId}`);
+
+            // 2. Cộng 80% tiền tip vào ví Shipper
+            if (order.shipperId) {
+                const shipperBonus = actualTip * 0.8;
+                if (shipperBonus > 0) {
+                    await Shipper.findOneAndUpdate(
+                        { user: order.shipperId },
+                        { $inc: { income: shipperBonus } }
+                    );
+                }
+            }
         }
 
         // 3. Cập nhật các trường đánh giá
@@ -138,7 +156,6 @@ router.put('/:id', async (req, res) => {
         if (review) updateData.review = review;
         if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
 
-        // 4. Thực hiện cập nhật đơn hàng
         const updatedOrder = await Order.findByIdAndUpdate(
             req.params.id,
             updateData,

@@ -3,8 +3,10 @@ import './hafoAlert.css';
 
 // Cấu hình chung cho toàn bộ App HaFo
 const HaFoAlert = Swal.mixin({
-    confirmButtonColor: '#F97350', // Màu cam thương hiệu
+    confirmButtonColor: '#F97350',
     cancelButtonColor: '#94A3B8',
+    // Tự động điều chỉnh chiều rộng: 95% trên mobile, 32rem trên desktop
+    width: window.innerWidth < 480 ? '95%' : '32rem',
     customClass: {
         popup: 'hafo-swal-popup',
         confirmButton: 'hafo-swal-confirm',
@@ -19,7 +21,7 @@ export const alertSuccess = (title, text = "") => {
         iconColor: '#F97350',
         title,
         text,
-        timer: 1000,
+        timer: 1500,
         timerProgressBar: true,
         showConfirmButton: false
     });
