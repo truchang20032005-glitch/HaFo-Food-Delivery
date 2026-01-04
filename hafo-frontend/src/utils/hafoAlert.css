@@ -33,3 +33,26 @@
     border-color: #3FC3EE !important;
     color: #3FC3EE !important;
 }
+
+@media (max-width: 480px) {
+    .hafo-swal-popup {
+        padding: 1.25rem !important;
+        /* Giảm padding trên mobile */
+        border-radius: 15px !important;
+        /* Bo góc nhẹ hơn một chút cho cân đối */
+        width: 90% !important;
+        /* Đảm bảo không bị dính sát mép màn hình */
+    }
+
+    .hafo-swal-title {
+        font-size: 1.2rem !important;
+        /* Chữ nhỏ lại một chút để không bị xuống dòng xấu */
+    }
+
+    .hafo-swal-confirm {
+        padding: 8px 20px !important;
+        /* Nút bấm vừa phải với ngón tay */
+        width: 100%;
+        /* Trên mobile, nút bấm dài ra hết cỡ thường dễ bấm hơn */
+    }
+}

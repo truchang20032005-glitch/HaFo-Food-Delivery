@@ -343,6 +343,20 @@ function ShipperDashboard() {
                                         <i className="fa-solid fa-location-dot" style={{ color: '#22C55E', marginTop: '3px' }}></i>
                                         <span style={{ lineHeight: '1.4' }}>{order.customer.split('|')[2] || 'Địa chỉ khách'}</span>
                                     </div>
+                                    {order.tipAmount > 0 && (
+                                        <div style={{
+                                            marginTop: '12px', padding: '10px', borderRadius: '12px',
+                                            background: '#F0FDF4', border: '1px solid #BBF7D0',
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                        }}>
+                                            <div style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
+                                                <i className="fa-solid fa-gift"></i> Tiền thưởng:
+                                            </div>
+                                            <b style={{ color: '#22C55E', fontSize: '15px' }}>
+                                                +{toVND(order.tipAmount * 0.8)}đ
+                                            </b>
+                                        </div>
+                                    )}
 
                                     {/* Hàng 4: Chân thẻ (Tiền + Nút bấm) - SỬA LẠI CHỖ NÀY ĐỂ KHÔNG BỊ ĐÈ */}
                                     <div style={{

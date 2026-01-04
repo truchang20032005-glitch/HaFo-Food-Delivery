@@ -21,9 +21,11 @@ const OrderSchema = new mongoose.Schema({
         default: 'new'
     },
 
+
     // ✅ TÁCH RIÊNG 2 LOẠI ĐÁNH GIÁ ĐỂ KHÔNG ĐÈ NHAU
     restaurantRating: { type: Number, default: 0 }, // Sao của quán
     shipperRating: { type: Number, default: 0 },    // Sao của shipper
+    tipAmount: { type: Number, default: 0 },
 
     review: { type: String, default: '' },
     isReviewed: { type: Boolean, default: false },
