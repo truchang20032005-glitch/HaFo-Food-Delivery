@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
+import { alertError, alertWarning } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -51,7 +52,7 @@ function ReviewOrder() {
     const handleSubmit = async () => {
         const currentUserId = user?._id || user?.id;
         if (!currentUserId) {
-            alert("Vui lòng đăng nhập để thực hiện đánh giá!");
+            alertWarning("Vui lòng đăng nhập để thực hiện đánh giá!");
             return;
         }
         try {
@@ -79,7 +80,7 @@ function ReviewOrder() {
         } catch (error) {
             // Log lỗi ra console để debug chính xác lỗi từ Backend
             console.error("Chi tiết lỗi:", error.response?.data || error.message);
-            alert("Không thể gửi đánh giá. Lỗi: " + (error.response?.data?.error || "Vui lòng thử lại sau"));
+            alertError("Không thể gửi đánh giá. Lỗi: " + (error.response?.data?.error || "Vui lòng thử lại sau"));
         }
     };
 

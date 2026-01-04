@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
+import { alertSuccess, alertError, alertWarning, alertInfo } from '../../utils/hafoAlert';
 
 // Import Leaflet cho bản đồ
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -95,7 +96,7 @@ function Checkout() {
         const resSubtotal = groups[resId]?.items.reduce((sum, it) => sum + (it.finalPrice * it.quantity), 0) || 0;
 
         if (resSubtotal < voucher.minOrder) {
-            return alert(`Đơn hàng của quán "${groups[resId]?.name}" phải từ ${toVND(voucher.minOrder)}đ mới dùng được mã này!`);
+            return alertInfo(`Đơn hàng của quán "${groups[resId]?.name}" phải từ ${toVND(voucher.minOrder)}đ mới dùng được mã này!`);
         }
 
         setSelectedVoucher(voucher);
@@ -185,7 +186,7 @@ function Checkout() {
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
     const handleOrder = async () => {
-        if (!formData.name || !formData.phone || !formData.address) return alert("Vui lòng điền đủ thông tin giao hàng!");
+        if (!formData.name || !formData.phone || !formData.address) return alertWarning("Thiếu thông tin", "Vui lòng điền đủ thông tin giao hàng!");
         const user = JSON.parse(localStorage.getItem('user'));
 
         try {
@@ -231,13 +232,16 @@ function Checkout() {
                 const resMomo = await api.post('/momo/payment', { amount: FINAL_TOTAL, orderId: orderIds[0] });
                 if (resMomo.data.payUrl) window.location.href = resMomo.data.payUrl;
             } else {
-                alert(`🎉 Đã đặt thành công ${orderIds.length} đơn hàng!`);
+                await alertSuccess(
+                    "Đặt hàng thành công!",
+                    `Hệ thống đã ghi nhận ${orderIds.length} đơn hàng của bạn.`
+                );
                 clearCart();
                 // Điều hướng về lịch sử để xem tất cả các đơn
                 navigate('/history');
             }
         } catch (error) {
-            alert("Lỗi đặt hàng: " + error.message);
+            alertError("Lỗi đặt hàng", error.message);
         }
     };
 

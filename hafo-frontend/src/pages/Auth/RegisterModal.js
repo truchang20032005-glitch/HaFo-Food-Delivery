@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../../services/api';
+import { alertSuccess, alertError, alertWarning } from '../../utils/hafoAlert';
 
 function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
     const [step, setStep] = useState(1);
@@ -27,32 +28,32 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
     };
 
     const handleSendOtp = async () => {
-        if (!formData.email) return alert("Vui lòng nhập Email trước!");
-        if (errors.email) return alert("Email này không hợp lệ hoặc đã tồn tại!");
+        if (!formData.email) return alertWarning("Thiếu thông tin", "Vui lòng nhập Email trước!");
+        if (errors.email) return alertWarning("Email này không hợp lệ hoặc đã tồn tại!");
         setLoading(true);
         try {
             await api.post('/auth/send-otp', { email: formData.email });
-            alert(`✅ Đã gửi mã OTP đến ${formData.email}`);
-            setStep(2); // ✅ Trượt sang bước 2
+            await alertSuccess(`Đã gửi mã OTP đến ${formData.email}`);
+            setStep(2);
         } catch (err) {
-            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi", (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
     };
 
     const handleSubmit = async () => {
-        if (!formData.username || !formData.password || !formData.otp) return alert("Điền đủ thông tin!");
-        if (formData.password !== formData.confirmPassword) return alert("Mật khẩu không khớp!");
+        if (!formData.username || !formData.password || !formData.otp) return alertWarning("Điền đủ thông tin!");
+        if (formData.password !== formData.confirmPassword) return alertWarning("Mật khẩu không khớp!");
 
         setLoading(true);
         try {
             await api.post('/auth/register', { ...formData, role: role || 'customer' });
-            alert("🎉 Đăng ký thành công!");
+            await alertSuccess("Thành công", "Đăng ký thành công!");
             onClose();
             onOpenLogin();
         } catch (err) {
-            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi", (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }

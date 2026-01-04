@@ -5,6 +5,7 @@ import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
 import 'leaflet/dist/leaflet.css';
+import { alertSuccess, alertError, alertWarning, confirmDialog } from '../../utils/hafoAlert';
 
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -160,12 +161,12 @@ function Profile() {
             // Cập nhật Context (giả lập login lại với data mới)
             login({ ...updatedUser, id: updatedUser._id }, token);
 
-            alert("✅ Cập nhật hồ sơ thành công!");
+            await alertSuccess("Cập nhật hồ sơ thành công!");
             setUser(updatedUser);
             setAvatarFile(null); // Reset file
         } catch (err) {
             console.error(err);
-            alert("❌ Lỗi cập nhật: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi cập nhật: " + (err.response?.data?.message || err.message));
         }
     };
 
@@ -190,18 +191,27 @@ function Profile() {
         setEditingIndex(null);
     };
 
-    const handleRemoveAddress = (index) => {
-        if (window.confirm("Bạn muốn xóa địa chỉ này?")) {
+    const handleRemoveAddress = async (index) => {
+        const isConfirmed = await confirmDialog(
+            "Xóa địa chỉ?",
+            "Bạn có chắc chắn muốn xóa địa chỉ này khỏi danh sách không?"
+        );
+
+        if (isConfirmed) {
+            // 3. Thực hiện logic lọc địa chỉ
             const newAdrs = formData.addresses.filter((_, i) => i !== index);
             setFormData({ ...formData, addresses: newAdrs });
+
+            // 4. Thông báo thành công mượt mà (Tùy chọn)
+            await alertSuccess("Đã xóa!", "Địa chỉ đã được gỡ bỏ thành công.");
         }
     };
 
     // 5. ĐỔI MẬT KHẨU
     const handleChangePassword = async () => {
         // Validate cơ bản tại Client
-        if (!passData.oldPass || !passData.newPass) return alert("Vui lòng nhập đầy đủ mật khẩu cũ và mới!");
-        if (passData.newPass !== passData.confirmPass) return alert("Mật khẩu xác nhận không khớp!");
+        if (!passData.oldPass || !passData.newPass) return alertWarning("Thiếu thông tin", "Vui lòng nhập đầy đủ mật khẩu cũ và mới!");
+        if (passData.newPass !== passData.confirmPass) return alertWarning("Mật khẩu xác nhận không khớp!");
 
         try {
             const res = await api.post('/auth/change-password', {
@@ -210,12 +220,12 @@ function Profile() {
                 newPass: passData.newPass
             });
 
-            alert("✅ " + res.data.message);
+            await alertSuccess("✅ " + res.data.message);
             setShowPassModal(false);
             setPassData({ oldPass: '', newPass: '', confirmPass: '' });
         } catch (err) {
             // Hiển thị lỗi từ Backend (ví dụ: Mật khẩu cũ sai)
-            alert("❌ " + (err.response?.data?.message || "Có lỗi xảy ra"));
+            alertError("❌ " + (err.response?.data?.message || "Có lỗi xảy ra"));
         }
     };
 

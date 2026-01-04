@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { alertError, alertSuccess, confirmDialog, alertWarning } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -63,22 +64,33 @@ function ShipperWallet() {
     };
 
     const handleWithdraw = async () => {
-        // 1. Kiểm tra số dư (realBalance được tính từ transactions)
+        const amountText = toVND(realBalance);
+
+        // 1. Kiểm tra số dư
         if (realBalance <= 0) {
-            return alert("Số dư của bạn không đủ để thực hiện rút tiền!");
+            return alertWarning("Không thể rút tiền", "Số dư khả dụng của bạn đang bằng 0đ.");
         }
 
-        // 2. Kiểm tra thông tin ngân hàng đã có chưa
+        // 2. Kiểm tra thông tin ngân hàng
         if (!profile.bankAccount || !profile.bankName) {
-            return alert("Vui lòng cập nhật thông tin ngân hàng trước khi rút tiền!");
+            return alertWarning(
+                "Thiếu thông tin",
+                "Vui lòng cập nhật thông tin ngân hàng bên dưới trước khi yêu cầu rút tiền!"
+            );
         }
 
-        if (!window.confirm(`Bạn muốn gửi yêu cầu rút ${toVND(realBalance)}đ về ngân hàng?`)) return;
+        // 3. Xác nhận rút tiền (Bắt buộc có await)
+        const isConfirmed = await confirmDialog(
+            "Xác nhận rút tiền?",
+            `Hệ thống sẽ gửi yêu cầu rút ${amountText}đ về ngân hàng ${profile.bankName} của bạn.`
+        );
+
+        if (!isConfirmed) return;
 
         try {
             const user = JSON.parse(localStorage.getItem('user'));
 
-            // 3. Gửi yêu cầu tạo Transaction mới lên Backend
+            // 4. Gửi yêu cầu lên Backend
             const payload = {
                 userId: user.id,
                 role: 'shipper',
@@ -93,13 +105,18 @@ function ShipperWallet() {
 
             await api.post('/transactions', payload);
 
-            alert("✅ Gửi yêu cầu rút tiền thành công! Vui lòng chờ Admin phê duyệt.");
+            // 5. Thông báo thành công và ĐỢI người dùng đọc xong
+            await alertSuccess(
+                "Thành công!",
+                "Yêu cầu rút tiền đã được gửi. Vui lòng đợi Admin phê duyệt trong vòng 24h."
+            );
 
-            // Tải lại dữ liệu để cập nhật lịch sử hoặc trạng thái (nếu cần)
+            // 6. Tải lại dữ liệu ví để cập nhật trạng thái mới nhất
             fetchWalletData(user.id);
+
         } catch (err) {
-            console.error(err);
-            alert("Lỗi khi rút tiền: " + (err.response?.data?.message || err.message));
+            const errMsg = err.response?.data?.message || "Không thể kết nối đến máy chủ để thực hiện rút tiền.";
+            alertError("Lỗi rút tiền", errMsg);
         }
     };
 
@@ -108,13 +125,15 @@ function ShipperWallet() {
         const user = JSON.parse(localStorage.getItem('user'));
         try {
             setIsSaving(true);
-            // Gửi yêu cầu cập nhật hồ sơ
             await api.put(`/shippers/profile/${user.id}`, bankFormData);
-            alert("Cập nhật thông tin ngân hàng thành công!");
+
+            // Hiện alert thành công trước khi đóng form
+            await alertSuccess("Đã lưu!", "Thông tin ngân hàng của bạn đã được cập nhật.");
+
             setIsEditingBank(false);
-            fetchWalletData(user.id); // Tải lại dữ liệu mới
+            fetchWalletData(user.id);
         } catch (err) {
-            alert("Lỗi cập nhật: " + err.message);
+            alertError("Lỗi cập nhật", err.response?.data?.message || err.message);
         } finally {
             setIsSaving(false);
         }

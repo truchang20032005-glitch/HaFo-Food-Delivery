@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
+import { confirmDialog, alertSuccess } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -21,9 +22,16 @@ function Cart() {
     };
 
     // Hàm xử lý xóa toàn bộ có xác nhận
-    const handleClearCart = () => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ món ăn trong giỏ hàng không?")) {
+    const handleClearCart = async () => {
+        const isConfirmed = await confirmDialog(
+            "Làm trống giỏ hàng?",
+            "Bạn có chắc chắn muốn xóa toàn bộ món ăn đã chọn không?"
+        );
+
+        if (isConfirmed) {
             clearCart();
+
+            await alertSuccess("Đã làm trống!", "Giỏ hàng của bạn hiện tại không có món nào.");
         }
     };
 

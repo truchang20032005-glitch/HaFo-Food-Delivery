@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import AddDishModal from './AddDishModal';
+import { alertError, confirmDialog, alertSuccess } from '../../utils/hafoAlert';
 
 function Menu() {
     const [foods, setFoods] = useState([]);
@@ -48,7 +49,7 @@ function Menu() {
             // Cập nhật lại state local để giao diện đổi ngay lập tức
             setFoods(foods.map(f => f._id === food._id ? { ...f, isAvailable: newStatus } : f));
         } catch (err) {
-            alert("Lỗi cập nhật trạng thái: " + err.message);
+            alertError("Lỗi cập nhật trạng thái", err.message);
         }
     };
 
@@ -63,11 +64,29 @@ function Menu() {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Bạn chắc chắn muốn xóa món này?")) {
+        // 1. Sử dụng confirmDialog (Nhớ có await)
+        const isConfirmed = await confirmDialog(
+            "Xác nhận xóa món?",
+            "Món ăn này sẽ bị gỡ khỏi thực đơn vĩnh viễn. Bạn chắc chắn chứ?"
+        );
+
+        // 2. Nếu người dùng chọn "Đồng ý"
+        if (isConfirmed) {
             try {
+                // Thực hiện gọi API xóa
                 await api.delete(`/foods/${id}`);
+
+                // 3. Thông báo thành công và ĐỢI 2 giây để Admin kịp thấy
+                await alertSuccess("Đã xóa!", "Món ăn đã được gỡ bỏ khỏi thực đơn.");
+
+                // 4. Sau khi alert đóng, mới cập nhật lại danh sách món ăn
                 fetchMenu(myShop._id);
-            } catch (err) { alert("Lỗi xóa: " + err.message); }
+
+            } catch (err) {
+                // 5. Bắt lỗi từ Server chi tiết hơn
+                const errorMsg = err.response?.data?.message || "Không thể kết nối đến máy chủ để xóa món.";
+                alertError("Lỗi xóa", errorMsg);
+            }
         }
     };
 

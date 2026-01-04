@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { alertSuccess, alertError, alertWarning } from '../../utils/hafoAlert';
 
 function Settings() {
     const navigate = useNavigate();
@@ -96,9 +97,9 @@ function Settings() {
             // 3. Phát event để Navbar/Header đang dùng AuthContext cập nhật ảnh theo luôn
             window.dispatchEvent(new Event('storage'));
 
-            alert("✅ Cập nhật ảnh đại diện Admin thành công!");
+            await alertSuccess("Cập nhật ảnh đại diện Admin thành công!");
         } catch (err) {
-            alert("❌ Lỗi up ảnh: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi up ảnh", (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
             e.target.value = null; // Reset input để có thể chọn lại cùng 1 file
@@ -106,7 +107,7 @@ function Settings() {
     };
 
     const handleSaveInfo = async () => {
-        if (!adminInfo.fullName) return alert("Tên không được để trống!");
+        if (!adminInfo.fullName) return alertWarning("Thiếu thông tin", "Tên không được để trống!");
         setLoading(true);
         try {
             const res = await api.put(`/users/${adminInfo.id}`, {
@@ -123,27 +124,27 @@ function Settings() {
                 phone: res.data.phone
             }));
 
-            alert("✅ Cập nhật thông tin thành công!");
+            await alertSuccess("Cập nhật thông tin thành công!");
         } catch (err) {
-            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi", (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
     };
 
     const handleChangePass = async () => {
-        if (!passData.current || !passData.new || !passData.confirm) return alert("⚠️ Vui lòng nhập đủ!");
-        if (passData.new !== passData.confirm) return alert("❌ Mật khẩu không khớp!");
+        if (!passData.current || !passData.new || !passData.confirm) return alertWarning("Thiếu thông tin", "Vui lòng nhập đủ!");
+        if (passData.new !== passData.confirm) return alertError("Mật khẩu không khớp!");
 
         try {
             await api.post('/auth/change-password', { userId: adminInfo.id, oldPass: passData.current, newPass: passData.new });
-            alert("✅ Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
+            await alertSuccess("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
             localStorage.removeItem('user');
             localStorage.removeItem('token');
             navigate('/');
             window.location.reload();
         } catch (err) {
-            alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi", (err.response?.data?.message || err.message));
         }
     };
 
@@ -234,7 +235,7 @@ function Settings() {
                     </select>
 
                     <div></div>
-                    <button className="btn soft" onClick={() => { localStorage.setItem('adminConfig', JSON.stringify(systemConfig)); alert("⚙️ Đã lưu cấu hình!"); }}>Lưu cấu hình</button>
+                    <button className="btn soft" onClick={() => { localStorage.setItem('adminConfig', JSON.stringify(systemConfig)); alertSuccess("Thành công", "Đã lưu cấu hình!"); }}>Lưu cấu hình</button>
                 </div>
             </div>
 

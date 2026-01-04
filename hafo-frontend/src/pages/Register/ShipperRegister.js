@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 // Fix icon Marker Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { alertError, alertWarning } from '../../utils/hafoAlert';
 let DefaultIcon = L.icon({
     iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41]
 });
@@ -93,21 +94,21 @@ function ShipperRegister() {
 
     const handleNext = () => {
         if (step === 1) {
-            if (!data.fullName || !data.phone || !data.email) return alert("Vui lòng điền đủ thông tin cá nhân!");
+            if (!data.fullName || !data.phone || !data.email) return alertWarning("Vui lòng điền đủ thông tin cá nhân!");
             const phoneRegex = /^(02|03|05|07|08|09|01[2|6|8|9])[0-9]{8}$/;
-            if (!phoneRegex.test(data.phone)) return alert("Số điện thoại không hợp lệ!");
-            if (!data.city) return alert("Vui lòng chọn Tỉnh/Thành phố!");
-            if (!data.avatar) return alert("Vui lòng tải ảnh chân dung!");
+            if (!phoneRegex.test(data.phone)) return alertWarning("Số điện thoại không hợp lệ!");
+            if (!data.city) return alertWarning("Vui lòng chọn Tỉnh/Thành phố!");
+            if (!data.avatar) return alertWarning("Vui lòng tải ảnh chân dung!");
         }
         if (step === 2) {
-            if (!data.licensePlate) return alert("Vui lòng nhập biển số xe!");
-            if (!data.vehicleRegImage) return alert("Vui lòng tải ảnh cà vẹt!");
+            if (!data.licensePlate) return alertWarning("Vui lòng nhập biển số xe!");
+            if (!data.vehicleRegImage) return alertWarning("Vui lòng tải ảnh cà vẹt!");
         }
         if (step === 3) {
-            if (!data.driverLicense || !data.licenseImage) return alert("Vui lòng nhập số và tải ảnh bằng lái!");
-            if (!data.cccdFront || !data.cccdBack) return alert("Vui lòng tải đủ 2 mặt CCCD!");
+            if (!data.driverLicense || !data.licenseImage) return alertWarning("Vui lòng nhập số và tải ảnh bằng lái!");
+            if (!data.cccdFront || !data.cccdBack) return alertWarning("Vui lòng tải đủ 2 mặt CCCD!");
         }
-        if (step === 5 && !data.address) return alert("Vui lòng xác định vị trí hoạt động!");
+        if (step === 5 && !data.address) return alertWarning("Vui lòng xác định vị trí hoạt động!");
         setStep(step + 1);
     };
 
@@ -125,7 +126,7 @@ function ShipperRegister() {
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setIsSuccess(true);
             window.scrollTo(0, 0);
-        } catch (err) { alert(err.message); }
+        } catch (err) { alertError("Lỗi", err.message); }
         finally { setLoading(false); }
     };
 

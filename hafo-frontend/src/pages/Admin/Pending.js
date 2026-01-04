@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { useLocation } from 'react-router-dom';
+import { alertSuccess, alertError, alertWarning, alertInfo, confirmDialog } from '../../utils/hafoAlert';
 
 function Pending() {
     const location = useLocation();
@@ -51,16 +52,35 @@ function Pending() {
 
     // 2. Xử lý Duyệt
     const handleApprove = async () => {
+        // 1. Kiểm tra điều kiện đầu vào
         if (!selectedReq) return;
-        if (window.confirm(`Xác nhận duyệt hồ sơ của ${selectedReq.name || selectedReq.fullName}?`)) {
+
+        // 2. Sử dụng confirmDialog (nhớ có await)
+        const displayName = selectedReq.name || selectedReq.fullName;
+        const isConfirmed = await confirmDialog(
+            "Xác nhận duyệt?",
+            `Bạn có chắc chắn muốn duyệt hồ sơ của ${displayName}?`
+        );
+
+        if (isConfirmed) {
             try {
-                //await axios.put(`http://localhost:5000/api/pending/approve/${selectedReq.type}/${selectedReq._id}`);
+                // 3. Gọi API duyệt hồ sơ
                 await api.put(`/pending/approve/${selectedReq.type}/${selectedReq._id}`);
-                alert("Đã duyệt thành công! Tài khoản đã được kích hoạt.");
+
+                // 4. Thông báo thành công (Nên tách Title và Text cho đẹp)
+                await alertSuccess(
+                    "Thành công!",
+                    "Hồ sơ đã được duyệt. Tài khoản đã sẵn sàng hoạt động."
+                );
+
+                // 5. Cập nhật lại danh sách và đóng modal chi tiết
                 fetchPending();
                 closeDetail();
+
             } catch (err) {
-                alert("Lỗi: " + err.message);
+                // 6. Xử lý lỗi từ Server chuyên nghiệp hơn
+                const errorMessage = err.response?.data?.message || err.message;
+                alertError("Lỗi khi duyệt", errorMessage);
             }
         }
     };
@@ -68,7 +88,7 @@ function Pending() {
     // 3. Xử lý Từ chối (Nâng cấp)
     const handleSubmitReject = async () => {
         if (!rejectReason.trim()) {
-            alert("Vui lòng nhập lý do từ chối!");
+            alertWarning("Thiếu thông tin", "Vui lòng nhập lý do từ chối!");
             return;
         }
 
@@ -80,11 +100,11 @@ function Pending() {
             );*/
             await api.put(`/pending/reject/${selectedReq.type}/${selectedReq._id}`, { reason: rejectReason });
 
-            alert("Đã từ chối hồ sơ và gửi email thông báo.");
+            await alertInfo("Đã từ chối hồ sơ và gửi email thông báo.");
             fetchPending();
             closeDetail();
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alertError("Lỗi", err.message);
         }
     };
 

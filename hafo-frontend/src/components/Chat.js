@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { alertError } from '../utils/hafoAlert';
 
 const Chat = ({ orderId: propOrderId, onClose, partnerAvatar }) => {
     const { user } = useAuth(); // Lấy user từ Context
@@ -49,7 +50,7 @@ const Chat = ({ orderId: propOrderId, onClose, partnerAvatar }) => {
         if (!newMessage.trim()) return;
 
         if (!currentUserId) {
-            alert("Lỗi: Không tìm thấy ID người dùng. Vui lòng đăng nhập lại!");
+            alertError("Lỗi", "Không tìm thấy ID người dùng. Vui lòng đăng nhập lại!");
             return;
         }
 
@@ -64,7 +65,7 @@ const Chat = ({ orderId: propOrderId, onClose, partnerAvatar }) => {
         } catch (err) {
             // Hiển thị lỗi cụ thể từ Backend trả về thay vì alert chung chung
             const errorMsg = err.response?.data?.message || "Lỗi gửi tin!";
-            alert(errorMsg);
+            alertError(errorMsg);
         }
     };
 

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // ✅ ĐÃ THÊM useLocation VÀO ĐÂY
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
+import { alertSuccess, alertError, alertWarning } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -24,7 +25,7 @@ function History() {
             setSelectedReview(res.data);
             setShowReviewModal(true);
         } catch (err) {
-            alert("Đơn hàng này hiện chưa có đánh giá hoặc phản hồi.");
+            alertWarning("Đơn hàng này hiện chưa có đánh giá hoặc phản hồi.");
         }
     }, []);
 
@@ -95,7 +96,7 @@ function History() {
             const restaurant = resRest.data.restaurant || resRest.data;
 
             if (!restaurant.isOpen) {
-                return alert(`Quán "${restaurant.name}" hiện đã đóng cửa. Má vui lòng quay lại sau nha! 🕒`);
+                return alertWarning(`Quán "${restaurant.name}" hiện đã đóng cửa. Má vui lòng quay lại sau nha! 🕒`);
             }
 
             // Bước B: Lấy Menu mới nhất để check món còn bán không
@@ -137,15 +138,15 @@ function History() {
 
             // Bước D: Thông báo kết quả
             if (addedCount > 0) {
-                alert(`Đã thêm ${addedCount} món vào giỏ hàng! ${unavailableCount > 0 ? `(Có ${unavailableCount} món đã ngừng bán)` : ''}`);
+                await alertSuccess(`Đã thêm ${addedCount} món vào giỏ hàng! ${unavailableCount > 0 ? `(Có ${unavailableCount} món đã ngừng bán)` : ''}`);
                 navigate('/cart'); // Chuyển sang giỏ hàng luôn
             } else {
-                alert("Rất tiếc, tất cả các món trong đơn này hiện đã ngừng kinh doanh hoặc hết hàng.");
+                alertError("Rất tiếc, tất cả các món trong đơn này hiện đã ngừng kinh doanh hoặc hết hàng.");
             }
 
         } catch (err) {
             console.error("Lỗi khi mua lại:", err);
-            alert("Không thể kết nối với máy chủ để kiểm tra món ăn.");
+            alertError("Không thể kết nối với máy chủ để kiểm tra món ăn.");
         }
     };
 

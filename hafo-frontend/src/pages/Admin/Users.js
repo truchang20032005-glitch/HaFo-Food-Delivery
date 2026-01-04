@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { alertSuccess, alertError, confirmDialog } from '../../utils/hafoAlert';
 
 function Users() {
     const [users, setUsers] = useState([]);
@@ -28,16 +29,29 @@ function Users() {
     }, []);
 
     // Khi bấm nút Khóa/Mở
-    const handleActionClick = (user) => {
+    const handleActionClick = async (user) => {
         if (user.status === 'active' || !user.status) {
-            // Nếu đang Active -> Mở modal nhập lý do để KHÓA
+            // --- GIỮ NGUYÊN MODAL CỦA BẠN CHO NHÁNH KHÓA ---
             setSelectedUser(user);
             setLockReason('');
             setShowLockModal(true);
         } else {
-            // Nếu đang Locked -> Mở khóa luôn (không cần lý do)
-            if (window.confirm(`Mở khóa cho tài khoản ${user.username}?`)) {
-                submitToggleStatus(user._id, '');
+            const isConfirmed = await confirmDialog(
+                "Mở khóa tài khoản?",
+                `Bạn có chắc chắn muốn mở khóa cho tài khoản ${user.username}?`
+            );
+
+            if (isConfirmed) {
+                try {
+                    // Gọi hàm xử lý cập nhật trạng thái
+                    await submitToggleStatus(user._id, '');
+
+                    // Hiển thị thông báo thành công sau khi mở khóa xong
+                    await alertSuccess("Thành công", `Đã mở khóa cho tài khoản ${user.username}`);
+                } catch (error) {
+                    // Bạn có thể thêm alertError ở đây nếu cần báo lỗi từ Server
+                    console.error("Lỗi khi mở khóa:", error);
+                }
             }
         }
     };
@@ -55,7 +69,7 @@ function Users() {
             ));
             setShowLockModal(false); // Đóng modal nếu đang mở
         } catch (err) {
-            alert("Lỗi cập nhật: " + err.message);
+            alertError("Lỗi cập nhật: " + err.message);
         }
     };
 

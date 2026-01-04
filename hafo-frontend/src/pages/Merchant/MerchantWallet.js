@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 
 function MerchantWallet() {
     const [balance, setBalance] = useState(0);
@@ -33,16 +34,16 @@ function MerchantWallet() {
     // Hàm gọi API cập nhật
     const handleUpdateBank = async () => {
         if (!bankFormData.bankName || !bankFormData.bankAccount) {
-            return alert("Vui lòng điền tên và số tài khoản ngân hàng!");
+            return alertWarning("Thiếu thông tin", "Vui lòng điền tên và số tài khoản ngân hàng!");
         }
         setLoading(true);
         try {
             await api.put(`/restaurants/${shop._id}`, bankFormData); // Gọi API put của quán
-            alert("✅ Cập nhật thông tin ngân hàng thành công!");
+            await alertSuccess("Cập nhật thông tin ngân hàng thành công!");
             setShowBankModal(false);
             fetchData(); // Tải lại dữ liệu mới nhất
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            alertError("Lỗi", err.message);
         } finally {
             setLoading(false);
         }
@@ -78,8 +79,8 @@ function MerchantWallet() {
 
     const handleWithdraw = async () => {
         const amount = Number(withdrawAmount);
-        if (amount < 50000) return alert("Rút tối thiểu 50.000đ!");
-        if (amount > balance) return alert("Số dư không đủ để rút số tiền này!");
+        if (amount < 50000) return alertWarning("Rút tối thiểu 50.000đ!");
+        if (amount > balance) return alertWarning("Số dư không đủ để rút số tiền này!");
 
         setLoading(true);
         try {
@@ -92,11 +93,11 @@ function MerchantWallet() {
                     bankOwner: shop.bankOwner
                 }
             });
-            alert("✅ Gửi yêu cầu rút tiền thành công!");
+            alertSuccess("Gửi yêu cầu rút tiền thành công!");
             setShowWithdrawModal(false);
             setWithdrawAmount('');
             fetchData();
-        } catch (err) { alert(err.message); }
+        } catch (err) { alertError(err.message); }
         finally { setLoading(false); }
     };
 

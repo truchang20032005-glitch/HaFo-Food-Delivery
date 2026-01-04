@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { alertSuccess, alertError, alertWarning } from '../../utils/hafoAlert';
 
 // Import Firebase
 
@@ -20,16 +21,29 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
 
     // --- LOGIC ĐĂNG NHẬP ---
     const handleLogin = async () => {
-        if (!loginData.username || !loginData.password) return alert("Nhập thiếu thông tin!");
+        // 1. Kiểm tra đầu vào
+        if (!loginData.username || !loginData.password) {
+            // Truyền cả title và text cho rõ ràng
+            return alertWarning("Thiếu thông tin", "Vui lòng nhập đầy đủ username và password!");
+        }
+
         try {
             const res = await api.post('/auth/login', loginData);
+
+            // 2. Xử lý logic đăng nhập
             login(res.data.user, res.data.token);
-            alert("Đăng nhập thành công!");
+
+            // 3. Thông báo thành công và ĐỢI nó chạy xong timer 2s
+            await alertSuccess("Thành công", "Chào mừng bạn quay trở lại!");
+
+            // 4. Sau khi alert đóng mới thực hiện các bước tiếp theo
             onClose();
-            // Điều hướng
             navigate('/');
+
         } catch (err) {
-            alert("Lỗi: " + (err.response?.data?.message || err.message));
+            // 5. Bắt lỗi từ Server
+            const errMsg = err.response?.data?.message || "Không thể kết nối đến máy chủ";
+            alertError("Đăng nhập thất bại", errMsg);
         }
     };
 
@@ -61,7 +75,7 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
 
             // 4. Lưu đăng nhập như bình thường
             login(res.data.user, res.data.token);
-            alert(`Xin chào, ${res.data.user.fullName}!`);
+            await alertSuccess(`Xin chào, ${res.data.user.fullName}!`);
             onClose();
 
             // Điều hướng
@@ -72,32 +86,32 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
             console.error(error);
             if (error.code === 'auth/popup-closed-by-user') return; // Người dùng tự tắt popup
             if (error.code === 'auth/account-exists-with-different-credential') {
-                alert("Email này đã được đăng ký bằng phương thức khác.");
+                alertWarning("Thiếu thông tin", "Email này đã được đăng ký bằng phương thức khác.");
                 return;
             }
-            alert("Đăng nhập thất bại: " + error.message);
+            alertError("Đăng nhập thất bại: " + error.message);
         }
     };
 
     const sendResetOtp = async () => {
-        if (!resetData.email) return alert("Vui lòng nhập Email!");
+        if (!resetData.email) return alertWarning("Thiếu thông tin", "Vui lòng nhập Email!");
         try {
             await api.post('/auth/send-otp', { email: resetData.email });
-            alert("Đã gửi OTP vào email của bạn!");
+            await alertSuccess("Đã gửi OTP vào email của bạn!");
             setView('reset');
         } catch (err) {
-            alert("Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi: " + (err.response?.data?.message || err.message));
         }
     };
 
     const confirmResetPass = async () => {
-        if (!resetData.otp || !resetData.newPassword) return alert("Nhập đủ OTP và Mật khẩu mới!");
+        if (!resetData.otp || !resetData.newPassword) return alertWarning("Thiếu thông tin", "Nhập đủ OTP và Mật khẩu mới!");
         try {
             await api.post('/auth/reset-password', resetData);
-            alert("Đổi mật khẩu thành công! Vui lòng đăng nhập.");
+            await alertSuccess("Đổi mật khẩu thành công! Vui lòng đăng nhập.");
             setView('login');
         } catch (err) {
-            alert("Lỗi: " + (err.response?.data?.message || err.message));
+            alertError("Lỗi: " + (err.response?.data?.message || err.message));
         }
     };
 

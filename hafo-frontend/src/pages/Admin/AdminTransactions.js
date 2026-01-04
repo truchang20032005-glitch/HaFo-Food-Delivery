@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { alertSuccess, alertError } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN') + 'đ';
 
@@ -15,8 +16,8 @@ function AdminTransactions() {
         try {
             await api.put(`/transactions/${id}/status`, { status, note });
             setTransactions(prev => prev.map(t => t._id === id ? { ...t, status, note } : t));
-            alert("Xử lý thành công!");
-        } catch (err) { alert(err.message); }
+            await alertSuccess("Xử lý thành công!");
+        } catch (err) { alertError(err.message); }
     };
 
     return (

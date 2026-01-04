@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import './Merchant.css';
+import { alertSuccess, confirmDialog } from '../../utils/hafoAlert';
 
 function MerchantLayout() {
     const location = useLocation();
@@ -63,10 +64,24 @@ function MerchantLayout() {
         }
     }, []);
 
-    const handleLogout = () => {
-        if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+    const handleLogout = async () => {
+        const isConfirmed = await confirmDialog(
+            "Đăng xuất?",
+            "Bạn có chắc chắn muốn rời khỏi tài khoản của mình không?"
+        );
+
+        if (isConfirmed) {
+            // 3. Xóa thông tin đăng nhập
             localStorage.removeItem('user');
             localStorage.removeItem('token');
+
+            // 4. Hiển thị lời chào tạm biệt và ĐỢI 2 giây (để user kịp đọc)
+            await alertSuccess(
+                "Đã đăng xuất!",
+                "Hẹn gặp lại bạn sớm với những món ăn ngon nhé!"
+            );
+
+            // 5. Điều hướng và làm mới trạng thái ứng dụng
             navigate('/');
             window.location.reload();
         }

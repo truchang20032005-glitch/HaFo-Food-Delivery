@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { io } from 'socket.io-client';
+import { alertError, alertInfo, alertSuccess, confirmDialog } from '../../utils/hafoAlert';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
 const socket = io(SOCKET_URL, {
@@ -124,14 +125,30 @@ function ShipperDashboard() {
 
     // --- 3. XỬ LÝ NHẬN ĐƠN ---
     const handleAccept = async (orderId) => {
-        if (window.confirm("Bạn chắc chắn muốn nhận thêm đơn này?")) {
+        // 1. Sử dụng confirmDialog để xác nhận (Bắt buộc có await)
+        const isConfirmed = await confirmDialog(
+            "Nhận đơn hàng?",
+            "Bạn có chắc chắn muốn nhận thêm đơn này vào danh sách vận chuyển không?"
+        );
+
+        if (isConfirmed) {
             try {
                 const res = await api.put(`/orders/${orderId}`, { shipperId: user.id });
-                alert("🎉 Nhận đơn thành công!");
-                // ✅ Thêm vào danh sách đang làm mà không cần load lại trang
+
+                // 2. Thông báo thành công và ĐỢI 2 giây
+                // Việc await ở đây giúp Shipper chắc chắn đã nhận được đơn trước khi danh sách cập nhật
+                await alertSuccess(
+                    "Thành công!",
+                    "Đơn hàng đã được thêm vào danh sách đang giao của bạn."
+                );
+
+                // 3. Cập nhật state UI sau khi thông báo đóng
                 setActiveOrders(prev => [...prev, res.data]);
+
             } catch (err) {
-                alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
+                // 4. Xử lý lỗi (ví dụ: đơn đã có người khác nhận mất)
+                const errorMsg = err.response?.data?.message || "Không thể nhận đơn lúc này. Vui lòng thử lại!";
+                alertError("Lỗi nhận đơn", errorMsg);
             }
         }
     };
@@ -403,7 +420,7 @@ function ShipperDashboard() {
                                         const coords = { lat: loc.lat, lng: loc.lng };
                                         setMyLocation(coords);
                                         api.put(`/shippers/location/${user.id}`, coords).catch(() => { });
-                                        alert(`🚀 Đã bay đến: ${loc.name}`);
+                                        alertInfo(`Đã di chuyển đến: ${loc.name}`);
                                         setShowTesterMenu(false);
                                     }}
                                     style={{

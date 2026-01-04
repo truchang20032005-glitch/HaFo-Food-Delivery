@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../../services/api';
+import { alertSuccess, alertError, alertWarning } from '../../utils/hafoAlert';
 
 function AdminReports() {
     const [reports, setReports] = useState([]);
@@ -35,14 +36,14 @@ function AdminReports() {
     }, [fetchReports]);
 
     const handleUpdateStatus = async (id, status) => {
-        if (!adminNote.trim()) return alert("Vui lòng nhập ghi chú xử lý!");
+        if (!adminNote.trim()) return alertWarning("Thiếu thông tin", "Vui lòng nhập ghi chú xử lý!");
         try {
             await api.put(`/reports/${id}/status`, { status, adminNote });
-            alert("✅ Đã cập nhật trạng thái xử lý!");
+            await alertSuccess("Thành công", "Đã cập nhật trạng thái xử lý!");
             setSelectedReport(null);
             setAdminNote('');
             fetchReports();
-        } catch (err) { alert("Lỗi: " + err.message); }
+        } catch (err) { alertError("Lỗi", err.message); }
     };
 
     if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}>Đang tải báo cáo...</div>;

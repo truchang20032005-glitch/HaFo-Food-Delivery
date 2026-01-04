@@ -1,0 +1,35 @@
+.hafo-swal-popup {
+    border-radius: 20px !important;
+    /* Bo góc tròn trịa hơn */
+    padding: 2rem !important;
+    font-family: 'Inter', sans-serif;
+    /* Hoặc font bạn đang dùng cho HaFo */
+}
+
+.hafo-swal-title {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #1E293B !important;
+    /* Màu xanh đen sang trọng */
+}
+
+.hafo-swal-confirm {
+    padding: 10px 30px !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+}
+
+.swal2-icon.swal2-warning {
+    border-color: #f8bb86 !important;
+    color: #f8bb86 !important;
+}
+
+.swal2-container {
+    z-index: 99999 !important;
+    /* Số này phải lớn hơn z-index của .auth-overlay */
+}
+
+.swal2-icon.swal2-info {
+    border-color: #3FC3EE !important;
+    color: #3FC3EE !important;
+}
