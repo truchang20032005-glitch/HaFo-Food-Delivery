@@ -122,6 +122,24 @@ router.post('/social-login', async (req, res) => {
     }
 });
 
+// API kiểm tra trùng lặp (Email hoặc Username)
+router.post('/check-duplicate', async (req, res) => {
+    const { email, username } = req.body;
+    try {
+        if (email) {
+            const user = await User.findOne({ email });
+            if (user) return res.status(400).json({ message: 'Email này đã được sử dụng!' });
+        }
+        if (username) {
+            const user = await User.findOne({ username });
+            if (user) return res.status(400).json({ message: 'Tên đăng nhập đã tồn tại!' });
+        }
+        res.json({ message: 'Hợp lệ' });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi server' });
+    }
+});
+
 // ================= API ĐĂNG KÝ (Nâng cấp) =================
 router.post('/register', async (req, res) => {
     const {
@@ -231,11 +249,38 @@ router.post('/reset-password', async (req, res) => {
         user.password = await bcrypt.hash(newPassword, salt);
         await user.save();
 
-        await Otp.deleteMany({ email }); // Xóa OTP
+        await Otp.deleteMany({ email });
 
         res.json({ message: 'Đổi mật khẩu thành công! Hãy đăng nhập lại.' });
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+// API này nhận vào mật khẩu cũ để xác thực trước khi cho phép đổi mật khẩu mới
+router.post('/change-password', async (req, res) => {
+    const { userId, oldPass, newPass } = req.body;
+
+    try {
+        // 1. Tìm người dùng
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng!' });
+
+        // 2. Kiểm tra mật khẩu cũ có khớp với mật khẩu trong DB không
+        const isMatch = await bcrypt.compare(oldPass, user.password);
+        if (!isMatch) return res.status(400).json({ message: 'Mật khẩu cũ không chính xác!' });
+
+        // 3. Mã hóa mật khẩu mới
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPass, salt);
+
+        // 4. Lưu vào cơ sở dữ liệu
+        await user.save();
+
+        res.json({ message: 'Đổi mật khẩu thành công! Bạn có thể dùng mật khẩu mới từ bây giờ.' });
+    } catch (err) {
+        console.error("Lỗi đổi MK:", err);
+        res.status(500).json({ message: 'Lỗi server: ' + err.message });
     }
 });
 

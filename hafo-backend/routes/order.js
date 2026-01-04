@@ -33,7 +33,18 @@ router.get('/', async (req, res) => {
 // API lấy đơn cho Shipper
 router.get('/available-orders', async (req, res) => {
     try {
-        const { lat, lng, radius = 5000 } = req.query;
+        const { lat, lng, radius = 5000, currentShipperId } = req.query;
+
+        // ✅ KIỂM TRA: Nếu shipper này đang có > 3 đơn chưa hoàn thành, không cho hiện đơn mới nữa
+        if (currentShipperId) {
+            const activeCount = await Order.countDocuments({
+                shipperId: currentShipperId,
+                status: { $in: ['prep', 'ready', 'pickup'] }
+            });
+            if (activeCount >= 3) {
+                return res.json([]); // Trả về mảng rỗng vì "đã đầy tải"
+            }
+        }
 
         const nearbyRestaurants = await Restaurant.find({
             location: {
@@ -45,11 +56,10 @@ router.get('/available-orders', async (req, res) => {
         }).select('_id');
 
         const restaurantIds = nearbyRestaurants.map(r => r._id);
-
         const orders = await Order.find({
             restaurantId: { $in: restaurantIds },
-            shipperId: null, // Chỉ lấy đơn chưa có ai nhận
-            status: { $in: ['new', 'prep', 'ready'] } // Lấy các đơn mới hoặc đang làm/đã xong
+            shipperId: null,
+            status: { $in: ['new', 'prep', 'ready'] }
         }).populate('restaurantId');
 
         res.json(orders);
@@ -78,7 +88,7 @@ router.get('/:id', async (req, res) => {
 // --- 3. TẠO ĐƠN HÀNG MỚI (CẬP NHẬT) ---
 router.post('/', async (req, res) => {
     // Nhận thêm restaurantId từ Frontend gửi xuống
-    const { customer, items, total, userId, restaurantId } = req.body;
+    const { customer, items, total, userId, restaurantId, lat, lng, note } = req.body;
 
     try {
         const newOrder = new Order({
@@ -86,7 +96,10 @@ router.post('/', async (req, res) => {
             restaurantId, // <-- Lưu restaurantId vào DB
             customer,
             items, // <-- Lưu mảng items chi tiết
-            total
+            total,
+            lat, // ✅ LƯU VĨ ĐỘ
+            lng, // ✅ LƯU KINH ĐỘ
+            note // ✅ LƯU GHI CHÚ
         });
         await newOrder.save();
         res.status(201).json(newOrder);

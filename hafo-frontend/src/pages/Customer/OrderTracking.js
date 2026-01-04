@@ -2,11 +2,17 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
-import { useMap, MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { useMap, MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import Chat from '../../components/Chat';
 import 'leaflet/dist/leaflet.css';
 import { io } from 'socket.io-client';
+
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+const socket = io(SOCKET_URL, {
+    transports: ['websocket'],
+    withCredentials: true
+});
 
 const iconMarker = (url, size = [40, 40]) => L.icon({
     iconUrl: url,
@@ -41,33 +47,51 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 function OrderTracking() {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
-    const [shipper, setShipper] = useState(null);
+    //const [shipper, setShipper] = useState(null);
     const [restaurant, setRestaurant] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [hasNewMsg, setHasNewMsg] = useState(false);
     const [isShipperChatOpen, setIsShipperChatOpen] = useState(false);
-    const [shipperPos, setShipperPos] = useState([10.762, 106.660]);
-    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+    const [shipperPos, setShipperPos] = useState(null);
     const [lastNotifiedMsgId, setLastNotifiedMsgId] = useState(null);
     const navigate = useNavigate();
-    const socket = io(SOCKET_URL, {
-        transports: ['websocket'], // Ép dùng websocket để Render chạy mượt hơn
-        withCredentials: true
-    });
 
 
     const fetchData = useCallback(async () => {
         try {
+            // Backend API /orders/:id đã tự populate shipperId rồi
             const resOrder = await api.get(`/orders/${id}`);
             const orderData = resOrder.data;
             setOrder(orderData);
+
+            if (orderData.shipperId?.location?.coordinates) {
+                const [lng, lat] = orderData.shipperId.location.coordinates;
+                if (lat !== 0 && lng !== 0) {
+                    setShipperPos([lat, lng]);
+                }
+            }
+
             if (orderData.restaurantId) {
-                const resRest = await api.get(`/restaurants/${orderData.restaurantId}`);
+                const resRest = await api.get(`/restaurants/${orderData.restaurantId._id || orderData.restaurantId}`);
                 setRestaurant(resRest.data.restaurant || resRest.data);
             }
-            if (orderData.shipperId) {
-                const resShip = await api.get(`/shippers/profile/${orderData.shipperId}`);
-                setShipper(resShip.data);
+            // Không cần gọi API /shippers/profile nữa vì data đã có trong orderData.shipperId
+
+            const resMsg = await api.get(`/messages/${id}`);
+            const messages = resMsg.data;
+            if (messages.length > 0) {
+                const lastMsg = messages[messages.length - 1];
+                const lastRead = localStorage.getItem(`lastRead_${id}`);
+                const currentUserId = localStorage.getItem('userId');
+
+                // Nếu tin cuối không phải của mình VÀ thời gian nhắn > thời gian đọc cuối cùng
+                if (lastMsg.senderId !== currentUserId) {
+                    if (!lastRead || new Date(lastMsg.createdAt) > new Date(lastRead)) {
+                        setHasNewMsg(true);
+                    } else {
+                        setHasNewMsg(false);
+                    }
+                }
             }
         } catch (err) { console.error("Lỗi đồng bộ:", err); }
     }, [id]);
@@ -103,28 +127,57 @@ function OrderTracking() {
     }, [checkNewMessages]);
 
     useEffect(() => {
-        if (!socket || !id) return; // Bảo vệ nếu id hoặc socket chưa sẵn sàng
+        if (!id) return;
 
+        // Lắng nghe tọa độ từ Shipper phát ra
         socket.on(`tracking_order_${id}`, (data) => {
-            setShipperPos([data.lat, data.lng]);
+            if (data.lat && data.lng) {
+                setShipperPos([data.lat, data.lng]); // Cập nhật marker trên bản đồ
+            }
         });
 
-        return () => socket.off(`tracking_order_${id}`);
-    }, [id, socket]);
+        // Hàm dọn dẹp khi đóng trang hoặc chuyển trang
+        return () => {
+            socket.off(`tracking_order_${id}`);
+        };
+    }, [id]);
 
     const realStats = useMemo(() => {
-        if (!order) return { distance: 0, eta: 0 };
-        const fromLat = shipper?.lat || restaurant?.location?.coordinates[1];
-        const fromLng = shipper?.lng || restaurant?.location?.coordinates[0];
+        if (!order || !order.lat) return { distance: 0, eta: 0 };
+
+        // Dùng optional chaining (?.) để bảo vệ nếu shipperPos đang null
+        const fromLat = shipperPos?.[0] || restaurant?.location?.coordinates[1];
+        const fromLng = shipperPos?.[1] || restaurant?.location?.coordinates[0];
+
+        if (!fromLat || !fromLng) return { distance: 0, eta: 5 };
+
         const dist = calculateDistance(fromLat, fromLng, order.lat, order.lng);
-        return { distance: dist.toFixed(1), eta: Math.ceil(dist * 4 + 3) };
-    }, [order, shipper, restaurant]);
+
+        // Logic thực tế: 1km ~ 3.5 phút + thời gian chuẩn bị
+        const travelTime = dist * 3.5;
+        const prepTime = (order.status === 'new' || order.status === 'prep') ? 8 : 2;
+        const totalEta = Math.ceil(travelTime + prepTime);
+
+        return {
+            distance: dist.toFixed(1),
+            eta: totalEta > 2 ? totalEta : 2
+        };
+    }, [order, shipperPos, restaurant]);
 
     const handleReceiveOrder = async () => {
         try {
             await api.put(`/orders/${id}`, { status: 'done' });
             setShowModal(false); fetchData(); alert("🎉 Đã nhận đơn hàng!");
         } catch (err) { alert(err.message); }
+    };
+
+    // Khi nhấn mở chat, ẩn ngay dấu đỏ
+    const toggleChat = () => {
+        setIsShipperChatOpen(!isShipperChatOpen);
+        if (!isShipperChatOpen) {
+            setHasNewMsg(false);
+            localStorage.setItem(`lastRead_${id}`, new Date().toISOString());
+        }
     };
 
     if (!order) return <div style={{ padding: '80px', textAlign: 'center', background: '#F7F2E5', minHeight: '100vh' }}>Đang tải...</div>;
@@ -243,29 +296,45 @@ function OrderTracking() {
                         </div>
                     </div>
 
-                    <div style={{ ...S.card, height: '400px', padding: 0 }}>
-                        <MapContainer center={shipperPos} zoom={15} style={{ height: '400px', borderRadius: '16px' }}>
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <div style={{ ...S.card, height: '450px', padding: 0, position: 'relative' }}>
+                        {order.lat && order.lng ? (
+                            <MapContainer
+                                center={shipperPos || [order.lat, order.lng]}
+                                zoom={15}
+                                style={{ height: '100%', borderRadius: '16px' }}
+                            >
+                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                <RecenterMap position={shipperPos} />
 
-                            {/* ✅ Tự động xoay bản đồ theo Shipper */}
-                            <RecenterMap position={shipperPos} />
+                                {/* MỐC 1: SHIPPER (Di chuyển) */}
+                                {shipperPos && (
+                                    <Marker position={shipperPos} icon={shipperIcon}>
+                                        <Popup><b>Shipper:</b> {order.shipperId?.fullName || 'Tài xế'} đang đến!</Popup>
+                                    </Marker>
+                                )}
 
-                            {/* 1. Marker của Shipper (Vị trí thực từ Socket) */}
-                            <Marker position={shipperPos} icon={shipperIcon} />
+                                {/* MỐC 2: NHÀ HÀNG */}
+                                {restaurant?.location?.coordinates && (
+                                    <Marker
+                                        position={[restaurant.location.coordinates[1], restaurant.location.coordinates[0]]}
+                                        icon={restaurantIcon}
+                                    >
+                                        <Popup><b>Cửa hàng:</b> {restaurant.name}<br />{restaurant.address}</Popup>
+                                    </Marker>
+                                )}
 
-                            {/* 2. Marker của Quán ăn (Tọa độ từ DB) */}
-                            {restaurant?.location?.coordinates && (
-                                <Marker
-                                    position={[restaurant.location.coordinates[1], restaurant.location.coordinates[0]]}
-                                    icon={restaurantIcon}
-                                />
-                            )}
-
-                            {/* 3. Marker của Khách hàng (Điểm giao hàng) */}
-                            {order?.lat && order?.lng && (
-                                <Marker position={[order.lat, order.lng]} icon={customerIcon} />
-                            )}
-                        </MapContainer>
+                                {/* MỐC 3: KHÁCH HÀNG (BẠN) */}
+                                {order.lat && order.lng && (
+                                    <Marker position={[order.lat, order.lng]} icon={customerIcon}>
+                                        <Popup><b>Vị trí của bạn:</b> Đồ ăn sẽ được giao đến đây.</Popup>
+                                    </Marker>
+                                )}
+                            </MapContainer>
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                <p>Đang xác định vị trí đơn hàng...</p>
+                            </div>
+                        )}
                     </div>
 
                     <div style={S.card}>
@@ -409,7 +478,7 @@ function OrderTracking() {
 
                 {/* 2. Nút tròn nhắn tin với Shipper (Nằm trên nút AI) */}
                 <button
-                    onClick={() => setIsShipperChatOpen(!isShipperChatOpen)}
+                    onClick={toggleChat}
                     className={hasNewMsg ? 'vibrate-active' : ''} // Thêm class rung khi có tin nhắn
                     style={{
                         ...S.circleBtn,

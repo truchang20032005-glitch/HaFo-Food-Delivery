@@ -47,13 +47,50 @@ function Storefront() {
     const [loadingShop, setLoadingShop] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
 
+    // Hàm lọc địa chỉ sạch từ dữ liệu của OpenStreetMap
+    const formatCleanAddress = (addressObj) => {
+        if (!addressObj) return "";
+
+        // Lấy các thành phần quan trọng
+        const houseNumber = addressObj.house_number || "";
+        const road = addressObj.road || "";
+
+        // Phường/Xã: OSM thường trả về suburb, quarter hoặc neighbourhood
+        const ward = addressObj.suburb || addressObj.quarter || addressObj.neighbourhood || "";
+
+        // Quận/Huyện: Ưu tiên district
+        const district = addressObj.district || addressObj.city_district || "";
+
+        // Thành phố: Thường là city hoặc state
+        const city = addressObj.city || addressObj.state || "";
+
+        // Ghép lại thành chuỗi, loại bỏ các phần rỗng và các phần bị lặp (như Thủ Đức ở Quận 1)
+        const parts = [];
+
+        if (houseNumber && road) parts.push(`${houseNumber} ${road}`);
+        else if (road) parts.push(road);
+
+        if (ward) parts.push(ward);
+
+        // Logic đặc biệt: Nếu đã có District 1 (Quận 1) thì không thêm "Saigon" hay "Thủ Đức" lắt nhắt vào giữa
+        if (district) parts.push(district);
+
+        if (city) parts.push(city);
+
+        return parts.join(", ");
+    };
+
     // --- HÀM 1: TỪ TỌA ĐỘ -> ĐỊA CHỈ (Khi click Map) ---
     const fetchAddressFromCoords = async (lat, lng) => {
         try {
+            // Lưu ý: Nominatim trả về object 'address' rất chi tiết khi dùng format jsonv2
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
             const data = await res.json();
-            if (data && data.display_name) {
-                setFormData(prev => ({ ...prev, address: data.display_name }));
+
+            if (data && data.address) {
+                // ✅ DÙNG HÀM LỌC ĐỊA CHỈ SẠCH TẠI ĐÂY
+                const cleanAddr = formatCleanAddress(data.address);
+                setFormData(prev => ({ ...prev, address: cleanAddr }));
             }
         } catch (err) {
             console.error("Lỗi lấy địa chỉ:", err);
@@ -65,11 +102,19 @@ function Storefront() {
         if (!formData.address) return;
         setIsGeocoding(true);
         try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.address)}`);
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&q=${encodeURIComponent(formData.address)}`);
             const data = await res.json();
+
             if (data && data.length > 0) {
-                const { lat, lon } = data[0];
-                setFormData(prev => ({ ...prev, lat: parseFloat(lat), lng: parseFloat(lon) }));
+                const firstResult = data[0];
+                const cleanAddr = formatCleanAddress(firstResult.address); // ✅ Lọc địa chỉ sạch
+
+                setFormData(prev => ({
+                    ...prev,
+                    lat: parseFloat(firstResult.lat),
+                    lng: parseFloat(firstResult.lon),
+                    address: cleanAddr // ✅ Cập nhật lại ô input bằng địa chỉ đã lọc
+                }));
             } else {
                 alert("Không tìm thấy tọa độ cho địa chỉ này!");
             }

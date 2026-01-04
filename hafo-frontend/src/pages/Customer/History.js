@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom'; // ✅ ĐÃ THÊM useLocation VÀO ĐÂY
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
+import { useCart } from '../../context/CartContext';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -13,9 +14,10 @@ function History() {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const navigate = useNavigate();
     const location = useLocation(); // ✅ Lấy thông tin điều hướng từ Navbar gửi qua
+    const { addToCart } = useCart();
 
 
-    // ✅ 2. LOGIC ĐIỀU HƯỚNG THÔNG MINH (Mở modal khi bấm từ chuông thông báo)
+    // LOGIC ĐIỀU HƯỚNG THÔNG MINH (Mở modal khi bấm từ chuông thông báo)
     const handleViewReview = useCallback(async (orderId) => {
         try {
             const res = await api.get(`/customer-reviews/order/${orderId}`);
@@ -26,7 +28,7 @@ function History() {
         }
     }, []);
 
-    // ✅ Hàm lấy dữ liệu (Dùng useCallback để fix warning)
+    // Hàm lấy dữ liệu (Dùng useCallback để fix warning)
     const fetchHistory = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) return;
@@ -42,7 +44,7 @@ function History() {
         }
     }, []);
 
-    // 1. Lấy dữ liệu lịch sử từ Backend
+    // Lấy dữ liệu lịch sử từ Backend
     useEffect(() => {
         // Chỉ chạy khi orders đã tải xong và có openOrderId trong state
         if (!loading && orders.length > 0 && location.state?.openOrderId) {
@@ -75,11 +77,77 @@ function History() {
     // Logic lọc tab
     const filteredOrders = orders.filter(o => {
         if (filter === 'all') return true;
-        if (filter === 'danggiao') return ['new', 'prep', 'pickup'].includes(o.status);
+        // ✅ THÊM 'ready' vào mảng này
+        if (filter === 'danggiao') return ['new', 'prep', 'ready', 'pickup'].includes(o.status);
         if (filter === 'damua') return o.status === 'done';
         if (filter === 'dahuy') return o.status === 'cancel';
         return true;
     });
+
+    // Xử lí đặt lại/mua lại
+    const handleReorder = async (order) => {
+        try {
+            // Lấy ID nhà hàng (xử lý cả trường hợp là object hoặc string)
+            const resId = order.restaurantId?._id || order.restaurantId;
+
+            // Bước A: Kiểm tra trạng thái quán (Mở/Đóng)
+            const resRest = await api.get(`/restaurants/${resId}`);
+            const restaurant = resRest.data.restaurant || resRest.data;
+
+            if (!restaurant.isOpen) {
+                return alert(`Quán "${restaurant.name}" hiện đã đóng cửa. Má vui lòng quay lại sau nha! 🕒`);
+            }
+
+            // Bước B: Lấy Menu mới nhất để check món còn bán không
+            const resMenu = await api.get(`/restaurants/${resId}/menu`);
+            const currentMenu = resMenu.data;
+
+            let addedCount = 0;
+            let unavailableCount = 0;
+
+            // Bước C: Đối chiếu và thêm vào giỏ
+            for (const orderItem of order.items) {
+                const liveFood = currentMenu.find(f => f._id === orderItem.foodId);
+
+                if (liveFood && liveFood.isAvailable) {
+                    // Tạo object cartItem chuẩn (bao gồm cả tọa độ quán để tính ship ở Checkout)
+                    const [resLng, resLat] = restaurant.location?.coordinates || [106.660172, 10.762622];
+
+                    const cartItem = {
+                        ...liveFood,
+                        uniqueId: Date.now() + Math.random(),
+                        restaurantId: resId,
+                        restaurantName: restaurant.name,
+                        resLat: resLat,
+                        resLng: resLng,
+                        quantity: orderItem.quantity,
+                        selectedSize: 'Vừa', // Mua lại mặc định size vừa (hoặc parse từ orderItem.options nếu muốn xịn hơn)
+                        sizePrice: 0,
+                        selectedToppings: [],
+                        finalPrice: liveFood.price,
+                        note: "[Mua lại từ đơn cũ]"
+                    };
+
+                    addToCart(cartItem);
+                    addedCount++;
+                } else {
+                    unavailableCount++;
+                }
+            }
+
+            // Bước D: Thông báo kết quả
+            if (addedCount > 0) {
+                alert(`Đã thêm ${addedCount} món vào giỏ hàng! ${unavailableCount > 0 ? `(Có ${unavailableCount} món đã ngừng bán)` : ''}`);
+                navigate('/cart'); // Chuyển sang giỏ hàng luôn
+            } else {
+                alert("Rất tiếc, tất cả các món trong đơn này hiện đã ngừng kinh doanh hoặc hết hàng.");
+            }
+
+        } catch (err) {
+            console.error("Lỗi khi mua lại:", err);
+            alert("Không thể kết nối với máy chủ để kiểm tra món ăn.");
+        }
+    };
 
     const getStatusBadge = (status) => {
         const styles = { padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', display: 'inline-block' };
@@ -89,6 +157,7 @@ function History() {
             case 'pickup': return <span style={{ ...styles, background: '#F9F0FF', color: '#722ED1' }}>🛵 Đang giao</span>;
             case 'done': return <span style={{ ...styles, background: '#F6FFED', color: '#52C41A' }}>✅ Hoàn thành</span>;
             case 'cancel': return <span style={{ ...styles, background: '#FFF1F0', color: '#F5222D' }}>❌ Đã hủy</span>;
+            case 'ready': return <span style={{ ...styles, background: '#f0fff8ff', color: '#1f802aff' }}>✅ Nhà hàng đã xong</span>;
             default: return <span style={{ ...styles, background: '#eee', color: '#666' }}>Không rõ</span>;
         }
     };
@@ -164,12 +233,14 @@ function History() {
                                             <div style={{ fontSize: '18px', fontWeight: '800', color: '#F97350' }}>{toVND(order.total)}đ</div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px' }}>
-                                            {['new', 'prep', 'pickup'].includes(order.status) && (
+                                            {['new', 'prep', 'ready', 'pickup'].includes(order.status) && (
                                                 <Link to={`/order-tracking/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#e0f2fe', color: '#0070f3', fontSize: '13px', fontWeight: 'bold' }}>Theo dõi</Link>
                                             )}
                                             {order.status === 'done' && (
                                                 <>
-                                                    <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Mua lại</button>
+                                                    <button
+                                                        onClick={() => handleReorder(order)}
+                                                        style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Mua lại</button>
                                                     {order.isReviewed ? (
                                                         <button onClick={() => handleViewReview(order._id)} style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #F97350', background: '#fff', color: '#F97350', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Xem lại đánh giá</button>
                                                     ) : (
@@ -177,7 +248,9 @@ function History() {
                                                     )}
                                                 </>
                                             )}
-                                            {order.status === 'cancel' && <button style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Đặt lại</button>}
+                                            {order.status === 'cancel' && <button
+                                                onClick={() => handleReorder(order)}
+                                                style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Đặt lại</button>}
                                         </div>
                                     </div>
                                 </div>

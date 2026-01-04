@@ -45,7 +45,16 @@ function RestaurantDetail() {
     }, [foods, searchKeyword]);
 
     const handleOpenModal = (food) => {
-        setSelectedFood(food);
+        const [resLng, resLat] = restaurant.location?.coordinates || [106.660172, 10.762622];
+        // Tạo một object mới kết hợp thông tin món và thông tin quán
+        const foodWithRestaurant = {
+            ...food,
+            restaurantId: restaurant._id || restaurant.id, // Lấy ID từ state restaurant đã load
+            restaurantName: restaurant.name,
+            resLat: resLat,
+            resLng: resLng               // Lấy tên quán
+        };
+        setSelectedFood(foodWithRestaurant);
         setShowModal(true);
     };
 
