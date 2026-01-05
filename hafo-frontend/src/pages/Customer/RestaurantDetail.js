@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'; // Thêm useMemo để lọc món nhanh hơn
+import { useState, useEffect, useMemo } from 'react';
+import { removeVietnameseTones } from '../../utils/stringUtils';
 import api from '../../services/api';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -40,9 +41,14 @@ function RestaurantDetail() {
 
     // HÀM LỌC MÓN THEO TỪ KHÓA TÌM KIẾM
     const filteredFoods = useMemo(() => {
-        return foods.filter(food =>
-            food.name.toLowerCase().includes(searchKeyword.toLowerCase())
-        );
+        const keyword = removeVietnameseTones(searchKeyword.toLowerCase().trim());
+
+        return foods.filter(food => {
+            const nameClean = removeVietnameseTones(food.name.toLowerCase());
+            const descClean = removeVietnameseTones((food.description || '').toLowerCase());
+
+            return nameClean.includes(keyword) || descClean.includes(keyword);
+        });
     }, [foods, searchKeyword]);
 
     const handleOpenModal = (food) => {
@@ -96,7 +102,7 @@ function RestaurantDetail() {
                 .menu-scroll-container::-webkit-scrollbar-thumb:hover { background: #e85d3a; }
             `}</style>
 
-            <Navbar />
+            <Navbar hideSearch={true} />
 
             <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
                 <div style={{ fontSize: '13px', color: '#7a6f65', margin: '20px 0' }}>

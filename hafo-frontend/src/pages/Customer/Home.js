@@ -1,11 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
+import { removeVietnameseTones } from '../../utils/stringUtils';
+
+// Hàm tính khoảng cách (Haversine)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return 999;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
 
 function Home() {
     const [restaurants, setRestaurants] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [userLocation, setUserLocation] = useState(null);
+    const [sortBy, setSortBy] = useState("default");
 
     // State cho bộ lọc
     const [selectedCity, setSelectedCity] = useState("Tất cả"); // MỚI: Thêm state Thành phố
@@ -17,7 +33,19 @@ function Home() {
     const [districts, setDistricts] = useState([]);
     const [cuisines, setCuisines] = useState([]);
 
-    //const toVND = (n) => n?.toLocaleString('vi-VN');
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (err) => console.warn("Không lấy được vị trí:", err)
+        );
+    }, []);
 
     // 1. GỌI API LẤY DANH SÁCH QUÁN THẬT TỪ BACKEND
     useEffect(() => {
@@ -60,25 +88,39 @@ function Home() {
     }, [selectedCity, restaurants]);
 
     // 2. Logic lọc tổng hợp: Đã tách biệt hoàn toàn
-    const filteredRestaurants = restaurants.filter(res => {
-        const searchLow = searchTerm.trim().toLowerCase();
+    const filteredAndSortedRestaurants = useMemo(() => {
+        let result = [...restaurants];
 
-        // ✅ QUY TẮC TÁCH BIỆT: Nếu ô tìm kiếm có chữ, CHỈ LỌC THEO TÌM KIẾM
+        // A. Lọc theo tìm kiếm (Dùng debouncedSearch thay vì searchTerm)
+        const searchLow = removeVietnameseTones(debouncedSearch.trim().toLowerCase());
         if (searchLow !== "") {
-            return (
-                res.name.toLowerCase().includes(searchLow) ||
-                (res.address && res.address.toLowerCase().includes(searchLow)) ||
-                (res.cuisine && res.cuisine.some(c => c.toLowerCase().includes(searchLow)))
+            result = result.filter(res =>
+                removeVietnameseTones(res.name.toLowerCase()).includes(searchLow) ||
+                removeVietnameseTones(res.address?.toLowerCase() || "").includes(searchLow)
             );
         }
+        // B. Lọc theo khu vực/món ăn (Chỉ khi không tìm kiếm)
+        if (selectedCity !== "Tất cả") result = result.filter(r => r.city === selectedCity);
+        if (selectedDistrict !== "Tất cả") result = result.filter(r => r.district === selectedDistrict);
+        if (selectedCuisine !== "Tất cả") result = result.filter(r => r.cuisine?.includes(selectedCuisine));
 
-        // ✅ Nếu ô tìm kiếm TRỐNG, mới áp dụng bộ lọc Khu vực / Món ăn
-        const matchesCity = selectedCity === "Tất cả" || (res.city && res.city === selectedCity);
-        const matchesDistrict = selectedDistrict === "Tất cả" || (res.district && res.district === selectedDistrict);
-        const matchesCuisine = selectedCuisine === "Tất cả" || (res.cuisine && res.cuisine.includes(selectedCuisine));
 
-        return matchesCity && matchesDistrict && matchesCuisine;
-    });
+        // ✅ C. SẮP XẾP
+        if (sortBy === "rating") {
+            result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        } else if (sortBy === "distance" && userLocation) {
+            result.sort((a, b) => {
+                const distA = calculateDistance(userLocation.lat, userLocation.lng, a.location?.coordinates[1], a.location?.coordinates[0]);
+                const distB = calculateDistance(userLocation.lat, userLocation.lng, b.location?.coordinates[1], b.location?.coordinates[0]);
+                return distA - distB;
+            });
+        } else if (sortBy === "price") {
+            // Giả sử mỗi quán có trường avgPrice hoặc lấy minPrice từ menu
+            result.sort((a, b) => (a.minPrice || 0) - (b.minPrice || 0));
+        }
+
+        return result;
+    }, [restaurants, debouncedSearch, selectedCity, selectedDistrict, selectedCuisine, sortBy, userLocation]);
 
     const handleSearch = (value) => {
         setSearchTerm(value);
@@ -144,6 +186,15 @@ function Home() {
                         ))}
                     </select>
 
+                    {/* ✅ BỘ LỌC SẮP XẾP MỚI */}
+                    <span style={{ fontWeight: 'bold', color: '#555', whiteSpace: 'nowrap' }}> <i className="fa-solid fa-sort"></i> Sắp xếp:</span>
+                    <select style={selectStyle} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                        <option value="default">Mặc định</option>
+                        <option value="rating">⭐ Đánh giá cao nhất</option>
+                        <option value="distance">📍 Gần tôi nhất</option>
+                        <option value="price">💰 Giá thấp đến cao</option>
+                    </select>
+
                     {/* Nút Reset nếu đang lọc */}
                     {(selectedCity !== "Tất cả" || selectedDistrict !== "Tất cả" || selectedCuisine !== "Tất cả" || searchTerm) && (
                         <button
@@ -165,7 +216,7 @@ function Home() {
                 <h2 style={{ marginBottom: '20px', color: '#F97350', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {searchTerm ? `Kết quả cho "${searchTerm}"` : "Quán ngon quanh bạn 😋"}
                     <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal', background: '#fff', padding: '2px 8px', borderRadius: '10px', border: '1px solid #ddd' }}>
-                        {filteredRestaurants.length} kết quả
+                        {filteredAndSortedRestaurants.length} kết quả
                     </span>
                 </h2>
 
@@ -174,7 +225,7 @@ function Home() {
                         <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 24, color: '#F97350' }}></i>
                         <p>Đang tải dữ liệu quán...</p>
                     </div>
-                ) : filteredRestaurants.length === 0 ? (
+                ) : filteredAndSortedRestaurants.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 50, color: '#666' }}>
                         <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-state-2130362-1800926.png" alt="Empty" style={{ width: 200, opacity: 0.5 }} />
                         <p style={{ fontSize: '18px', marginTop: 10 }}>Không tìm thấy quán nào phù hợp 😅</p>
@@ -187,7 +238,7 @@ function Home() {
                     </div>
                 ) : (
                     <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '25px' }}>
-                        {filteredRestaurants.map(res => (
+                        {filteredAndSortedRestaurants.map(res => (
                             <Link to={`/restaurant/${res._id}`} key={res._id} style={{ textDecoration: 'none', color: 'inherit' }}>
                                 <div className="card" style={cardStyle}>
                                     {/* Ảnh quán */}
@@ -225,6 +276,18 @@ function Home() {
                                                 {res.address}, {res.district}
                                             </span>
                                         </div>
+                                        {userLocation && (
+                                            <div style={{ fontSize: '12px', color: '#F97350', fontWeight: 'bold', marginBottom: '8px' }}>
+                                                <i className="fa-solid fa-person-walking"></i> Cách bạn: {
+                                                    calculateDistance(
+                                                        userLocation.lat,
+                                                        userLocation.lng,
+                                                        res.location?.coordinates[1],
+                                                        res.location?.coordinates[0]
+                                                    ).toFixed(1)
+                                                } km
+                                            </div>
+                                        )}
 
                                         {/* Cuisine Tags */}
                                         <div style={{ marginBottom: 10, display: 'flex', gap: 5, overflow: 'hidden', whiteSpace: 'nowrap' }}>
@@ -236,8 +299,14 @@ function Home() {
                                         </div>
 
                                         <div style={{ borderTop: '1px solid #eee', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ color: '#F5C048', fontWeight: 'bold', fontSize: 14 }}>
-                                                <i className="fa-solid fa-star"></i> {res.rating || 5.0}
+                                            <span style={{ color: res.rating > 0 ? '#F5C048' : '#999', fontWeight: 'bold', fontSize: 13 }}>
+                                                {res.rating > 0 ? (
+                                                    <>
+                                                        <i className="fa-solid fa-star"></i> {res.rating.toFixed(1)}
+                                                    </>
+                                                ) : (
+                                                    "Chưa có đánh giá"
+                                                )}
                                             </span>
                                             <span style={{ color: '#F97350', fontWeight: 'bold', fontSize: '13px', background: '#fff5f2', padding: '4px 10px', borderRadius: '20px' }}>
                                                 Xem Menu →

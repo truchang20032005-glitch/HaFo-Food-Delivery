@@ -34,37 +34,51 @@ router.post('/', async (req, res) => {
 // 2. LẤY DANH SÁCH TẤT CẢ QUÁN KÈM DOANH THU (Dành cho Admin/Home)
 router.get('/', async (req, res) => {
     try {
-        // 1. Lấy danh sách quán và thông tin chủ sở hữu
         const restaurants = await Restaurant.find().populate('owner', 'fullName email phone');
 
-        // 2. Tính doanh thu và số đơn của TẤT CẢ quán bằng 1 câu lệnh aggregate
-        const stats = await Order.aggregate([
+        // 1. Tính doanh thu và số đơn
+        const orderStats = await Order.aggregate([
             { $match: { status: 'done' } },
             {
                 $group: {
                     _id: '$restaurantId',
                     totalRevenue: { $sum: '$total' },
-                    totalOrders: { $sum: 1 } // Đếm luôn số đơn cho tiện
+                    totalOrders: { $sum: 1 }
                 }
             }
         ]);
 
-        // 3. Chuyển kết quả sang Map để tra cứu O(1)
+        // ✅ 2. LOGIC MỚI: Tìm giá thấp nhất (minPrice) từ Menu của từng quán
+        const foodStats = await Food.aggregate([
+            {
+                $group: {
+                    _id: '$restaurant',
+                    minPrice: { $min: '$price' } // Lấy giá nhỏ nhất trong bảng Food
+                }
+            }
+        ]);
+
         const statsMap = {};
-        stats.forEach(item => {
-            statsMap[item._id.toString()] = {
-                revenue: item.totalRevenue,
-                orders: item.totalOrders
-            };
+        orderStats.forEach(item => {
+            statsMap[item._id.toString()] = { revenue: item.totalRevenue, orders: item.totalOrders };
         });
 
-        // 4. Hợp nhất dữ liệu
+        // ✅ Chuyển foodStats sang Map
+        const foodMap = {};
+        foodStats.forEach(item => {
+            foodMap[item._id.toString()] = item.minPrice;
+        });
+
         const result = restaurants.map(rest => {
-            const restStats = statsMap[rest._id.toString()] || { revenue: 0, orders: 0 };
+            const restId = rest._id.toString();
+            const restStats = statsMap[restId] || { revenue: 0, orders: 0 };
+            const minPrice = foodMap[restId] || 0; // Lấy minPrice từ Map
+
             return {
                 ...rest.toObject(),
                 revenue: restStats.revenue,
-                orders: restStats.orders
+                orders: restStats.orders,
+                minPrice: minPrice // ✅ Trả về minPrice để Home.js sắp xếp
             };
         });
 
