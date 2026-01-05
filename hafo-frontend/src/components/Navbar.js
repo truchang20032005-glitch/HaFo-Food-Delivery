@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api'; // ✅ Đảm bảo import api
 
-function Navbar({ onOpenLogin, onSearch, searchValue }) {
+function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
     const { user, logout } = useAuth();
     const { totalCount } = useCart();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -99,7 +99,8 @@ function Navbar({ onOpenLogin, onSearch, searchValue }) {
 
                 {user ? (
                     <>
-                        {!isRegisterPage && (
+
+                        {!isRegisterPage && !hideSearch && (
                             <div className="search" style={{ flex: 1, maxWidth: '550px', margin: '0 20px', marginLeft: 'auto', display: 'flex', alignItems: 'center', background: '#f8f8f8', border: '1px solid #ccc', borderRadius: '50px', padding: '2px 10px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', cursor: 'pointer' }}>
                                 <span style={{ marginRight: '12px', opacity: 0.6 }}>🔍</span>
                                 <input
@@ -111,6 +112,7 @@ function Navbar({ onOpenLogin, onSearch, searchValue }) {
                                 />
                             </div>
                         )}
+
                         <div className="ben-phai" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
 
                             {/* 🔔 CHUÔNG THÔNG BÁO KHÁCH HÀNG */}
