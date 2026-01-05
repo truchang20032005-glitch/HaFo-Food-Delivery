@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { alertError, alertWarning, confirmDialog, alertSuccess } from '../../utils/hafoAlert';
 
@@ -8,7 +9,10 @@ function MerchantPromos() {
     const [showModal, setShowModal] = useState(false);
     const [isEdit, setIsEdit] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [keyword, setKeyword] = useState('');
+
+    // Lấy từ khóa tìm kiếm từ URL
+    const [searchParams] = useSearchParams();
+    const searchQuery = searchParams.get('q')?.toLowerCase() || '';
 
     // Form data bao gồm cả ngày bắt đầu/kết thúc
     const [formData, setFormData] = useState({
@@ -139,9 +143,10 @@ function MerchantPromos() {
         fetchPromos(shopId);
     };
 
+    // Cập nhật filtered dùng searchQuery thay vì keyword
     const filtered = useMemo(() => {
-        return promos.filter(p => p.code.toLowerCase().includes(keyword.toLowerCase()));
-    }, [promos, keyword]);
+        return promos.filter(p => p.code.toLowerCase().includes(searchQuery));
+    }, [promos, searchQuery]);
 
     return (
         <div style={S.panel}>
@@ -156,13 +161,6 @@ function MerchantPromos() {
             </div>
 
             <div className="body" style={{ padding: '24px' }}>
-                <input
-                    placeholder="Tìm kiếm mã..."
-                    value={keyword}
-                    onChange={e => setKeyword(e.target.value)}
-                    style={{ ...S.input, maxWidth: '300px', marginBottom: '20px' }}
-                />
-
                 <table style={{ width: '100%' }}>
                     <thead>
                         <tr style={{ background: '#f8fafc' }}>
@@ -223,6 +221,11 @@ function MerchantPromos() {
                         ))}
                     </tbody>
                 </table>
+                {filtered.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                        <p>Không tìm thấy mã khuyến mãi nào.</p>
+                    </div>
+                )}
             </div>
 
             {/* MODAL THEO STYLE THÊM MÓN */}

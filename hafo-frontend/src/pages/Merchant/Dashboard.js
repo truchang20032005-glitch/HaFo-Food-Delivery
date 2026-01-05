@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { Link } from 'react-router-dom';
 import { Line } from 'react-chartjs-2'; // Thêm biểu đồ
@@ -25,63 +25,55 @@ function Dashboard() {
     const [isOpen, setIsOpen] = useState(true); // Trạng thái mở/đóng quán
     const [shopId, setShopId] = useState('');   // Lưu ID quán để gọi API
 
-    const fmtMoney = (num) => (num || 0).toLocaleString('vi-VN') + 'đ';
+    // State cho bộ lọc ngày (Báo cáo chi tiết)
+    const [dateRange, setDateRange] = useState({
+        start: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 ngày trước
+        end: new Date().toISOString().split('T')[0]
+    });
 
-    useEffect(() => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (user) {
-            setOwnerName(user.fullName || 'Chủ quán');
-            api.get(`/restaurants/my-shop/${user.id}`)
-                .then(res => {
-                    if (res.data) {
-                        setShopId(res.data._id);    // ✅ Lưu ID quán
-                        setIsOpen(res.data.isOpen); // ✅ Lưu trạng thái mở cửa
-                        fetchDashboardData(res.data._id);
-                    } else { setLoading(false); }
-                })
-                .catch(err => setLoading(false));
-        }
-    }, []);
+    const checkOpenStatus = (openTime, closeTime) => {
+        if (!openTime || !closeTime) return true;
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
 
-    // hàm xử lý Bật/Tắt quán
-    const handleToggleOpen = async () => {
-        try {
-            const newStatus = !isOpen;
-            // Gọi API cập nhật quán (đã có sẵn ở backend/routes/restaurant.js)
-            await api.put(`/restaurants/${shopId}`, { isOpen: newStatus });
-            setIsOpen(newStatus);
-            alertInfo(newStatus ? "🔓 Quán đã mở cửa đón khách!" : "🔒 Quán đã tạm đóng cửa!");
-        } catch (err) {
-            alertError("Lỗi", err.message);
-        }
+        const [hOpen, mOpen] = openTime.split(':').map(Number);
+        const [hClose, mClose] = closeTime.split(':').map(Number);
+
+        const openMinutes = hOpen * 60 + mOpen;
+        const closeMinutes = hClose * 60 + mClose;
+
+        return currentTime >= openMinutes && currentTime <= closeMinutes;
     };
 
-    const fetchDashboardData = async (restaurantId) => {
+    const fmtMoney = (num) => (num || 0).toLocaleString('vi-VN') + 'đ';
+
+    const fetchDashboardData = useCallback(async (restaurantId) => {
         try {
-            const res = await api.get(`/orders?restaurantId=${restaurantId}`); //
+            // Gửi params ngày lên backend để lọc chính xác
+            const res = await api.get(`/orders`, {
+                params: {
+                    restaurantId,
+                    startDate: dateRange.start,
+                    endDate: dateRange.end
+                }
+            });
             const myOrders = res.data;
 
-            // 1. Lọc đơn đã hoàn thành
             const doneOrders = myOrders.filter(o => o.status === 'done');
             const revenue = doneOrders.reduce((sum, o) => sum + o.total, 0);
 
-            // --- XỬ LÝ DỮ LIỆU BIỂU ĐỒ THẬT (7 ngày gần nhất) ---
-
-            // A. Tạo danh sách 7 ngày gần đây (từ 6 ngày trước đến hôm nay)
+            // Xử lý biểu đồ dựa trên khoảng ngày đã chọn
             const labels = [];
             const dailyRevenue = [];
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
 
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-
-                // Định dạng label: "Thứ X, DD/MM"
-                const label = d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
                 labels.push(label);
 
-                // B. Tính tổng doanh thu của ngày đó
                 const dayTotal = doneOrders.filter(o => {
-                    const orderDate = new Date(o.createdAt).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                    const orderDate = new Date(o.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
                     return orderDate === label;
                 }).reduce((sum, o) => sum + o.total, 0);
 
@@ -89,20 +81,17 @@ function Dashboard() {
             }
 
             setChartData({
-                labels: labels,
+                labels,
                 datasets: [{
-                    label: 'Doanh thu thực tế (7 ngày)',
-                    data: dailyRevenue, // Dữ liệu thật đã tính toán ở trên
+                    label: 'Doanh thu (VNĐ)',
+                    data: dailyRevenue,
                     borderColor: '#F97350',
                     backgroundColor: 'rgba(249, 115, 80, 0.1)',
                     fill: true,
-                    tension: 0.4,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#F97350'
+                    tension: 0.4
                 }]
             });
 
-            // Cập nhật các chỉ số khác
             setStats({
                 revenue,
                 orders: myOrders.length,
@@ -112,8 +101,41 @@ function Dashboard() {
             setRecentOrders(myOrders.slice(0, 5));
             setLoading(false);
         } catch (err) {
-            console.error(err);
+            alertError("Lỗi tải dữ liệu", err.message);
             setLoading(false);
+        }
+    }, [dateRange]);
+
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            setOwnerName(user.fullName || 'Chủ quán');
+            api.get(`/restaurants/my-shop/${user.id}`)
+                .then(res => {
+                    if (res.data) {
+                        const shop = res.data;
+                        setShopId(shop._id);
+
+                        // ✅ SỬA LỖI TẠI ĐÂY: Kiểm tra giờ sau khi có dữ liệu shop
+                        const autoStatus = checkOpenStatus(shop.openTime, shop.closeTime);
+                        setIsOpen(shop.isOpen && autoStatus);
+
+                        fetchDashboardData(shop._id);
+                    }
+                })
+                .catch(() => setLoading(false));
+        }
+    }, [fetchDashboardData]);
+
+    // hàm xử lý Bật/Tắt quán
+    const handleToggleOpen = async () => {
+        try {
+            const newStatus = !isOpen;
+            await api.put(`/restaurants/${shopId}`, { isOpen: newStatus });
+            setIsOpen(newStatus);
+            alertInfo(newStatus ? "🔓 Quán đã mở cửa!" : "🔒 Quán đã đóng cửa!");
+        } catch (err) {
+            alertError("Lỗi", err.message);
         }
     };
 
@@ -132,8 +154,101 @@ function Dashboard() {
     return (
         <div className="dashboard-wrapper">
             {/* LỜI CHÀO NỒNG NHIỆT */}
-            <div style={S.greeting}>Chào mừng trở lại, {ownerName}! 👋</div>
-            <div style={S.subGreeting}>Dưới đây là tình hình kinh doanh của quán bạn hôm nay.</div>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center', // Căn giữa theo trục dọc cho cân đối
+                marginBottom: '30px',
+                padding: '10px 0'
+            }}>
+                {/* BÊN TRÁI: LỜI CHÀO */}
+                <div>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap', // Để tự xuống nguyên cụm nếu màn hình quá nhỏ
+                        gap: '8px',       // Khoảng cách giữa các chữ
+                        fontSize: '24px',
+                        fontWeight: 'bold'
+                    }}>
+                        <span>Chào mừng trở lại,</span>
+                        <span style={{ color: '#F97350' }}>{ownerName}</span>
+                        <span>! 👋</span>
+                    </div>
+                    <div style={{
+                        color: '#64748b',
+                        fontSize: '14px',
+                        marginTop: '5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}>
+                        <i className="fa-solid fa-calendar-day" style={{ fontSize: '12px' }}></i>
+                        Báo cáo từ <b style={{ color: '#1e293b' }}>{new Date(dateRange.start).toLocaleDateString('vi-VN')}</b> đến <b style={{ color: '#1e293b' }}>{new Date(dateRange.end).toLocaleDateString('vi-VN')}</b>
+                    </div>
+                </div>
+
+                {/* BÊN PHẢI: UI LỌC NGÀY XỊN XÒ */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#fff',
+                    padding: '6px 12px',
+                    borderRadius: '16px',
+                    border: '1.5px solid #e2e8f0',
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', // Đổ bóng nhẹ cho nổi khối
+                    transition: 'all 0.3s ease'
+                }}
+                    onMouseOver={e => e.currentTarget.style.borderColor = '#F97350'}
+                    onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', color: '#64748b' }}>
+                        <i className="fa-regular fa-calendar" style={{ fontSize: '14px', color: '#F97350' }}></i>
+                        <span style={{ fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Thời gian:</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', borderRadius: '10px', padding: '2px 8px' }}>
+                        <input
+                            type="date"
+                            className="f-input"
+                            value={dateRange.start}
+                            onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                            style={{ width: '130px', border: 'none', background: 'transparent', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer' }}
+                        />
+                        <span style={{ color: '#cbd5e1', padding: '0 5px' }}>—</span>
+                        <input
+                            type="date"
+                            className="f-input"
+                            value={dateRange.end}
+                            onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                            style={{ width: '130px', border: 'none', background: 'transparent', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer' }}
+                        />
+                    </div>
+
+                    {/* Nút refresh nhanh dữ liệu */}
+                    <button
+                        onClick={() => fetchDashboardData(shopId)}
+                        style={{
+                            marginLeft: '10px',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: '#FFF1ED',
+                            color: '#F97350',
+                            cursor: 'pointer',
+                            display: 'grid',
+                            placeItems: 'center',
+                            transition: '0.2s'
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.background = '#F97350'; e.currentTarget.style.color = '#fff' }}
+                        onMouseOut={e => { e.currentTarget.style.background = '#FFF1ED'; e.currentTarget.style.color = '#F97350' }}
+                        title="Cập nhật dữ liệu"
+                    >
+                        <i className="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+            </div>
 
             {/* 1. CHỈ SỐ CHÍNH (THIẾT KẾ LẠI) */}
             <div className="cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '25px' }}>
@@ -253,7 +368,7 @@ function Dashboard() {
                             {recentOrders.map(o => (
                                 <tr key={o._id}>
                                     <td><b style={{ color: '#64748b' }}>#{o._id.slice(-6).toUpperCase()}</b></td>
-                                    <td>{o.customerName || 'Khách lẻ'}</td>
+                                    <td>{o.customer ? o.customer.split('|')[0] : 'Khách lẻ'}</td>
                                     <td><b>{fmtMoney(o.total)}</b></td>
                                     <td style={{ textAlign: 'center' }}>
                                         <span style={S.status(o.status)}>{o.status.toUpperCase()}</span>

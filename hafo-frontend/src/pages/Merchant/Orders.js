@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { alertError } from '../../utils/hafoAlert';
 
 function Orders() {
@@ -9,9 +9,38 @@ function Orders() {
     const [selectedOrder, setSelectedOrder] = useState(null); // Lưu đơn đang xem chi tiết
     const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
 
+    // Thêm State phân trang
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10; // Số đơn hàng trên mỗi trang
+    const [searchParams] = useSearchParams();
+    const searchQuery = searchParams.get('q')?.toLowerCase() || '';
+
     const location = useLocation();
 
     const fmtMoney = (n) => (n || 0).toLocaleString('vi-VN') + 'đ';
+
+    // LOGIC LỌC TÌM KIẾM
+    const searchedOrders = orders.filter(o =>
+        o._id.toLowerCase().includes(searchQuery) ||
+        (o.customer && o.customer.toLowerCase().includes(searchQuery))
+    );
+
+    // LOGIC LỌC THEO TAB (Sử dụng danh sách đã search)
+    const filteredOrders = searchedOrders.filter(o => {
+        if (activeTab === 'active') return ['new', 'prep', 'ready', 'pickup'].includes(o.status);
+        return ['done', 'cancel'].includes(o.status);
+    });
+
+    // LOGIC PHÂN TRANG
+    const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Reset về trang 1 nếu tìm kiếm hoặc đổi tab
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, activeTab]);
 
     const fetchOrdersData = useCallback(async () => {
         const user = JSON.parse(localStorage.getItem('user'));
@@ -52,11 +81,6 @@ function Orders() {
             alertError("Lỗi cập nhật: " + error.message);
         }
     };
-
-    const filteredOrders = orders.filter(o => {
-        if (activeTab === 'active') return ['new', 'prep', 'ready', 'pickup'].includes(o.status);
-        return ['done', 'cancel'].includes(o.status);
-    });
 
     // ====== HỆ THỐNG STYLES CHO MODAL CHI TIẾT "XỊN" HƠN ======
     const S = {
@@ -125,7 +149,7 @@ function Orders() {
                         {filteredOrders.length === 0 ? (
                             <tr><td colSpan="5" style={{ textAlign: 'center', padding: '50px', color: '#94A3B8' }}>Không có đơn hàng nào ở mục này.</td></tr>
                         ) : (
-                            filteredOrders.map(o => (
+                            currentItems.map(o => (
                                 <tr key={o._id} style={{ borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }} onClick={() => setSelectedOrder(o)}>
                                     <td style={{ padding: '15px 20px' }}>
                                         <b style={{ color: '#F97350' }}>#{o._id.slice(-6).toUpperCase()}</b>
@@ -149,6 +173,30 @@ function Orders() {
                         )}
                     </tbody>
                 </table>
+                {/* UI PHÂN TRANG */}
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', padding: '20px', borderTop: '1px solid #F1F5F9' }}>
+                        <button
+                            className="btn small soft"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                        >
+                            <i className="fa-solid fa-chevron-left"></i>
+                        </button>
+
+                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#64748B' }}>
+                            Trang {currentPage} / {totalPages}
+                        </span>
+
+                        <button
+                            className="btn small soft"
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                        >
+                            <i className="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* MODAL CHI TIẾT ĐƠN HÀNG - PHIÊN BẢN CẢI TIẾN */}

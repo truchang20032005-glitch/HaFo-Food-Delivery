@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../services/api';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 
 function Reviews() {
@@ -13,6 +13,26 @@ function Reviews() {
     const [itemReplyTexts, setItemReplyTexts] = useState({});
     const [generalReplyText, setGeneralReplyText] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10; // Đánh giá thường dài nên để 5 cái/trang
+    const [searchParams] = useSearchParams();
+    const searchQuery = searchParams.get('q')?.toLowerCase() || '';
+
+    // LOGIC LỌC TÌM KIẾM (Tìm theo tên khách hoặc nội dung đánh giá)
+    const filteredReviews = reviews.filter(r =>
+        r.customerId?.fullName?.toLowerCase().includes(searchQuery) ||
+        r.comment?.toLowerCase().includes(searchQuery)
+    );
+
+    // LOGIC PHÂN TRANG
+    const totalPages = Math.ceil(filteredReviews.length / itemsPerPage);
+    const currentItems = filteredReviews.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
     const location = useLocation();
 
@@ -127,7 +147,7 @@ function Reviews() {
                         </tr>
                     </thead>
                     <tbody>
-                        {reviews.map(r => {
+                        {currentItems.map(r => {
                             // 1. Tính số sao trung bình của các món ăn trong đơn
                             const validItemRatings = r.itemReviews?.filter(it => it.rating > 0) || [];
                             const avgItemRating = validItemRatings.length > 0
@@ -210,6 +230,35 @@ function Reviews() {
                         })}
                     </tbody>
                 </table>
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', padding: '20px', borderTop: '1px solid #F1F5F9' }}>
+                        <button
+                            className="btn small soft"
+                            disabled={currentPage === 1}
+                            onClick={() => {
+                                setCurrentPage(p => p - 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                        >
+                            <i className="fa-solid fa-angle-left"></i>
+                        </button>
+
+                        <span style={{ fontWeight: '800', fontSize: '14px', color: '#64748B' }}>
+                            Trang {currentPage} / {totalPages}
+                        </span>
+
+                        <button
+                            className="btn small soft"
+                            disabled={currentPage === totalPages}
+                            onClick={() => {
+                                setCurrentPage(p => p + 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                        >
+                            <i className="fa-solid fa-angle-right"></i>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* MODAL CHI TIẾT & PHẢN HỒI MỚI */}

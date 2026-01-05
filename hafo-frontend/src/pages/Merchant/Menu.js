@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import AddDishModal from './AddDishModal';
 import { alertError, confirmDialog, alertSuccess } from '../../utils/hafoAlert';
@@ -27,6 +28,15 @@ function Menu() {
             }
         }
     }, []);
+
+    // Lấy từ khóa tìm kiếm từ URL
+    const [searchParams] = useSearchParams();
+    const searchQuery = searchParams.get('q')?.toLowerCase() || '';
+
+    // Logic lọc món ăn theo tên
+    const filteredFoods = foods.filter(food =>
+        food.name.toLowerCase().includes(searchQuery)
+    );
 
     useEffect(() => {
         fetchShopInfo();
@@ -126,7 +136,7 @@ function Menu() {
                             </tr>
                         </thead>
                         <tbody>
-                            {foods.map((food) => (
+                            {filteredFoods.map((food) => (
                                 <tr key={food._id} style={{
                                     background: food.isAvailable ? '#fff' : '#f9f9f9',
                                     opacity: food.isAvailable ? 1 : 0.7
@@ -198,6 +208,12 @@ function Menu() {
                             ))}
                         </tbody>
                     </table>
+                    {filteredFoods.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                            <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '32px', marginBottom: '10px', opacity: 0.5 }}></i>
+                            <p>{searchQuery ? `Không tìm thấy món nào khớp với "${searchQuery}"` : "Chưa có món ăn nào trong thực đơn."}</p>
+                        </div>
+                    )}
                     {foods.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                             <i className="fa-solid fa-utensils" style={{ fontSize: '32px', marginBottom: '10px' }}></i>

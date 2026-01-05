@@ -40,6 +40,7 @@ const calculateShippingFee = (dist) => {
     return BASE_FEE + Math.ceil(dist - 2) * PER_KM_FEE;
 };
 
+
 function Checkout() {
     const { cartItems, totalAmount, clearCart } = useCart();
     const navigate = useNavigate();
@@ -60,6 +61,37 @@ function Checkout() {
     };
 
     const APP_FEE = 2000;
+
+    // 1. Thêm hàm xử lý lấy vị trí hiện tại
+    const handleGetCurrentLocation = () => {
+        if (!navigator.geolocation) return alertError("Lỗi", "Trình duyệt của bạn không hỗ trợ định vị.");
+
+        setFormData(prev => ({ ...prev, address: '📍 Đang lấy vị trí của bạn...' }));
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            setFormData(prev => ({ ...prev, lat: latitude, lng: longitude }));
+
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=vi`
+                );
+                const data = await res.json();
+                if (data && data.display_name) {
+                    setFormData(prev => ({ ...prev, address: data.display_name }));
+                    // Lưu vào local để đồng bộ
+                    localStorage.setItem('temp_checkout_location', JSON.stringify({
+                        lat: latitude, lng: longitude, address: data.display_name
+                    }));
+                }
+            } catch (err) {
+                setFormData(prev => ({ ...prev, address: 'Không lấy được địa chỉ, vui lòng nhập tay.' }));
+            }
+        }, (err) => {
+            alertError("Lỗi định vị", "Vui lòng cấp quyền truy cập vị trí cho trình duyệt.");
+            setFormData(prev => ({ ...prev, address: '' }));
+        });
+    };
 
     const groups = useMemo(() => {
         return cartItems.reduce((acc, item) => {
@@ -195,6 +227,11 @@ function Checkout() {
 
     const handleOrder = async () => {
         if (!formData.name || !formData.phone || !formData.address) return alertWarning("Thiếu thông tin", "Vui lòng điền đủ thông tin giao hàng!");
+        const phoneRegex = /^\d{10}$/;
+        if (!phoneRegex.test(formData.phone)) {
+            return alertWarning("SĐT không hợp lệ", "Số điện thoại phải bao gồm đúng 10 chữ số!");
+        }
+
         const user = JSON.parse(localStorage.getItem('user'));
 
         try {
@@ -322,6 +359,12 @@ function Checkout() {
                                 <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Địa chỉ chi tiết..." style={{ ...S.input, flex: 1 }} />
                                 <button onClick={() => setShowMapModal(true)} style={{ padding: '0 15px', background: '#fff', border: '1px solid #F97350', color: '#F97350', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: '600' }}>
                                     📍 Chọn trên map
+                                </button>
+                                <button
+                                    onClick={handleGetCurrentLocation}
+                                    style={{ padding: '0 15px', background: '#F97350', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
+                                >
+                                    <i className="fa-solid fa-crosshairs"></i> Vị trí hiện tại
                                 </button>
                             </div>
                         </div>
