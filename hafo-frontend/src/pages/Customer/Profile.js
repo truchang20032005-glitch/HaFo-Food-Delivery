@@ -135,6 +135,16 @@ function Profile() {
     const handleSave = async () => {
         if (!user) return;
 
+        const phoneRegex = /^\d{10}$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!phoneRegex.test(formData.phone)) {
+            return alertWarning("SĐT không hợp lệ", "Số điện thoại phải có đúng 10 chữ số!");
+        }
+        if (formData.email && !emailRegex.test(formData.email)) {
+            return alertWarning("Email không hợp lệ", "Vui lòng nhập đúng định dạng email (ví dụ: abc@gmail.com)!");
+        }
+
         try {
             const data = new FormData();
             data.append('fullName', formData.fullName);

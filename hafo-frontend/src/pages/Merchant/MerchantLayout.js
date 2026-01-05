@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import './Merchant.css';
 import { alertSuccess, confirmDialog } from '../../utils/hafoAlert';
+import { io } from 'socket.io-client';
+
+// Kết nối đến Server (Thay URL bằng link backend của bạn)
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+const socket = io(SOCKET_URL, {
+    transports: ['websocket'],
+    withCredentials: true
+});
 
 function MerchantLayout() {
     const location = useLocation();
@@ -16,7 +24,31 @@ function MerchantLayout() {
     const [showNoti, setShowNoti] = useState(false);
     const prevNotiCount = useRef(0);
 
+    const [searchParams, setSearchParams] = useSearchParams();
+    const searchQuery = searchParams.get('q') || ''; // Lấy từ khóa từ URL
+    const [localSearch, setLocalSearch] = useState(searchQuery);
+
     const isActive = (path) => location.pathname.includes(path) ? 'active' : '';
+
+    const handleSearchChange = (e) => {
+        setLocalSearch(e.target.value);
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (localSearch) {
+                setSearchParams({ q: localSearch });
+            } else {
+                setSearchParams({});
+            }
+        }, 400); // 400ms là khoảng thời gian lý tưởng
+
+        return () => clearTimeout(timer);
+    }, [localSearch, setSearchParams]);
+
+    useEffect(() => {
+        setLocalSearch(searchQuery);
+    }, [searchQuery]);
 
     // Hàm lấy dữ liệu thông báo
     const fetchNotifications = async (shopId) => {
@@ -48,20 +80,27 @@ function MerchantLayout() {
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
-            api.get(`/restaurants/my-shop/${user.id || user._id}`)
-                .then(res => {
-                    if (res.data) {
-                        setMyShop(res.data);
-                        // Khi có shopId, bắt đầu lấy thông báo
-                        fetchNotifications(res.data._id);
+            api.get(`/restaurants/my-shop/${user.id || user._id}`).then(res => {
+                if (res.data) {
+                    setMyShop(res.data);
+                    const shopId = res.data._id;
 
-                        // Tự động làm mới mỗi 30 giây để hiện đơn mới
-                        const interval = setInterval(() => fetchNotifications(res.data._id), 30000);
-                        return () => clearInterval(interval);
-                    }
-                })
-                .catch(err => console.error(err));
+                    socket.emit('join-restaurant', shopId);
+
+                    // ✅ Sử dụng .off trước khi .on để đảm bảo không bị trùng lặp listener
+                    socket.off('new-notification');
+                    socket.on('new-notification', () => {
+                        fetchNotifications(shopId);
+                    });
+                }
+            });
         }
+
+        // ✅ Chỉ ngắt kết nối khi Merchant thực sự đăng xuất hoặc rời khỏi layout này
+        return () => {
+            socket.off('new-notification');
+            // Không nhất thiết phải disconnect() nếu bạn muốn socket duy trì xuyên suốt app
+        };
     }, []);
 
     const handleLogout = async () => {
@@ -113,7 +152,12 @@ function MerchantLayout() {
                     {/* THANH TÌM KIẾM Ở GIỮA */}
                     <div className="search">
                         <i className="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" placeholder="Tìm kiếm đơn hàng, món ăn..." />
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm đơn hàng, khách hàng..."
+                            value={localSearch}
+                            onChange={handleSearchChange}
+                        />
                     </div>
 
                     {/* KHU VỰC CHUÔNG VÀ AVATAR BÊN PHẢI */}

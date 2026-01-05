@@ -2,20 +2,16 @@
 
 import { createContext, useState, useContext, useEffect, useRef, useMemo } from 'react';
 import { confirmDialog, alertSuccess } from '../utils/hafoAlert';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
-
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
-    const [cartItems, setCartItems] = useState(() => {
-        try {
-            const savedCart = localStorage.getItem('hafo_cart');
-            return savedCart ? JSON.parse(savedCart) : [];
-        } catch (error) {
-            return [];
-        }
-    });
+    const { user } = useAuth();
+    const userId = user?._id || user?.id || 'guest';
+    // Khởi tạo state rỗng, việc tải dữ liệu sẽ làm trong useEffect
+    const [cartItems, setCartItems] = useState([]);
 
     // State cho Voucher
     const [appliedVoucher, setAppliedVoucher] = useState(null);
@@ -24,9 +20,21 @@ export const CartProvider = ({ children }) => {
     const [toast, setToast] = useState({ show: false, text: '' });
     const toastTimerRef = useRef(null);
 
+    // Khi userId thay đổi (đăng nhập/đăng xuất), tải lại giỏ hàng tương ứng
     useEffect(() => {
-        localStorage.setItem('hafo_cart', JSON.stringify(cartItems));
-    }, [cartItems]);
+        const savedCart = localStorage.getItem(`hafo_cart_${userId}`);
+        if (savedCart) {
+            setCartItems(JSON.parse(savedCart));
+        } else {
+            setCartItems([]); // Reset nếu là user mới chưa có giỏ hàng
+        }
+    }, [userId]);
+
+    useEffect(() => {
+        if (userId !== 'guest' || cartItems.length > 0) {
+            localStorage.setItem(`hafo_cart_${userId}`, JSON.stringify(cartItems));
+        }
+    }, [cartItems, userId]);
 
     // --- LOGIC TÍNH TOÁN (Dùng useMemo để tối ưu) ---
 
@@ -131,14 +139,10 @@ export const CartProvider = ({ children }) => {
     };
 
     const clearCart = () => {
-        setCartItems([]); // Xóa sạch mảng món ăn
-        setAppliedVoucher(null); // Reset voucher
-        setVoucherError(''); // Xóa lỗi voucher
-
-        // Xóa trong localStorage để đảm bảo đồng bộ
-        localStorage.removeItem('hafo_cart');
-
-        // (Tùy chọn) Xóa luôn địa chỉ tạm đã ghim trên Map nếu muốn lần sau khách chọn lại
+        setCartItems([]);
+        setAppliedVoucher(null);
+        setVoucherError('');
+        localStorage.removeItem(`hafo_cart_${userId}`); // Xóa đúng giỏ hàng của user
         localStorage.removeItem('temp_checkout_location');
     };
 
