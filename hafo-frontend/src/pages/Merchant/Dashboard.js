@@ -24,6 +24,8 @@ function Dashboard() {
     const [chartData, setChartData] = useState(null);
     const [isOpen, setIsOpen] = useState(true); // Trạng thái mở/đóng quán
     const [shopId, setShopId] = useState('');   // Lưu ID quán để gọi API
+    const [topDishes, setTopDishes] = useState([]);
+    const [promoStats, setPromoStats] = useState([]);
 
     // State cho bộ lọc ngày (Báo cáo chi tiết)
     const [dateRange, setDateRange] = useState({
@@ -58,8 +60,39 @@ function Dashboard() {
                 }
             });
             const myOrders = res.data;
+            const promoRes = await api.get(`/promos/${restaurantId}`);
+            // Chỉ lấy 5 mã đang hoạt động hoặc dùng nhiều nhất để hiện Dashboard
+            const sortedPromos = (promoRes.data || [])
+                .sort((a, b) => (b.usedCount || 0) - (a.usedCount || 0))
+                .slice(0, 5);
+            setPromoStats(sortedPromos);
 
             const doneOrders = myOrders.filter(o => o.status === 'done');
+            const dishMap = {};
+            doneOrders.forEach(order => {
+                if (Array.isArray(order.items)) {
+                    order.items.forEach(item => {
+                        if (dishMap[item.name]) {
+                            dishMap[item.name].qty += item.quantity;
+                        } else {
+                            dishMap[item.name] = {
+                                name: item.name,
+                                qty: item.quantity,
+                                image: item.image // Lấy ảnh từ dữ liệu đơn hàng
+                            };
+                        }
+                    });
+                }
+            });
+
+            // Sắp xếp và lấy Top 5
+            const sortedTopDishes = Object.values(dishMap)
+                .sort((a, b) => b.qty - a.qty)
+                .slice(0, 5);
+
+            setTopDishes(sortedTopDishes);
+
+            // --- KẾT THÚC LOGIC ---
             const revenue = doneOrders.reduce((sum, o) => sum + o.total, 0);
 
             // Xử lý biểu đồ dựa trên khoảng ngày đã chọn
@@ -274,7 +307,7 @@ function Dashboard() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '25px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '25px', alignItems: 'start' }}>
                 {/* BÊN TRÁI: BIỂU ĐỒ DOANH THU */}
                 <div className="panel">
                     <div className="head">Xu hướng doanh thu</div>
@@ -348,6 +381,95 @@ function Dashboard() {
                         </div>
                     </section>
                 </div>
+
+                {/* 🔥 PANEL MÓN BÁN CHẠY MỚI THÊM 🔥 */}
+                <section className="panel" style={{ border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                    <div className="head" style={{ borderBottom: '1px solid #f1f5f9', padding: '15px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <i className="fa-solid fa-fire" style={{ color: '#ef4444' }}></i>
+                            <span style={{ fontWeight: '800', fontSize: '15px' }}>Món bán chạy nhất</span>
+                        </div>
+                    </div>
+                    <div className="body" style={{ padding: '20px' }}>
+                        {topDishes.length > 0 ? topDishes.map((dish, index) => {
+                            const maxQty = topDishes[0].qty;
+                            const percent = (dish.qty / maxQty) * 100;
+
+                            return (
+                                <div key={index} style={{ marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
+                                        {/* Ảnh món ăn nhỏ xinh */}
+                                        <img
+                                            src={dish.image || 'https://via.placeholder.com/40?text=Food'}
+                                            alt={dish.name}
+                                            style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #f1f5f9' }}
+                                        />
+
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    {/* Huy chương xếp hạng */}
+                                                    <span style={{
+                                                        fontSize: '11px', fontWeight: '900', color: index === 0 ? '#CA8A04' : '#64748B',
+                                                        background: index === 0 ? '#FEF9C3' : '#F1F5F9',
+                                                        padding: '2px 6px', borderRadius: '4px'
+                                                    }}>
+                                                        #{index + 1}
+                                                    </span>
+                                                    <b style={{ fontSize: '13px', color: '#1E293B' }}>{dish.name}</b>
+                                                </div>
+                                                <div style={{ fontSize: '13px', fontWeight: '800', color: '#F97350' }}>
+                                                    {dish.qty} <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: '400' }}>suất</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Thanh Progress bar mượt mà */}
+                                            <div style={{ height: '5px', background: '#F1F5F9', borderRadius: '10px', marginTop: '6px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${percent}%`, height: '100%',
+                                                    background: index === 0 ? 'linear-gradient(90deg, #F97350, #FF5F6D)' : '#cbd5e1',
+                                                    borderRadius: '10px',
+                                                    transition: 'width 1s ease-in-out'
+                                                }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }) : (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                                <i className="fa-solid fa-chart-pie" style={{ fontSize: '24px', marginBottom: '10px', opacity: 0.3 }}></i>
+                                <p style={{ fontSize: '12px' }}>Chưa có dữ liệu trong khoảng thời gian này</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                <section className="panel" style={{ minHeight: '390px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="head"><i className="fa-solid fa-ticket" style={{ color: '#0ea5e9', marginRight: '8px' }}></i> <span style={{ fontWeight: '800', fontSize: '15px' }}>Hiệu quả khuyến mãi</span></div>
+                    <div className="body" style={{ padding: '20px' }}>
+                        {promoStats.map((promo, index) => {
+                            const percent = Math.min(((promo.usedCount || 0) / (promo.limit || 1)) * 100, 100);
+                            return (
+                                <div key={index} style={{ marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px' }}>
+                                        <span style={{ background: '#E0F2FE', color: '#0369a1', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold' }}>{promo.code}</span>
+                                        <span>Đã dùng: <b>{promo.usedCount || 0}</b> / {promo.limit}</span>
+                                    </div>
+                                    <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '10px', overflow: 'hidden' }}>
+                                        <div style={{
+                                            width: `${percent}%`,
+                                            height: '100%',
+                                            background: percent > 90 ? '#ef4444' : '#38bdf8',
+                                            transition: '1s'
+                                        }}></div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {promoStats.length === 0 && <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>Chưa có dữ liệu khuyến mãi.</div>}
+                    </div>
+                </section>
             </div>
 
             {/* ĐƠN HÀNG MỚI NHẤT (FILL KHOẢNG TRỐNG) */}
