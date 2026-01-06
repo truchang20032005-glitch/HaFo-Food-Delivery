@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
-import { alertSuccess, alertError, alertWarning } from '../../utils/hafoAlert';
+import { alertSuccess, alertError, alertWarning, alertInfo } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -86,67 +86,86 @@ function History() {
     });
 
     // Xử lí đặt lại/mua lại
-    const handleReorder = async (order) => {
+    const handleReorder = async (oldOrder) => {
         try {
-            // Lấy ID nhà hàng (xử lý cả trường hợp là object hoặc string)
-            const resId = order.restaurantId?._id || order.restaurantId;
+            // 1. Hiện thông báo đang kiểm tra món
+            alertInfo("Đang kiểm tra...", "HaFo đang kiểm tra trạng thái món ăn hiện tại.");
 
-            // Bước A: Kiểm tra trạng thái quán (Mở/Đóng)
-            const resRest = await api.get(`/restaurants/${resId}`);
-            const restaurant = resRest.data.restaurant || resRest.data;
+            const unavailableItems = []; // Danh sách món đã ngừng bán
+            const itemsToAddToCart = [];
 
-            if (!restaurant.isOpen) {
-                return alertWarning(`Quán "${restaurant.name}" hiện đã đóng cửa. Má vui lòng quay lại sau nha! 🕒`);
-            }
+            // 2. Kiểm tra trạng thái thực tế của từng món từ Server
+            const checkPromises = oldOrder.items.map(async (item) => {
+                try {
+                    // Gọi API lấy thông tin mới nhất của món ăn
+                    const res = await api.get(`/foods/${item.foodId}`);
+                    const currentFood = res.data;
 
-            // Bước B: Lấy Menu mới nhất để check món còn bán không
-            const resMenu = await api.get(`/restaurants/${resId}/menu`);
-            const currentMenu = resMenu.data;
+                    // Kiểm tra xem món còn tồn tại và còn bán không
+                    if (!currentFood || !currentFood.isAvailable) {
+                        unavailableItems.push(item.name);
+                        return;
+                    }
 
-            let addedCount = 0;
-            let unavailableCount = 0;
+                    // Nếu còn bán, tính toán lại giá dựa trên Size và Topping cũ
+                    const sizePrice = item.selectedSize?.price || 0;
+                    const toppingsPrice = item.selectedToppings?.reduce((sum, t) => sum + (t.price || 0), 0) || 0;
+                    const basePrice = item.price - sizePrice - toppingsPrice;
 
-            // Bước C: Đối chiếu và thêm vào giỏ
-            for (const orderItem of order.items) {
-                const liveFood = currentMenu.find(f => f._id === orderItem.foodId);
+                    itemsToAddToCart.push({
+                        _id: item.foodId,
+                        name: item.name,
+                        image: item.image,
+                        price: basePrice,
 
-                if (liveFood && liveFood.isAvailable) {
-                    // Tạo object cartItem chuẩn (bao gồm cả tọa độ quán để tính ship ở Checkout)
-                    const [resLng, resLat] = restaurant.location?.coordinates || [106.660172, 10.762622];
+                        selectedSize: item.selectedSize?.name || 'Vừa',
+                        sizePrice: sizePrice,
+                        selectedToppings: item.selectedToppings || [],
 
-                    const cartItem = {
-                        ...liveFood,
+                        quantity: item.quantity,
+                        note: item.note,
+
+                        // Thông tin nhà hàng từ đơn cũ
+                        restaurantId: oldOrder.restaurantId?._id || oldOrder.restaurantId,
+                        restaurantName: oldOrder.restaurantId?.name || "Cửa hàng đối tác",
+                        resLat: oldOrder.lat,
+                        resLng: oldOrder.lng,
+
                         uniqueId: Date.now() + Math.random(),
-                        restaurantId: resId,
-                        restaurantName: restaurant.name,
-                        resLat: resLat,
-                        resLng: resLng,
-                        quantity: orderItem.quantity,
-                        selectedSize: 'Vừa', // Mua lại mặc định size vừa (hoặc parse từ orderItem.options nếu muốn xịn hơn)
-                        sizePrice: 0,
-                        selectedToppings: [],
-                        finalPrice: liveFood.price,
-                        note: "[Mua lại từ đơn cũ]"
-                    };
-
-                    addToCart(cartItem);
-                    addedCount++;
-                } else {
-                    unavailableCount++;
+                        finalPrice: item.price
+                    });
+                } catch (err) {
+                    // Nếu lỗi 404 hoặc lỗi server -> Món đã bị xóa khỏi hệ thống
+                    unavailableItems.push(item.name);
                 }
-            }
+            });
 
-            // Bước D: Thông báo kết quả
-            if (addedCount > 0) {
-                await alertSuccess(`Đã thêm ${addedCount} món vào giỏ hàng! ${unavailableCount > 0 ? `(Có ${unavailableCount} món đã ngừng bán)` : ''}`);
-                navigate('/cart'); // Chuyển sang giỏ hàng luôn
+            // Đợi kiểm tra xong tất cả các món
+            await Promise.all(checkPromises);
+
+            // 3. Xử lý kết quả sau khi check
+            if (itemsToAddToCart.length > 0) {
+                itemsToAddToCart.forEach(item => addToCart(item));
+
+                if (unavailableItems.length > 0) {
+                    // Nếu có món còn món mất
+                    alertWarning(
+                        "Đã thêm một phần!",
+                        `Đã thêm các món còn bán. Riêng các món: [${unavailableItems.join(', ')}] hiện không còn khả dụng.`
+                    );
+                } else {
+                    // Nếu tất cả đều còn bán
+                    alertSuccess("Thành công!", "Toàn bộ món từ đơn cũ đã được thêm vào giỏ.");
+                }
+                navigate('/cart');
             } else {
-                alertError("Rất tiếc, tất cả các món trong đơn này hiện đã ngừng kinh doanh hoặc hết hàng.");
+                // Nếu không có món nào còn khả dụng
+                alertError("Rất tiếc!", "Tất cả các món trong đơn hàng này hiện đã ngừng kinh doanh.");
             }
 
-        } catch (err) {
-            console.error("Lỗi khi mua lại:", err);
-            alertError("Không thể kết nối với máy chủ để kiểm tra món ăn.");
+        } catch (error) {
+            console.error("Lỗi Reorder:", error);
+            alertError("Lỗi hệ thống", "Không thể thực hiện mua lại lúc này.");
         }
     };
 

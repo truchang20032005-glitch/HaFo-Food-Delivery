@@ -257,8 +257,19 @@ function Checkout() {
                     restaurantId: resId,
                     customer: `${formData.name} | ${formData.phone} | ${formData.address} | ${paymentMethod}`,
                     items: resGroup.items.map(item => ({
-                        foodId: item._id, name: item.name, price: item.finalPrice,
-                        quantity: item.quantity, image: item.image,
+                        foodId: item._id,
+                        name: item.name,
+                        price: item.finalPrice,
+                        quantity: item.quantity,
+                        image: item.image,
+                        // ✅ LƯU DẠNG OBJECT/ARRAY THEO ĐÚNG MODEL
+                        selectedSize: {
+                            name: item.selectedSize,
+                            price: item.sizePrice
+                        },
+                        selectedToppings: item.selectedToppings, // Đây là mảng [{name, price}]
+                        note: item.note,
+                        // Giữ lại options text nếu má muốn hiện trên Admin/Shipper
                         options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
                     })),
                     total: groupFinalTotal + (tipAmount / Object.keys(groups).length), // Chia đều tip nếu đặt nhiều quán
