@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
-import { alertError, alertSuccess, confirmDialog, alertWarning } from '../../utils/hafoAlert';
+import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -9,6 +9,21 @@ function ShipperWallet() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+    const [withdrawAmount, setWithdrawAmount] = useState('');
+
+    const realBalance = useMemo(() => {
+        return transactions.reduce((sum, t) => {
+            if (t.type === 'in') return sum + t.amount;
+            if (t.type === 'out' && t.status !== 'rejected') return sum - t.amount;
+            return sum;
+        }, 0);
+    }, [transactions]);
+
+    const isOverBalance = Number(withdrawAmount) > realBalance;
+    const isBelowMin = withdrawAmount !== '' && Number(withdrawAmount) < 50000;
+    const isInvalid = isOverBalance || isBelowMin || !withdrawAmount;
 
     // ✅ Thêm State quản lý lọc ngày (Mặc định lọc 7 ngày gần nhất)
     const [filterDate, setFilterDate] = useState({
@@ -34,51 +49,59 @@ function ShipperWallet() {
 
     const fetchWalletData = async (userId) => {
         try {
+            setLoading(true);
             // 1. Lấy thông tin Shipper
             const profileRes = await api.get(`/shippers/profile/${userId}`);
             const data = profileRes.data;
             setProfile(data);
 
-            // Khởi tạo form data từ dữ liệu DB
             setBankFormData({
                 bankName: data.bankName || '',
                 bankAccount: data.bankAccount || '',
-                bankOwner: data.bankOwner || data.user.fullName,
+                bankOwner: data.bankOwner || data.user?.fullName || '',
                 bankBranch: data.bankBranch || ''
             });
 
-            // 2. Lấy lịch sử giao dịch (đơn hàng đã hoàn thành)
-            const ordersRes = await api.get('/orders');
-            if (ordersRes.data) {
-                const myDoneOrders = ordersRes.data.filter(o =>
-                    o.shipperId === userId && o.status === 'done'
-                );
+            // 2. Lấy đơn hàng (Thu nhập) VÀ Lệnh rút tiền (Chi tiêu)
+            const [ordersRes, transRes] = await Promise.all([
+                api.get('/orders'),
+                api.get(`/transactions/user/${userId}`)
+            ]);
 
-                const history = myDoneOrders.map(o => {
-                    // Tính toán thu nhập thực tế: 15k cứng + 80% tip
-                    const baseFee = 15000;
-                    const tipEarn = (o.tipAmount || 0) * 0.8;
-                    const totalEarn = baseFee + tipEarn;
+            // A. Xử lý thu nhập từ đơn hàng
+            const myDoneOrders = ordersRes.data.filter(o =>
+                (o.shipperId?._id === userId || o.shipperId === userId) && o.status === 'done'
+            );
+            const incomeHistory = myDoneOrders.map(o => ({
+                id: o._id,
+                date: o.createdAt,
+                desc: `Thu nhập đơn #${o._id.slice(-6).toUpperCase()}${o.tipAmount > 0 ? ' (Gồm Tip)' : ''}`,
+                amount: 15000 + (o.tipAmount || 0) * 0.8,
+                type: 'in'
+            }));
 
-                    return {
-                        id: o._id,
-                        date: o.createdAt,
-                        // Cập nhật mô tả để shipper biết có tiền tip hay không
-                        desc: `Thu nhập đơn #${o._id.slice(-6).toUpperCase()}${o.tipAmount > 0 ? ' (Gồm Tip)' : ''}`,
-                        amount: totalEarn,
-                        type: 'in'
-                    };
-                });
+            // B. Xử lý lệnh rút tiền (Chỉ lấy những lệnh đã được duyệt để trừ tiền, hoặc hiện cả pending)
+            const withdrawHistory = transRes.data.map(t => ({
+                id: t._id,
+                date: t.createdAt,
+                desc: `Rút tiền về ví`,
+                amount: t.amount,
+                type: 'out',
+                status: t.status // pending, approved, rejected
+            }));
 
-                // Sắp xếp đơn mới nhất lên đầu (Backend đã sort nhưng ở đây gán lại cho chắc)
-                setTransactions(history);
-            }
+            // Gộp lại và sắp xếp
+            const fullHistory = [...incomeHistory, ...withdrawHistory];
+            setTransactions(fullHistory);
+
         } catch (err) {
-            console.error(err);
+            console.error("Lỗi tải ví:", err);
         } finally {
             setLoading(false);
         }
     };
+
+
 
     const filteredTransactions = useMemo(() => {
         return transactions
@@ -90,60 +113,24 @@ function ShipperWallet() {
     }, [transactions, filterDate]);
 
     const handleWithdraw = async () => {
-        const amountText = toVND(realBalance);
-
-        // 1. Kiểm tra số dư
-        if (realBalance <= 0) {
-            return alertWarning("Không thể rút tiền", "Số dư khả dụng của bạn đang bằng 0đ.");
-        }
-
-        // 2. Kiểm tra thông tin ngân hàng
-        if (!profile.bankAccount || !profile.bankName) {
-            return alertWarning(
-                "Thiếu thông tin",
-                "Vui lòng cập nhật thông tin ngân hàng bên dưới trước khi yêu cầu rút tiền!"
-            );
-        }
-
-        // 3. Xác nhận rút tiền (Bắt buộc có await)
-        const isConfirmed = await confirmDialog(
-            "Xác nhận rút tiền?",
-            `Hệ thống sẽ gửi yêu cầu rút ${amountText}đ về ngân hàng ${profile.bankName} của bạn.`
-        );
-
-        if (!isConfirmed) return;
+        if (withdrawAmount < 50000) return alertWarning("Tối thiểu 50.000đ");
+        if (withdrawAmount > profile.income) return alertWarning("Số dư không đủ");
 
         try {
-            const user = JSON.parse(localStorage.getItem('user'));
-
-            // 4. Gửi yêu cầu lên Backend
-            const payload = {
-                userId: user.id,
+            await api.post('/transactions', {
+                userId: profile.user._id,
                 role: 'shipper',
-                amount: realBalance,
+                amount: Number(withdrawAmount),
                 bankInfo: {
                     bankName: profile.bankName,
                     bankAccount: profile.bankAccount,
                     bankOwner: profile.bankOwner
-                },
-                note: 'Shipper yêu cầu rút toàn bộ số dư'
-            };
-
-            await api.post('/transactions', payload);
-
-            // 5. Thông báo thành công và ĐỢI người dùng đọc xong
-            await alertSuccess(
-                "Thành công!",
-                "Yêu cầu rút tiền đã được gửi. Vui lòng đợi Admin phê duyệt trong vòng 24h."
-            );
-
-            // 6. Tải lại dữ liệu ví để cập nhật trạng thái mới nhất
-            fetchWalletData(user.id);
-
-        } catch (err) {
-            const errMsg = err.response?.data?.message || "Không thể kết nối đến máy chủ để thực hiện rút tiền.";
-            alertError("Lỗi rút tiền", errMsg);
-        }
+                }
+            });
+            alertSuccess("Thành công", "Yêu cầu rút tiền đã được gửi!");
+            setShowWithdrawModal(false);
+            fetchWalletData(profile.user._id);
+        } catch (err) { alertError("Lỗi", err.message); }
     };
 
     // ✅ Hàm lưu thông tin ngân hàng
@@ -168,8 +155,6 @@ function ShipperWallet() {
     if (loading) return <div style={{ padding: 20, textAlign: 'center' }}>Đang tải ví...</div>;
     if (!profile) return <div style={{ padding: 20, textAlign: 'center' }}>Chưa có thông tin ví.</div>;
 
-    const realBalance = transactions.reduce((sum, t) => sum + t.amount, 0);
-
     return (
         <div className="profile-panel">
             <div className="profile-head">
@@ -189,8 +174,8 @@ function ShipperWallet() {
                     }}>
                         <button
                             className="btn primary"
-                            onClick={handleWithdraw}
-                            disabled={realBalance <= 0}
+                            onClick={() => setShowWithdrawModal(true)}
+                            disabled={realBalance < 50000}
                             style={{
                                 padding: '12px 40px', // Tăng độ dài nút cho cân đối
                                 fontSize: '15px',
@@ -339,6 +324,94 @@ function ShipperWallet() {
                     )}
                 </div>
             </div>
+
+            {showWithdrawModal && (
+                <div style={S.overlay}>
+                    <div className="animate-pop-in" style={S.sheet}>
+                        <h2 style={{ margin: '0 0 25px', color: '#F97350', fontSize: '22px', fontWeight: '800' }}>
+                            <i className="fa-solid fa-money-bill-transfer"></i> Yêu cầu rút tiền
+                        </h2>
+
+                        {/* Thông tin tài khoản nhận tiền */}
+                        <div style={S.bankCard}>
+                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase' }}>Chuyển về tài khoản:</div>
+                            <div style={{ fontSize: '18px', fontWeight: '800', color: '#1E293B', marginBottom: '4px' }}>
+                                {profile?.bankName} - {profile?.bankAccount}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#475569', fontWeight: '600', textTransform: 'uppercase' }}>
+                                {profile?.bankOwner}
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: '25px' }}>
+                            <label style={S.label}>Số tiền muốn rút (VNĐ)</label>
+                            <input
+                                style={{
+                                    ...S.input,
+                                    borderColor: isOverBalance ? '#EF4444' : (isBelowMin ? '#F59E0B' : '#E2E8F0'),
+                                    background: isOverBalance ? '#FFF1F0' : '#fff',
+                                    fontWeight: '800',
+                                    color: '#F97350'
+                                }}
+                                type="text"
+                                // Hiển thị định dạng 50.000 khi gõ
+                                value={withdrawAmount ? Number(withdrawAmount).toLocaleString('vi-VN') : ''}
+                                onChange={e => {
+                                    const rawValue = e.target.value.replace(/\D/g, '');
+                                    setWithdrawAmount(rawValue);
+                                }}
+                                placeholder="0"
+                                autoFocus
+                            />
+
+                            {/* Cảnh báo lỗi */}
+                            <div style={{ marginTop: '8px', minHeight: '18px' }}>
+                                {isOverBalance && (
+                                    <span style={{ fontSize: '12px', color: '#EF4444', fontWeight: '700' }}>
+                                        <i className="fa-solid fa-circle-exclamation"></i> Số dư hiện tại không đủ!
+                                    </span>
+                                )}
+                                {isBelowMin && (
+                                    <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: '700' }}>
+                                        <i className="fa-solid fa-triangle-exclamation"></i> Tối thiểu 50.000đ
+                                    </span>
+                                )}
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', alignItems: 'center' }}>
+                                <span style={{ fontSize: '12px', color: '#F97350', fontWeight: '700' }}>Khả dụng: {toVND(realBalance)}đ</span>
+
+                                {/* Nút rút hết */}
+                                <button
+                                    onClick={() => setWithdrawAmount(realBalance.toString())}
+                                    style={{
+                                        background: '#FFF5F2', border: '1px solid #F97350', color: '#F97350',
+                                        fontSize: '11px', fontWeight: '800', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer'
+                                    }}
+                                >
+                                    TẤT CẢ
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button className="btn soft" style={{ flex: 1, padding: '12px', borderRadius: '12px' }} onClick={() => setShowWithdrawModal(false)}>Hủy bỏ</button>
+                            <button
+                                className="btn primary"
+                                style={{
+                                    flex: 1, padding: '12px', borderRadius: '12px',
+                                    opacity: isInvalid ? 0.5 : 1,
+                                    cursor: isInvalid ? 'not-allowed' : 'pointer'
+                                }}
+                                onClick={handleWithdraw}
+                                disabled={loading || isInvalid}
+                            >
+                                {loading ? 'Đang gửi...' : 'Xác nhận rút'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -350,6 +423,14 @@ const inputStyle = {
     border: '1px solid #ddd',
     fontSize: '14px',
     marginTop: '2px'
+};
+
+const S = {
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(5px)', padding: '20px' },
+    sheet: { background: '#fff', width: '100%', maxWidth: '450px', borderRadius: '24px', padding: '30px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' },
+    bankCard: { background: '#F8FAFC', padding: '20px', borderRadius: '16px', border: '1px solid #E2E8F0', marginBottom: '25px' },
+    label: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '700', color: '#475569' },
+    input: { width: '100%', padding: '15px', borderRadius: '12px', border: '2px solid #E2E8F0', fontSize: '20px', outline: 'none', transition: '0.2s', boxSizing: 'border-box' }
 };
 
 const labelStyle = { color: '#666', fontSize: '13px', width: '120px', display: 'inline-block' };
