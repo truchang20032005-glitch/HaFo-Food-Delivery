@@ -8,10 +8,24 @@ const CartContext = createContext();
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
-    const { user } = useAuth();
-    const userId = user?._id || user?.id || 'guest';
+    const { user, loading: authLoading } = useAuth();
+    const getImmediateUserId = () => {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+            const u = JSON.parse(stored);
+            return u?._id || u?.id || 'guest';
+        }
+        return 'guest';
+    };
+
     // Khởi tạo state rỗng, việc tải dữ liệu sẽ làm trong useEffect
-    const [cartItems, setCartItems] = useState([]);
+    const [cartItems, setCartItems] = useState(() => {
+        const uid = getImmediateUserId();
+        const saved = localStorage.getItem(`hafo_cart_${uid}`);
+        return saved ? JSON.parse(saved) : [];
+    });
+    const isInitiated = useRef(false);
+    const userId = user?._id || user?.id || 'guest';
 
     // State cho Voucher
     const [appliedVoucher, setAppliedVoucher] = useState(null);
@@ -22,19 +36,25 @@ export const CartProvider = ({ children }) => {
 
     // Khi userId thay đổi (đăng nhập/đăng xuất), tải lại giỏ hàng tương ứng
     useEffect(() => {
+        if (authLoading) return; // ✅ Đợi AuthContext xong xuôi đã
+
         const savedCart = localStorage.getItem(`hafo_cart_${userId}`);
         if (savedCart) {
             setCartItems(JSON.parse(savedCart));
         } else {
-            setCartItems([]); // Reset nếu là user mới chưa có giỏ hàng
+            setCartItems([]);
         }
-    }, [userId]);
 
+        // Chỉ khi load xong dữ liệu của đúng User này thì mới cho phép Save
+        isInitiated.current = true;
+    }, [userId, authLoading]);
+
+    // --- 2. LOGIC LƯU DỮ LIỆU (SỬA LẠI CHỖ NÀY) ---
     useEffect(() => {
-        if (userId !== 'guest' || cartItems.length > 0) {
-            localStorage.setItem(`hafo_cart_${userId}`, JSON.stringify(cartItems));
-        }
-    }, [cartItems, userId]);
+        if (!isInitiated.current || authLoading) return;
+
+        localStorage.setItem(`hafo_cart_${userId}`, JSON.stringify(cartItems));
+    }, [cartItems, userId, authLoading]);
 
     // --- LOGIC TÍNH TOÁN (Dùng useMemo để tối ưu) ---
 

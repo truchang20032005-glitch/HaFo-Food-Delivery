@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import './ChatBot.css';
 import ReactMarkdown from 'react-markdown';
+import { alertError } from '../utils/hafoAlert';
 
 function ChatBot() {
     const { user } = useAuth();
@@ -46,6 +47,15 @@ function ChatBot() {
         loadChatHistory();
     }, [user]);
 
+    const formatPrice = (price) => {
+        if (!price) return '0đ';
+        // Chuyển về số (xóa bỏ chữ đ hoặc ký tự lạ nếu AI lỡ tay trả về chuỗi)
+        const numericPrice = typeof price === 'string'
+            ? parseInt(price.replace(/\D/g, ''))
+            : price;
+        return numericPrice.toLocaleString('vi-VN') + 'đ';
+    };
+
     const handleSend = async (msgText) => {
         const textToSend = msgText || input;
         if (!textToSend.trim()) return;
@@ -84,18 +94,43 @@ function ChatBot() {
 
     // Hàm thêm món từ Chat vào Giỏ (Tạo nhanh item với options mặc định)
     const handleAddToCartFromChat = (food) => {
+        // 1. Ép kiểu giá tiền để không bị lỗi 1720000đ
+        const basePrice = typeof food.price === 'string'
+            ? parseInt(food.price.replace(/\D/g, ''))
+            : (Number(food.price) || 0);
+
+        // 2. LẤY ID NHÀ HÀNG AN TOÀN (Đây là chỗ má bị lỗi)
+        const resId = food.restaurantId?._id || food.restaurantId || food.restaurant?._id || food.restaurant;
+
+        if (!resId) {
+            // Nếu vẫn không có, ta thử lấy từ các trường dự phòng
+            console.error("Dữ liệu món ăn bị thiếu quán:", food);
+            return alertError("Món này chưa có thông tin quán, má chọn món khác nha!");
+        }
+
+        // 3. ĐÓNG GÓI ITEM
         const cartItem = {
             ...food,
-            uniqueId: Date.now(),
+            uniqueId: Date.now() + Math.random(),
             quantity: 1,
-            // Nếu món có options, chọn cái đầu tiên làm mặc định
-            selectedSize: food.options?.[0]?.name || 'Tiêu chuẩn',
-            sizePrice: food.options?.[0]?.price || 0,
+            price: basePrice,
+            _id: food._id,
+
+            // Thông tin nhà hàng chuẩn để Cart.js và Checkout.js làm việc
+            restaurantId: resId,
+            restaurantName: food.restaurantName || "Cửa hàng đối tác",
+            resLat: food.resLat || 10.762622,
+            resLng: food.resLng || 106.660172,
+
+            selectedSize: food.selectedSize || food.options?.[0]?.name || 'Vừa',
+            sizePrice: Number(food.sizePrice || food.options?.[0]?.price || 0),
             selectedToppings: [],
-            note: 'Thêm từ Chatbot',
-            finalPrice: (food.price || 0) + (food.options?.[0]?.price || 0)
+            note: 'Đặt qua HaFo AI',
+            finalPrice: basePrice + Number(food.options?.[0]?.price || 0)
         };
+
         addToCart(cartItem);
+        // Thêm hiệu ứng rung nhẹ hoặc thông báo nhỏ nếu muốn
     };
 
     return (
@@ -149,6 +184,7 @@ function ChatBot() {
                                 {msg.sender === 'bot' && msg.foods && msg.foods.length > 0 && (
                                     <div className="food-suggestions">
                                         {msg.foods.map((food) => (
+
                                             <div key={food._id} className="chat-food-card">
                                                 <img
                                                     src={food.image || 'https://via.placeholder.com/150?text=HaFo'}
@@ -158,7 +194,7 @@ function ChatBot() {
                                                 />
                                                 <div className="cf-info">
                                                     <div className="cf-name" title={food.name}>{food.name}</div>
-                                                    <div className="cf-price">{food.price?.toLocaleString()}đ</div>
+                                                    <div className="cf-price">{formatPrice(food.price)}</div>
                                                     <button
                                                         className="cf-btn"
                                                         onClick={() => handleAddToCartFromChat(food)}
@@ -167,6 +203,7 @@ function ChatBot() {
                                                     </button>
                                                 </div>
                                             </div>
+
                                         ))}
                                     </div>
                                 )}
@@ -203,7 +240,7 @@ function ChatBot() {
                             placeholder="Bạn muốn ăn gì?..."
                             disabled={isLoading}
                         />
-                        <button className="chat-send" onClick={handleSend} disabled={isLoading}>
+                        <button className="chat-send" onClick={() => handleSend()} disabled={isLoading}>
                             <img
                                 src="/images/send.png"  // Đường dẫn đến ảnh bạn muốn sử dụng
                                 alt="Send"

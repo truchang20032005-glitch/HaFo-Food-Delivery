@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import { alertError, alertSuccess, confirmDialog, alertWarning } from '../../utils/hafoAlert';
 
@@ -9,6 +9,12 @@ function ShipperWallet() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+
+    // ✅ Thêm State quản lý lọc ngày (Mặc định lọc 7 ngày gần nhất)
+    const [filterDate, setFilterDate] = useState({
+        start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+    });
 
     // ✅ State quản lý việc chỉnh sửa ngân hàng
     const [isEditingBank, setIsEditingBank] = useState(false);
@@ -47,14 +53,25 @@ function ShipperWallet() {
                 const myDoneOrders = ordersRes.data.filter(o =>
                     o.shipperId === userId && o.status === 'done'
                 );
-                const history = myDoneOrders.map(o => ({
-                    id: o._id,
-                    date: o.createdAt,
-                    desc: `Thu nhập đơn #${o._id.slice(-6).toUpperCase()}`,
-                    amount: 15000,
-                    type: 'in'
-                }));
-                setTransactions(history.reverse());
+
+                const history = myDoneOrders.map(o => {
+                    // Tính toán thu nhập thực tế: 15k cứng + 80% tip
+                    const baseFee = 15000;
+                    const tipEarn = (o.tipAmount || 0) * 0.8;
+                    const totalEarn = baseFee + tipEarn;
+
+                    return {
+                        id: o._id,
+                        date: o.createdAt,
+                        // Cập nhật mô tả để shipper biết có tiền tip hay không
+                        desc: `Thu nhập đơn #${o._id.slice(-6).toUpperCase()}${o.tipAmount > 0 ? ' (Gồm Tip)' : ''}`,
+                        amount: totalEarn,
+                        type: 'in'
+                    };
+                });
+
+                // Sắp xếp đơn mới nhất lên đầu (Backend đã sort nhưng ở đây gán lại cho chắc)
+                setTransactions(history);
             }
         } catch (err) {
             console.error(err);
@@ -62,6 +79,15 @@ function ShipperWallet() {
             setLoading(false);
         }
     };
+
+    const filteredTransactions = useMemo(() => {
+        return transactions
+            .filter(t => {
+                const tDate = new Date(t.createdAt || t.date).toISOString().split('T')[0];
+                return tDate >= filterDate.start && tDate <= filterDate.end;
+            })
+            .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+    }, [transactions, filterDate]);
 
     const handleWithdraw = async () => {
         const amountText = toVND(realBalance);
@@ -262,33 +288,56 @@ function ShipperWallet() {
                         </div>
                     )}
                 </div>
+                <div style={{ height: '1px', background: '#eee', margin: '10px 0' }}></div>
+            </div>
+            {/* Lịch sử giao dịch */}
+            <div className="profile-panel" style={{ marginTop: '5px 0' }}>
+                <div className="profile-head" style={{ justifyContent: 'space-between' }}>
+                    <span><i className="fa-solid fa-clock-rotate-left"></i> Lịch sử biến động</span>
+                </div>
 
-                <div style={{ height: '1px', background: '#eee', margin: '15px 0' }}></div>
+                <div className="profile-body">
+                    {/* UI BỘ LỌC NGÀY */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        marginBottom: '15px', padding: '10px', background: '#F8FAFC',
+                        borderRadius: '10px', border: '1px solid #E2E8F0'
+                    }}>
+                        <input type="date" value={filterDate.start} onChange={e => setFilterDate({ ...filterDate, start: e.target.value })} style={dateInputStyle} />
+                        <span style={{ color: '#CBD5E1' }}>➔</span>
+                        <input type="date" value={filterDate.end} onChange={e => setFilterDate({ ...filterDate, end: e.target.value })} style={dateInputStyle} />
+                    </div>
 
-                {/* Lịch sử giao dịch */}
-                <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Lịch sử biến động</div>
-                {transactions.length === 0 ? (
-                    <div style={{ fontSize: '13px', color: '#999', textAlign: 'center' }}>Chưa có giao dịch nào.</div>
-                ) : (
-                    <table style={{ width: '100%', fontSize: '13px' }}>
-                        <tbody>
-                            {transactions.map(t => (
-                                <tr key={t.id}>
-                                    <td style={{ padding: '8px 0', color: '#666', width: '30%' }}>
-                                        {new Date(t.date).toLocaleDateString('vi-VN')}
-                                        <div style={{ fontSize: '11px' }}>{new Date(t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
-                                    </td>
-                                    <td style={{ padding: '8px 0' }}>
-                                        <div>{t.desc}</div>
-                                    </td>
-                                    <td style={{ textAlign: 'right', color: t.type === 'in' ? '#22C55E' : '#ef4444', fontWeight: 'bold' }}>
-                                        {t.type === 'in' ? '+' : '-'}{toVND(t.amount)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                    {filteredTransactions.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '30px', color: '#94A3B8', fontSize: '13px' }}>
+                            Không có biến động nào trong khoảng thời gian này.
+                        </div>
+                    ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                                {filteredTransactions.map(t => (
+                                    <tr key={t._id || t.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                        <td style={{ padding: '12px 0', width: '30%' }}>
+                                            <div style={{ fontWeight: '700', fontSize: '13px' }}>{new Date(t.createdAt || t.date).toLocaleDateString('vi-VN')}</div>
+                                            <div style={{ fontSize: '10px', color: '#94A3B8' }}>{new Date(t.createdAt || t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+                                        </td>
+                                        <td style={{ padding: '12px 0' }}>
+                                            <div style={{ fontSize: '12px', color: '#475569' }}>{t.desc || 'Giao dịch hệ thống'}</div>
+                                            {t.status && (
+                                                <span style={{ fontSize: '9px', fontWeight: '800', color: t.status === 'approved' ? '#16A34A' : (t.status === 'pending' ? '#D97706' : '#DC2626') }}>
+                                                    • {t.status === 'approved' ? 'Thành công' : (t.status === 'pending' ? 'Đang xử lý' : 'Bị từ chối')}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={{ textAlign: 'right', padding: '12px 0', color: t.type === 'in' ? '#16A34A' : '#DC2626', fontWeight: '800', fontSize: '14px' }}>
+                                            {t.type === 'in' ? '+' : '-'}{toVND(t.amount)}đ
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -305,5 +354,6 @@ const inputStyle = {
 
 const labelStyle = { color: '#666', fontSize: '13px', width: '120px', display: 'inline-block' };
 const valueStyle = { fontWeight: 'bold', fontSize: '13px' };
+const dateInputStyle = { flex: 1, border: 'none', background: 'transparent', fontSize: '12px', fontWeight: '700', color: '#475569', outline: 'none' };
 
 export default ShipperWallet;

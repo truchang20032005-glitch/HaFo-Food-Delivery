@@ -144,23 +144,22 @@ router.put('/:id', async (req, res) => {
 
         // ✅ LOGIC CỘNG TIỀN: Chỉ chạy khi đơn hàng chuyển sang 'done' lần đầu tiên
         if (status === 'done' && order.status !== 'done') {
-            // Dùng tiền tip từ database (order.tipAmount) để an toàn tuyệt đối
             const actualTip = order.tipAmount || 0;
+            const BASE_SHIP_FEE = 15000; // Phí ship cứng shipper nhận được mỗi đơn
 
-            // 1. Cộng doanh thu cho Quán (Trừ tip ra)
+            // 1. Cộng doanh thu cho Quán (Tổng đơn - toàn bộ tiền tip)
             await Restaurant.findByIdAndUpdate(order.restaurantId, {
                 $inc: { revenue: (order.total - actualTip) }
             });
 
-            // 2. Cộng 80% tiền tip vào ví Shipper
+            // 2. Cộng tiền vào ví Shipper: 15k phí cứng + 80% tiền tip
             if (order.shipperId) {
-                const shipperBonus = actualTip * 0.8;
-                if (shipperBonus > 0) {
-                    await Shipper.findOneAndUpdate(
-                        { user: order.shipperId },
-                        { $inc: { income: shipperBonus } }
-                    );
-                }
+                const totalShipperEarn = BASE_SHIP_FEE + (actualTip * 0.8);
+
+                await Shipper.findOneAndUpdate(
+                    { user: order.shipperId },
+                    { $inc: { income: totalShipperEarn } }
+                );
             }
         }
 
