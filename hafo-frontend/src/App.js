@@ -64,7 +64,8 @@ function App() {
 
     // TRƯỜNG HỢP 1: Đã nộp hồ sơ và đang chờ Admin duyệt
     // (Dựa vào approvalStatus: 'pending' mà backend cập nhật sau khi gửi form)
-    if (user?.approvalStatus === 'pending') {
+    // Nếu đang chờ duyệt hoặc bị từ chối -> Cho vào trang thông báo
+    if (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected') {
       return <Navigate to="/pending-approval" />;
     }
 
@@ -102,6 +103,9 @@ function App() {
           <Route path="/become-partner" element={<BecomePartner />} />
           {/* Đường dẫn rõ ràng cho Khách hàng (để Merchant cũng có thể xem giao diện khách nếu muốn) */}
           <Route path="/home" element={<Home />} />
+
+          <Route path="/merchant-register" element={user?.role === 'customer' ? <MerchantRegister /> : <Navigate to="/" />} />
+          <Route path="/shipper-register" element={user?.role === 'customer' ? <ShipperRegister /> : <Navigate to="/" />} />
 
           {/* Customer Routes */}
           <Route path="/restaurant/:id" element={<RestaurantDetail />} />

@@ -5,6 +5,7 @@ import L from 'leaflet';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import 'leaflet/dist/leaflet.css';
+import { useAuth } from '../../context/AuthContext';
 
 // Fix icon Marker Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -31,6 +32,7 @@ function MerchantRegister() {
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [customCuisine, setCustomCuisine] = useState(''); //
     const presets = ['Cơm', 'Bún/Phở', 'Đồ uống', 'Ăn vặt', 'Món Á', 'Món Âu', 'Chay', 'Bánh mì']; // Danh sách mẫu
+    const { updateUser } = useAuth();
 
     const [data, setData] = useState(() => {
         const savedData = localStorage.getItem('merchant_draft');
@@ -197,8 +199,10 @@ function MerchantRegister() {
             });
             await api.post('/pending/merchant', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             localStorage.removeItem('merchant_draft');
-            const updatedUser = { ...user, approvalStatus: 'pending' };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            updateUser({
+                role: 'pending_merchant',
+                approvalStatus: 'pending'
+            });
             setIsSuccess(true);
             window.scrollTo(0, 0);
         } catch (err) { alertWarning("Lỗi", err.message); }

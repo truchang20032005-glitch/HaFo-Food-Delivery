@@ -38,7 +38,8 @@ const PendingRestaurantSchema = new mongoose.Schema({
     bankBranch: String,
 
     status: { type: String, default: 'pending' },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    rejectReason: { type: String, default: '' }
 });
 
 module.exports = mongoose.models.PendingRestaurant || mongoose.model('PendingRestaurant', PendingRestaurantSchema);

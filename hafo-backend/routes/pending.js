@@ -36,27 +36,51 @@ router.post('/merchant', handleUpload([
 ]), async (req, res) => {
     try {
         const files = req.files || {};
+        const data = { ...req.body };
 
-        // Chuyển tọa độ từ string (nếu gửi qua FormData) sang mảng số
-        const lng = parseFloat(req.body.lng) || 106.660172;
-        const lat = parseFloat(req.body.lat) || 10.762622;
+        // ✅ 1. GIẢI MÃ CUISINE: Vì Frontend gửi JSON.stringify nên phải Parse ngược lại
+        if (data.cuisine) {
+            try {
+                // Nếu là chuỗi JSON mảng '["A", "B"]' -> chuyển thành mảng thực thụ
+                data.cuisine = JSON.parse(data.cuisine);
+            } catch (e) {
+                // Nếu không phải JSON (trường hợp chỉ có 1 text) -> bọc vào mảng
+                data.cuisine = Array.isArray(data.cuisine) ? data.cuisine : [data.cuisine];
+            }
+        }
+
+        // ✅ 2. XỬ LÝ TỌA ĐỘ: Đảm bảo là số thực
+        const lng = parseFloat(data.lng) || 106.660172;
+        const lat = parseFloat(data.lat) || 10.762622;
 
         const newReq = new PendingRestaurant({
-            ...req.body,
+            ...data,
             location: {
                 type: 'Point',
-                coordinates: [lng, lat] // [Kinh độ, Vĩ độ]
+                coordinates: [lng, lat]
             },
+            // ✅ 3. GÁN ĐƯỜNG DẪN ẢNH TỪ CLOUDINARY
             avatar: files.avatar ? files.avatar[0].path : '',
             idCardFront: files.idCardFront ? files.idCardFront[0].path : '',
             idCardBack: files.idCardBack ? files.idCardBack[0].path : '',
             businessLicense: files.businessLicense ? files.businessLicense[0].path : '',
-            cuisine: req.body.cuisine ? (Array.isArray(req.body.cuisine) ? req.body.cuisine : [req.body.cuisine]) : []
+            cuisine: data.cuisine // Đã xử lý ở bước 1
         });
+
+        // Lưu vào Database
         await newReq.save();
-        await User.findByIdAndUpdate(req.body.userId, { approvalStatus: 'pending' });
+
+        // ✅ 4. CẬP NHẬT USER: Đổi role sang 'pending_merchant' và trạng thái 'pending'
+        // Phải đổi Role thì App.js mới tự động đá user sang trang "Đang chờ duyệt"
+        await User.findByIdAndUpdate(data.userId, {
+            role: 'pending_merchant',
+            approvalStatus: 'pending'
+        });
+
         res.status(201).json({ message: "Gửi hồ sơ thành công!", code: newReq._id });
+
     } catch (err) {
+        console.error("LỖI LƯU HỒ SƠ NHÀ HÀNG:", err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -69,22 +93,35 @@ router.post('/shipper', handleUpload([
 ]), async (req, res) => {
     try {
         const files = req.files || {};
-        const lng = parseFloat(req.body.lng) || 106.660172;
-        const lat = parseFloat(req.body.lat) || 10.762622;
+        const data = { ...req.body };
+
+        // 1. CHUYỂN TỌA ĐỘ SANG SỐ
+        const lng = parseFloat(data.lng) || 106.660172;
+        const lat = parseFloat(data.lat) || 10.762622;
 
         const newReq = new PendingShipper({
-            ...req.body,
-            location: { type: 'Point', coordinates: [lng, lat] }, // ✅ Lưu tọa độ
+            ...data,
+            location: { type: 'Point', coordinates: [lng, lat] },
+            // 2. GÁN ĐƯỜNG DẪN ẢNH
             cccdFront: files.cccdFront ? files.cccdFront[0].path : '',
             cccdBack: files.cccdBack ? files.cccdBack[0].path : '',
             licenseImage: files.licenseImage ? files.licenseImage[0].path : '',
             vehicleRegImage: files.vehicleRegImage ? files.vehicleRegImage[0].path : '',
             avatar: files.avatar ? files.avatar[0].path : ''
         });
+
         await newReq.save();
-        await User.findByIdAndUpdate(req.body.userId, { approvalStatus: 'pending' });
-        res.status(201).json({ message: "Gửi hồ sơ Shipper thành công!" });
+
+        // ✅ 3. CẬP NHẬT USER (BƯỚC QUAN TRỌNG NHẤT)
+        // Má phải đổi role sang 'pending_shipper' thì App.js mới đá user qua trang "Đang chờ duyệt" được
+        await User.findByIdAndUpdate(data.userId, {
+            role: 'pending_shipper',
+            approvalStatus: 'pending'
+        });
+
+        res.status(201).json({ message: "Gửi hồ sơ Shipper thành công!", code: newReq._id });
     } catch (err) {
+        console.error("LỖI LƯU HỒ SƠ SHIPPER:", err); // Thêm log để dễ soi lỗi
         res.status(500).json({ error: err.message });
     }
 });
@@ -178,18 +215,57 @@ router.put('/approve/:type/:id', async (req, res) => {
 
 // API TỪ CHỐI HỒ SƠ
 router.put('/reject/:type/:id', async (req, res) => {
-    const { type, id } = req.params;
-    const { reason } = req.body;
     try {
-        let p = (type === 'merchant') ? await PendingRestaurant.findByIdAndUpdate(id, { status: 'rejected' }) : await PendingShipper.findByIdAndUpdate(id, { status: 'rejected' });
-        const email = p.email;
-        const name = p.name || p.fullName;
+        const { type, id } = req.params;
+        const { reason } = req.body;
+
+        let pendingData;
+        if (type === 'merchant') {
+            pendingData = await PendingRestaurant.findByIdAndUpdate(id, {
+                status: 'rejected',
+                rejectReason: reason
+            });
+        } else {
+            pendingData = await PendingShipper.findByIdAndUpdate(id, {
+                status: 'rejected',
+                rejectReason: reason
+            });
+        }
+
+        // Cập nhật trạng thái trong bảng User
+        await User.findByIdAndUpdate(pendingData.userId, {
+            approvalStatus: 'rejected'
+        });
+
+        const email = pendingData.email;
+        const name = pendingData.name || pendingData.fullName;
         if (email) {
             const content = `Xin chào ${name},\nHồ sơ của bạn bị TỪ CHỐI.\nLý do: ${reason}\nTrân trọng.`;
             await sendNotificationEmail(email, "Thông báo hồ sơ HaFo ⚠️", content);
         }
-        res.json({ message: 'Đã từ chối hồ sơ.' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        res.json({ message: "Đã từ chối hồ sơ" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// THÊM API RESET ĐỂ NGƯỜI DÙNG ĐĂNG KÝ LẠI
+router.post('/reset-application/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User.findById(userId);
+
+        // 1. Xóa hồ sơ cũ bị từ chối
+        await PendingRestaurant.findOneAndDelete({ userId });
+        await PendingShipper.findOneAndDelete({ userId });
+
+        // 2. Trả user về role customer và reset trạng thái
+        user.role = 'customer';
+        user.approvalStatus = 'none';
+        await user.save();
+
+        res.json({ message: "Đã reset trạng thái, má có thể đăng ký lại!" });
+    } catch (err) { res.status(500).json(err); }
 });
 
 router.get('/count', async (req, res) => {
@@ -232,6 +308,32 @@ router.get('/notifications', async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// API LẤY TRẠNG THÁI HỒ SƠ CỦA CÁ NHÂN (Dùng cho trang PendingApproval)
+router.get('/my-status/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        let application = await PendingRestaurant.findOne({ userId });
+        let type = 'merchant'; // Mặc định là nhà hàng
+
+        if (!application) {
+            application = await PendingShipper.findOne({ userId });
+            type = 'shipper'; // Nếu không thấy nhà hàng thì check shipper
+        }
+
+        if (!application) {
+            return res.json({ status: 'none', type: 'none' });
+        }
+
+        res.json({
+            status: application.status,
+            rejectReason: application.rejectReason || "",
+            type: type // ✅ TRẢ VỀ THÊM TYPE Ở ĐÂY
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi kiểm tra trạng thái" });
     }
 });
 

@@ -37,7 +37,8 @@ const PendingShipperSchema = new mongoose.Schema({
     workTime: String,
 
     status: { type: String, default: 'pending' },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    rejectReason: { type: String, default: '' }
 });
 
 module.exports = mongoose.models.PendingShipper || mongoose.model('PendingShipper', PendingShipperSchema);
