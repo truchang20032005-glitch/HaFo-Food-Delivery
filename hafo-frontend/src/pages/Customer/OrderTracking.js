@@ -45,6 +45,11 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
+const formatTime = (date) => {
+    if (!date) return "";
+    return new Date(date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
 function OrderTracking() {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
@@ -183,11 +188,40 @@ function OrderTracking() {
 
     if (!order) return <div style={{ padding: '80px', textAlign: 'center', background: '#F7F2E5', minHeight: '100vh' }}>Đang tải...</div>;
 
-    const currentStepIndex = order.status === 'new' ? 0 : order.status === 'prep' ? 2 : order.status === 'ready' ? 3 : order.status === 'pickup' ? 4 : order.status === 'done' ? 5 : 0;
+    const statusToIndex = { 'new': 0, 'prep': 1, 'ready': 2, 'pickup': 3, 'done': 4 };
+    const currentStepIndex = statusToIndex[order.status] || 0;
+
     const steps = [
-        { title: 'Đã nhận đơn', icon: 'fa-check' }, { title: 'Xác nhận', icon: 'fa-store' },
-        { title: 'Đang làm món', icon: 'fa-fire-burner' }, { title: 'Chờ shipper', icon: 'fa-box' },
-        { title: 'Đang giao hàng', icon: 'fa-motorcycle' }, { title: 'Hoàn tất đơn hàng', icon: 'fa-flag-checkered' }
+        {
+            status: 'new',
+            label: 'Đã nhận đơn',
+            time: formatTime(order.createdAt),
+            icon: 'fa-file-invoice'
+        },
+        {
+            status: 'prep',
+            label: 'Nhà hàng xác nhận',
+            time: formatTime(order.timeline?.confirmedAt),
+            icon: 'fa-check-circle'
+        },
+        {
+            status: 'ready',
+            label: 'Đang làm món',
+            time: formatTime(order.timeline?.readyAt),
+            icon: 'fa-fire-burner'
+        },
+        {
+            status: 'pickup',
+            label: 'Đang giao hàng',
+            time: formatTime(order.timeline?.pickupAt),
+            icon: 'fa-motorcycle'
+        },
+        {
+            status: 'done',
+            label: 'Hoàn tất đơn hàng',
+            time: formatTime(order.timeline?.completedAt),
+            icon: 'fa-house-chimney-check'
+        }
     ];
 
     const handleCancelOrder = async () => {
@@ -360,11 +394,26 @@ function OrderTracking() {
                         <h4 style={{ ...S.header, margin: '0 0 20px', borderLeft: '4px solid #F97350', paddingLeft: '12px' }}>Tiến độ đơn hàng</h4>
                         <div className="timeline">
                             {steps.map((step, i) => (
-                                <div key={i} className={`step ${i < currentStepIndex ? 'done' : (i === currentStepIndex ? 'current' : '')}`}>
-                                    <div className="dot"><i className={`fa-solid ${step.icon}`}></i></div>
+                                <div
+                                    key={i}
+                                    className={`step ${i < currentStepIndex ? 'done' : (i === currentStepIndex ? 'current' : '')}`}
+                                >
+                                    <div className="dot">
+                                        <i className={`fa-solid ${step.icon}`}></i>
+                                    </div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 'bold' }}>{step.title}</div>
-                                        <div style={{ fontSize: '12px', color: '#999' }}>{i <= currentStepIndex ? toClock(order.createdAt) : '--:--'}</div>
+                                        {/* ✅ HIỂN THỊ CHỮ TRẠNG THÁI (Sửa title -> label) */}
+                                        <div style={{
+                                            fontWeight: 'bold',
+                                            color: i <= currentStepIndex ? '#333' : '#ccc'
+                                        }}>
+                                            {step.label}
+                                        </div>
+
+                                        {/* ✅ HIỂN THỊ GIỜ RIÊNG BIỆT CHO TỪNG BƯỚC */}
+                                        <div style={{ fontSize: '12px', color: '#999' }}>
+                                            {step.time || '--:--'}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
