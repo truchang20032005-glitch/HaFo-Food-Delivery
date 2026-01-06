@@ -242,7 +242,7 @@ function ShipperOrderDetail() {
     const handleOpenMap = (lat, lng) => {
         if (!lat || !lng) return alertError("Lỗi", "Không tìm thấy tọa độ!");
         // Cấu trúc URL chuẩn để mở app bản đồ
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
         window.open(url, '_blank');
     };
 

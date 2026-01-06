@@ -11,6 +11,17 @@ const socket = io(SOCKET_URL, {
 });
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
+const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Bán kính Trái Đất (km)
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return (R * c).toFixed(1); // Trả về số km (ví dụ: 1.2)
+};
+
 function ShipperDashboard() {
     //const [gpsError, setGpsError] = useState(null); // Thêm state lưu lỗi
     const navigate = useNavigate();
@@ -314,88 +325,104 @@ function ShipperDashboard() {
                                 <p>Chưa có đơn hàng nào quanh đây.</p>
                             </div>
                         ) : (
-                            sortedOrders.map(order => (
-                                <div key={order._id} className="ship-card" style={{
-                                    background: '#fff',
-                                    padding: '16px',
-                                    borderRadius: '16px',
-                                    marginBottom: '15px',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                                    border: '1px solid #f1f5f9'
-                                }}>
-                                    {/* Hàng 1: Tên quán và Thời gian */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '12px', background: '#FFF7ED', color: '#C2410C', padding: '4px 10px', borderRadius: '20px', fontWeight: '700' }}>
-                                            <i className="fa-solid fa-store"></i> {order.restaurantId?.name}
-                                        </span>
-                                        <span style={{ fontSize: '12px', color: '#999' }}>
-                                            <i className="fa-regular fa-clock"></i> {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
+                            sortedOrders.map(order => {
+                                const restLng = order.restaurantId?.location?.coordinates[0];
+                                const restLat = order.restaurantId?.location?.coordinates[1];
 
-                                    {/* Hàng 2: Tên món ăn */}
-                                    <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#333' }}>
-                                        {Array.isArray(order.items) ? order.items[0].name + (order.items.length > 1 ? ` +${order.items.length - 1}` : '') : 'Đơn hàng'}
-                                    </h3>
+                                // Tính khoảng cách nếu có đủ tọa độ
+                                const dist = (myLocation && restLat && restLng)
+                                    ? getDistance(myLocation.lat, myLocation.lng, restLat, restLng)
+                                    : null;
 
-                                    {/* Hàng 3: Địa chỉ khách hàng */}
-                                    <div style={{ display: 'flex', gap: '8px', color: '#64748b', fontSize: '13px', marginBottom: '15px', alignItems: 'flex-start' }}>
-                                        <i className="fa-solid fa-location-dot" style={{ color: '#22C55E', marginTop: '3px' }}></i>
-                                        <span style={{ lineHeight: '1.4' }}>{order.customer.split('|')[2] || 'Địa chỉ khách'}</span>
-                                    </div>
-                                    {order.tipAmount > 0 && (
-                                        <div style={{
-                                            marginTop: '12px', padding: '10px', borderRadius: '12px',
-                                            background: '#F0FDF4', border: '1px solid #BBF7D0',
-                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                        }}>
-                                            <div style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
-                                                <i className="fa-solid fa-gift"></i> Tiền thưởng:
-                                            </div>
-                                            <b style={{ color: '#22C55E', fontSize: '15px' }}>
-                                                +{toVND(order.tipAmount * 0.8)}đ
-                                            </b>
-                                        </div>
-                                    )}
-
-                                    {/* Hàng 4: Chân thẻ (Tiền + Nút bấm) - SỬA LẠI CHỖ NÀY ĐỂ KHÔNG BỊ ĐÈ */}
-                                    <div style={{
-                                        borderTop: '1px dashed #eee',
-                                        paddingTop: '12px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center'
+                                // Ước tính thời gian: 5 phút/km + 5 phút chuẩn bị (nếu không có dist thì hiện --)
+                                const estTime = dist ? Math.ceil(dist * 5 + 5) : '--';
+                                return (
+                                    <div key={order._id} className="ship-card" style={{
+                                        background: '#fff',
+                                        padding: '16px',
+                                        borderRadius: '16px',
+                                        marginBottom: '15px',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                        border: '1px solid #f1f5f9'
                                     }}>
-                                        <div>
-                                            <div style={{ fontSize: '11px', color: '#999' }}>Tổng thu hộ</div>
-                                            <div style={{ fontWeight: '800', color: '#F97350', fontSize: '18px' }}>
-                                                {toVND(order.total)}
-                                            </div>
+                                        {/* Hàng 1: Tên quán và Thời gian */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '12px', background: '#FFF7ED', color: '#C2410C', padding: '4px 10px', borderRadius: '20px', fontWeight: '700' }}>
+                                                <i className="fa-solid fa-store"></i> {order.restaurantId?.name}
+                                            </span>
+                                            {/* HIỂN THỊ KHOẢNG CÁCH & THỜI GIAN */}
+                                            <span style={{ fontSize: '12px', color: '#F97350', fontWeight: '800' }}>
+                                                <i className="fa-solid fa-route"></i> {dist}km ({estTime} phút)
+                                            </span>
+                                            <span style={{ fontSize: '12px', color: '#999' }}>
+                                                <i className="fa-regular fa-clock"></i> {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
                                         </div>
 
-                                        <button
-                                            onClick={() => handleAccept(order._id)}
-                                            style={{
-                                                background: 'linear-gradient(135deg, #F97350 0%, #FF9F43 100%)',
-                                                color: '#fff',
-                                                border: 'none',
-                                                padding: '10px 20px',
-                                                borderRadius: '12px',
-                                                fontSize: '14px',
-                                                fontWeight: '800',
-                                                cursor: 'pointer',
-                                                boxShadow: '0 4px 12px rgba(249, 115, 80, 0.2)',
-                                                transition: 'all 0.2s',
-                                                whiteSpace: 'nowrap' // Đảm bảo chữ không bị xuống dòng
-                                            }}
-                                            onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-                                            onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-                                        >
-                                            NHẬN ĐƠN
-                                        </button>
+                                        {/* Hàng 2: Tên món ăn */}
+                                        <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#333' }}>
+                                            {Array.isArray(order.items) ? order.items[0].name + (order.items.length > 1 ? ` +${order.items.length - 1}` : '') : 'Đơn hàng'}
+                                        </h3>
+
+                                        {/* Hàng 3: Địa chỉ khách hàng */}
+                                        <div style={{ display: 'flex', gap: '8px', color: '#64748b', fontSize: '13px', marginBottom: '15px', alignItems: 'flex-start' }}>
+                                            <i className="fa-solid fa-location-dot" style={{ color: '#22C55E', marginTop: '3px' }}></i>
+                                            <span style={{ lineHeight: '1.4' }}>{order.customer.split('|')[2] || 'Địa chỉ khách'}</span>
+                                        </div>
+                                        {order.tipAmount > 0 && (
+                                            <div style={{
+                                                marginTop: '12px', padding: '10px', borderRadius: '12px',
+                                                background: '#F0FDF4', border: '1px solid #BBF7D0',
+                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                            }}>
+                                                <div style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
+                                                    <i className="fa-solid fa-gift"></i> Tiền thưởng:
+                                                </div>
+                                                <b style={{ color: '#22C55E', fontSize: '15px' }}>
+                                                    +{toVND(order.tipAmount * 0.8)}đ
+                                                </b>
+                                            </div>
+                                        )}
+
+                                        {/* Hàng 4: Chân thẻ (Tiền + Nút bấm) - SỬA LẠI CHỖ NÀY ĐỂ KHÔNG BỊ ĐÈ */}
+                                        <div style={{
+                                            borderTop: '1px dashed #eee',
+                                            paddingTop: '12px',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: '#999' }}>Tổng thu hộ</div>
+                                                <div style={{ fontWeight: '800', color: '#F97350', fontSize: '18px' }}>
+                                                    {toVND(order.total)}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleAccept(order._id)}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #F97350 0%, #FF9F43 100%)',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    padding: '10px 20px',
+                                                    borderRadius: '12px',
+                                                    fontSize: '14px',
+                                                    fontWeight: '800',
+                                                    cursor: 'pointer',
+                                                    boxShadow: '0 4px 12px rgba(249, 115, 80, 0.2)',
+                                                    transition: 'all 0.2s',
+                                                    whiteSpace: 'nowrap' // Đảm bảo chữ không bị xuống dòng
+                                                }}
+                                                onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+                                                onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                                            >
+                                                NHẬN ĐƠN
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </>
