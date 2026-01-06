@@ -63,11 +63,11 @@ function Cart() {
             <main style={{ maxWidth: '1000px', margin: '20px auto', padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: '25px', alignItems: 'start' }}>
 
                 {/* --- CỘT TRÁI: DANH SÁCH MÓN --- */}
-                <div style={{ flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{
                         display: 'flex',
                         justifyContent: 'flex-end',
-                        marginBottom: '10px', // Đổi từ -10px thành 15px để tạo khoảng cách với danh sách bên dưới
+                        marginBottom: '15px', // Đổi từ -10px thành 15px để tạo khoảng cách với danh sách bên dưới
                         paddingRight: '5px'   // Thêm một chút lề phải để không sát mép ngoài
                     }}>
                         <button
