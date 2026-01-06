@@ -41,6 +41,7 @@ const io = new Server(server, {
         methods: ["GET", "POST"]
     }
 });
+app.set('socketio', io);
 
 // Cấu hình CORS cho Express (Giữ nguyên của má)
 const allowedOrigins = [
@@ -99,21 +100,25 @@ app.use("/api/health", (req, res) => {
 
 app.get('/', (req, res) => res.send('Server HaFo đang chạy ngon lành kèm Socket.io!'));
 
-// --- 3. LOGIC XỬ LÝ SOCKET.IO (DI CHUYỂN SHIPPER) ---
+
+// --- LOGIC XỬ LÝ SOCKET.IO ---
 io.on('connection', (socket) => {
     console.log('⚡ Một client đã kết nối:', socket.id);
 
-    // Lắng nghe tọa độ từ app Shipper gửi lên
-    socket.on('shipper_update_location', (data) => {
-        // data = { shipperId, lat, lng, orderId }
-        console.log(`📍 Shipper ${data.shipperId} di chuyển tới: ${data.lat}, ${data.lng}`);
+    // Khi Merchant vào web, Frontend sẽ gửi shopId lên. 
+    // Ta cho họ vào phòng có tên là shopId đó.
+    socket.on('join-restaurant', (shopId) => {
+        if (shopId) {
+            socket.join(shopId.toString());
+            console.log(`🏠 Nhà hàng ${shopId} đã gia nhập phòng riêng`);
+        }
+    });
 
-        // Phát tọa độ này tới kênh theo dõi của đơn hàng cụ thể
+    // Lắng nghe tọa độ từ app Shipper gửi lên (Giữ nguyên của bạn)
+    socket.on('shipper_update_location', (data) => {
+        console.log(`📍 Shipper ${data.shipperId} di chuyển`);
         if (data.orderId) {
-            io.emit(`tracking_order_${data.orderId}`, {
-                lat: data.lat,
-                lng: data.lng
-            });
+            io.emit(`tracking_order_${data.orderId}`, { lat: data.lat, lng: data.lng });
         }
     });
 

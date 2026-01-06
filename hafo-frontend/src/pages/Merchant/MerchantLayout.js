@@ -22,7 +22,7 @@ function MerchantLayout() {
     const [notiList, setNotiList] = useState([]);
     const [notiCount, setNotiCount] = useState(0);
     const [showNoti, setShowNoti] = useState(false);
-    const prevNotiCount = useRef(0);
+    const prevNotiCount = useRef(-1);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const searchQuery = searchParams.get('q') || ''; // Lấy từ khóa từ URL
@@ -53,28 +53,44 @@ function MerchantLayout() {
     // Hàm lấy dữ liệu thông báo
     const fetchNotifications = async (shopId) => {
         try {
-            const res = await api.get(`/reports/notifications/partner/${shopId}`);
+            // ✅ SỬA ĐƯỜNG DẪN: Gọi sang /restaurants chứ không phải /reports
+            const res = await api.get(`/restaurants/notifications/${shopId}`);
 
-            // ✅ Backend trả về mảng list trực tiếp, không phải object {total, notifications}
             const data = res.data || [];
             const newCount = data.length;
 
-            // ✅ Bước 3: Phát âm thanh khi có tin mới
-            if (newCount > prevNotiCount.current) {
+            // Phát âm thanh nếu số lượng thông báo tăng lên
+            if (prevNotiCount.current !== -1 && newCount > prevNotiCount.current) {
                 const audio = new Audio('/sounds/notification.mp3');
-                audio.play().catch(e => console.log("Audio play error"));
+                // Thử phát và bắt lỗi nếu trình duyệt chặn
+                audio.play().catch(() => {
+                    console.warn("Trình duyệt chặn âm thanh. Hãy click vào trang để kích hoạt!");
+                });
             }
 
             prevNotiCount.current = newCount;
             setNotiCount(newCount);
-
-            // ✅ Gán trực tiếp data vào list vì data đã là mảng
             setNotiList(data);
         } catch (err) {
             console.error("Lỗi lấy thông báo Merchant:", err);
-            setNotiList([]); // Phòng hờ lỗi thì set mảng rỗng để giao diện không bị crash
+            setNotiList([]);
         }
     };
+
+    useEffect(() => {
+        const unlockAudio = () => {
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.volume = 0; // Phát tiếng im lặng để "xin phép" trình duyệt
+            audio.play()
+                .then(() => {
+                    window.removeEventListener('click', unlockAudio);
+                    console.log("🔊 Audio đã được kích hoạt cho trang Nhà hàng!");
+                })
+                .catch(() => { });
+        };
+        window.addEventListener('click', unlockAudio);
+        return () => window.removeEventListener('click', unlockAudio);
+    }, []);
 
     // Khi vào trang, gọi API để lấy thông tin quán
     useEffect(() => {
@@ -87,9 +103,13 @@ function MerchantLayout() {
 
                     socket.emit('join-restaurant', shopId);
 
-                    // ✅ Sử dụng .off trước khi .on để đảm bảo không bị trùng lặp listener
+                    // ✅ 2. GỌI NGAY LÚC VỪA VÀO TRANG: Để lấy các đơn 'new' đang chờ
+                    fetchNotifications(shopId);
+
+                    // 3. Lắng nghe thông báo mới từ Socket
                     socket.off('new-notification');
                     socket.on('new-notification', () => {
+                        console.log("🔔 Có tín hiệu thông báo mới từ Socket!");
                         fetchNotifications(shopId);
                     });
                 }

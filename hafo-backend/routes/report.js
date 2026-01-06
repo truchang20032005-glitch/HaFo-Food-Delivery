@@ -78,6 +78,21 @@ router.get('/notifications/partner/:userId', async (req, res) => {
             isReadByPartner: false // Bạn nên thêm trường này vào Model Report tương tự Khách hàng
         }).sort({ updatedAt: -1 });
 
+        const newOrders = await Order.find({
+            restaurantId: shopId,
+            status: 'new'
+        }).sort({ createdAt: -1 }).limit(5);
+
+        newOrders.forEach(o => {
+            list.push({
+                id: o._id,          // Để khi click vào thì biết ID đơn nào
+                type: 'order',      // Loại thông báo đơn hàng
+                msg: `Bạn có đơn hàng mới #${o._id.toString().slice(-6).toUpperCase()}`,
+                time: o.createdAt,
+                link: '/merchant/orders' // Đường dẫn khi click vào thông báo
+            });
+        });
+
         const list = reports.map(r => ({
             id: r._id,
             notificationId: r._id,
@@ -86,6 +101,8 @@ router.get('/notifications/partner/:userId', async (req, res) => {
             msg: `Khiếu nại đơn #${r.orderId.toString().slice(-6).toUpperCase()} đã được Admin xử lý: ${r.adminNote}`,
             time: r.updatedAt
         }));
+
+        list.sort((a, b) => new Date(b.time) - new Date(a.time));
 
         res.json(list);
     } catch (err) {

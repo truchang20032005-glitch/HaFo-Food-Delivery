@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
+// const io = req.app.get('socketio');
 
 // --- 1. LẤY DANH SÁCH TẤT CẢ ĐƠN (Cho Admin/Chủ quán) ---
 router.get('/', async (req, res) => {
@@ -88,23 +89,36 @@ router.get('/:id', async (req, res) => {
 
 // --- 3. TẠO ĐƠN HÀNG MỚI (CẬP NHẬT) ---
 router.post('/', async (req, res) => {
-    // Nhận thêm restaurantId từ Frontend gửi xuống
     const { customer, items, total, userId, restaurantId, lat, lng, note, tipAmount } = req.body;
 
     try {
         const newOrder = new Order({
             userId,
-            restaurantId, // <-- Lưu restaurantId vào DB
+            restaurantId,
             customer,
-            items, // <-- Lưu mảng items chi tiết
+            items,
             total,
-            lat, // ✅ LƯU VĨ ĐỘ
-            lng, // ✅ LƯU KINH ĐỘ
-            note, // ✅ LƯU GHI CHÚ
+            lat,
+            lng,
+            note,
             tipAmount: tipAmount || 0
         });
-        await newOrder.save();
-        res.status(201).json(newOrder);
+
+        const savedOrder = await newOrder.save();
+
+        // ✅ PHẦN QUAN TRỌNG: PHÁT TÍN HIỆU CHO NHÀ HÀNG
+        const io = req.app.get('socketio'); // Lấy instance io từ app
+        if (io) {
+            // Gửi tín hiệu đến "room" có tên là ID của nhà hàng
+            // Lưu ý: restaurantId phải được chuyển thành String
+            io.to(restaurantId.toString()).emit('new-notification', {
+                type: 'order',
+                msg: `Bạn có đơn hàng mới #${savedOrder._id.toString().slice(-6).toUpperCase()}`,
+                orderId: savedOrder._id
+            });
+        }
+
+        res.status(201).json(savedOrder);
     } catch (error) {
         console.error("Lỗi tạo đơn:", error);
         res.status(400).json({ message: error.message });

@@ -7,6 +7,7 @@ const uploadCloud = require('../config/cloudinary');
 const CustomerReview = require('../models/CustomerReview');
 const ReviewReply = require('../models/ReviewReply');
 const Report = require('../models/Report');
+const Transaction = require('../models/Transaction');
 
 // 1. TẠO QUÁN MỚI
 router.post('/', async (req, res) => {
@@ -150,23 +151,24 @@ router.put('/:id', uploadCloud.single('image'), async (req, res) => {
     }
 });
 
-// API lấy thông báo cho Nhà hàng (Đơn mới & Đánh giá mới)
+// API lấy thông báo cho Nhà hàng (Đơn mới, Đánh giá, Giao dịch, Khiếu nại)
 router.get('/notifications/:shopId', async (req, res) => {
     try {
         const shopId = req.params.shopId;
-        const ownerId = restaurant.owner;
 
-        // Bước 0: Lấy thông tin quán để biết ID của chủ quán (dùng để tìm báo cáo)
+        // 1. Tìm quán trước để lấy thông tin (Sửa lỗi thứ tự thực thi)
         const restaurant = await Restaurant.findById(shopId);
         if (!restaurant) return res.status(404).json({ message: "Không tìm thấy quán" });
 
-        // 1. Lấy đơn hàng mới (Chỉ lấy đơn 'new')
+        const ownerId = restaurant.owner;
+
+        // 2. Lấy đơn hàng mới (Chỉ lấy đơn trạng thái 'new')
         const newOrders = await Order.find({
             restaurantId: shopId,
             status: 'new'
         }).sort({ createdAt: -1 });
 
-        // 2. Lấy đánh giá chưa phản hồi
+        // 3. Lấy đánh giá chưa phản hồi (Giới hạn 5 cái gần nhất)
         const allReviews = await CustomerReview.find({ restaurantId: shopId })
             .populate('customerId', 'fullName')
             .sort({ createdAt: -1 });
@@ -181,37 +183,44 @@ router.get('/notifications/:shopId', async (req, res) => {
             if (unrepliedReviews.length >= 5) break;
         }
 
-        // 3. ✅ LOGIC MỚI: Lấy các báo cáo đã được Admin xử lý
-        // Tìm các báo cáo do chủ quán này gửi (reporterRole: 'merchant') mà status KHÁC 'pending'
+        // 4. Lấy các báo cáo (khiếu nại) đã được Admin xử lý
         const processedReports = await Report.find({
             reporterId: ownerId,
             reporterRole: 'merchant',
-            status: { $ne: 'pending' } // $ne là "not equal" (khác pending)
-        }).sort({ updatedAt: -1 }).limit(5);
-
-        // 3.5. ✅ LẤY CÁCH GIAO DỊCH RÚT TIỀN ĐÃ ĐƯỢC ADMIN XỬ LÝ
-        const processedTransactions = await Transaction.find({
-            userId: ownerId,
             status: { $ne: 'pending' }
         }).sort({ updatedAt: -1 }).limit(5);
 
-        // 4. Tổng hợp danh sách gửi về Frontend
+        // 5. Lấy các giao dịch rút tiền đã được Admin xử lý (Yêu cầu có model Transaction)
+        // Nếu bạn chưa import Transaction thì hãy thêm: const Transaction = require('../models/Transaction'); ở đầu file
+        let processedTransactions = [];
+        try {
+            const Transaction = require('../models/Transaction');
+            processedTransactions = await Transaction.find({
+                userId: ownerId,
+                status: { $ne: 'pending' }
+            }).sort({ updatedAt: -1 }).limit(5);
+        } catch (e) {
+            console.log("Chưa có model Transaction hoặc lỗi truy vấn giao dịch");
+        }
+
+        // 6. Tổng hợp tất cả vào một danh sách duy nhất
         let list = [];
 
-        // Thông báo Đơn hàng
+        // Gom thông báo Đơn hàng
         newOrders.forEach(o => {
             list.push({
-                id: o._id, // ✅ THÊM ID ĐỂ MỞ MODAL
+                id: o._id,
                 type: 'order',
-                msg: `Đơn hàng mới: #${o._id.slice(-6).toUpperCase()}`,
+                msg: `Đơn hàng mới: #${o._id.toString().slice(-6).toUpperCase()}`,
                 time: o.createdAt,
                 link: '/merchant/orders'
             });
         });
 
+        // Gom thông báo Đánh giá
         unrepliedReviews.forEach(r => {
             list.push({
-                id: r._id, // ✅ THÊM ID ĐỂ MỞ MODAL
+                id: r._id,
                 type: 'review',
                 msg: `${r.customerId?.fullName || 'Khách'} đánh giá ${r.rating} sao - Chờ phản hồi`,
                 time: r.createdAt,
@@ -219,6 +228,7 @@ router.get('/notifications/:shopId', async (req, res) => {
             });
         });
 
+        // Gom thông báo Giao dịch tiền
         processedTransactions.forEach(t => {
             const statusText = t.status === 'approved' ? 'THÀNH CÔNG' : 'BỊ TỪ CHỐI';
             list.push({
@@ -229,25 +239,25 @@ router.get('/notifications/:shopId', async (req, res) => {
             });
         });
 
-        // ✅ Thông báo Báo cáo đã xử lý
+        // Gom thông báo Báo cáo/Khiếu nại
         processedReports.forEach(rep => {
             const statusText = rep.status === 'processed' ? 'ĐÃ XỬ LÝ' : 'ĐÃ TỪ CHỐI';
             list.push({
                 type: 'report_resolved',
-                msg: `Báo cáo đánh giá: Admin ${statusText}`,
-                time: rep.updatedAt, // Lấy thời gian admin cập nhật
-                link: '/merchant/reviews' // Quay lại trang reviews để xem kết quả
+                msg: `Khiếu nại đánh giá: Admin ${statusText}`,
+                time: rep.updatedAt,
+                link: '/merchant/reviews'
             });
         });
 
-        // Sắp xếp tất cả theo thời gian mới nhất
+        // 7. Sắp xếp toàn bộ danh sách theo thời gian mới nhất
         list.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-        res.json({
-            total: list.length,
-            notifications: list
-        });
+        // ✅ TRẢ VỀ MẢNG TRỰC TIẾP (Để khớp với logic MerchantLayout.js)
+        res.json(list);
+
     } catch (err) {
+        console.error("Lỗi API Notifications:", err);
         res.status(500).json({ error: err.message });
     }
 });
