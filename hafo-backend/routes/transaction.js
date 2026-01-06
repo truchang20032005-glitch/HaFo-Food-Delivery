@@ -31,11 +31,38 @@ router.get('/user/:userId', async (req, res) => {
 // 3. TẠO LỆNH RÚT TIỀN MỚI
 router.post('/', async (req, res) => {
     try {
-        const newTrans = new Transaction(req.body);
+        const { userId, role, amount, bankInfo } = req.body;
+
+        // ✅ Kiểm tra số tiền tối thiểu
+        if (amount < 50000) {
+            return res.status(400).json({ message: "Số tiền rút tối thiểu là 50.000đ" });
+        }
+
+        // ✅ Kiểm tra số dư thực tế trong DB tùy theo role
+        if (role === 'shipper') {
+            const shipper = await Shipper.findOne({ user: userId });
+            if (!shipper || shipper.income < amount) {
+                return res.status(400).json({ message: "Số dư ví không đủ để rút!" });
+            }
+        } else if (role === 'merchant') {
+            const shop = await Restaurant.findOne({ owner: userId });
+            if (!shop || shop.revenue < amount) {
+                return res.status(400).json({ message: "Doanh thu hiện tại không đủ để rút!" });
+            }
+        }
+
+        const newTrans = new Transaction({
+            userId,
+            role,
+            amount,
+            bankInfo,
+            status: 'pending'
+        });
+
         await newTrans.save();
         res.status(201).json(newTrans);
     } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(500).json({ error: err.message });
     }
 });
 

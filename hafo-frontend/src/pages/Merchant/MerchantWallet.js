@@ -78,27 +78,32 @@ function MerchantWallet() {
     useEffect(() => { fetchData(); }, []);
 
     const handleWithdraw = async () => {
-        const amount = Number(withdrawAmount);
-        if (amount < 50000) return alertWarning("Rút tối thiểu 50.000đ!");
-        if (amount > balance) return alertWarning("Số dư không đủ để rút số tiền này!");
+        if (isInvalid) return; // Đã có logic check số dư và min 50k của má
 
         setLoading(true);
         try {
+            const user = JSON.parse(localStorage.getItem('user'));
             await api.post('/transactions', {
-                restaurantId: shop._id,
-                amount: amount,
+                userId: user.id || user._id,
+                role: 'merchant',
+                amount: Number(withdrawAmount),
                 bankInfo: {
                     bankName: shop.bankName,
                     bankAccount: shop.bankAccount,
                     bankOwner: shop.bankOwner
                 }
             });
-            alertSuccess("Gửi yêu cầu rút tiền thành công!");
+
+            await alertSuccess("Đã gửi yêu cầu", "Vui lòng đợi Admin phê duyệt trong 24h.");
             setShowWithdrawModal(false);
             setWithdrawAmount('');
-            fetchData();
-        } catch (err) { alertError(err.message); }
-        finally { setLoading(false); }
+            // Reload lại dữ liệu
+            window.location.reload();
+        } catch (err) {
+            alertError("Lỗi rút tiền", err.response?.data?.message || "Không thể thực hiện.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     // ====== HỆ THỐNG STYLES ĐÃ CẢI THIỆN THEO Ý MÁ ======
