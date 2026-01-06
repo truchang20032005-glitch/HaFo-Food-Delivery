@@ -34,7 +34,6 @@ function RecenterMap({ position }) {
 }
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
-const toClock = (d) => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
     if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
