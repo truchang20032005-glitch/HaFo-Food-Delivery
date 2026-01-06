@@ -125,7 +125,7 @@ function ChatBot() {
             selectedSize: food.selectedSize || food.options?.[0]?.name || 'Vừa',
             sizePrice: Number(food.sizePrice || food.options?.[0]?.price || 0),
             selectedToppings: [],
-            note: 'Đặt qua HaFo AI',
+            note: '',
             finalPrice: basePrice + Number(food.options?.[0]?.price || 0)
         };
 
