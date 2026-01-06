@@ -7,12 +7,14 @@ const OrderSchema = new mongoose.Schema({
     restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true },
     customer: { type: String, required: true },
     items: [{
-        foodId: { type: String, required: true },
+        foodId: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
         name: { type: String, required: true },
         price: { type: Number, required: true },
         quantity: { type: Number, required: true },
         image: { type: String, default: '' },
-        options: { type: String, default: '' }
+        selectedSize: { name: String, price: Number },
+        selectedToppings: [{ name: String, price: Number }],
+        note: { type: String, default: '' }
     }],
     total: { type: Number, required: true },
     status: {

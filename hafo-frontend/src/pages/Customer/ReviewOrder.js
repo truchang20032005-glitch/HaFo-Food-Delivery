@@ -28,15 +28,25 @@ function ReviewOrder() {
             const orderData = res.data;
             setOrder(orderData);
 
-            // Khởi tạo đánh giá cho từng món... (giữ nguyên)
+            // ✅ BƯỚC QUAN TRỌNG: Khởi tạo dữ liệu nháp
+            const initialRatings = {};
+            const initialComments = {};
 
-            // ✅ SỬA TẠI ĐÂY: Lấy ID từ Object shipperId
+            orderData.items.forEach((item, index) => {
+                // Dùng Key duy nhất: ID món + Vị trí trong đơn
+                const uniqueKey = `${item.foodId}_${index}`;
+                initialRatings[uniqueKey] = 5;
+                initialComments[uniqueKey] = '';
+            });
+
+            // ✅ ĐẨY VÀO STATE (Nếu thiếu dòng này sẽ không bấm được sao)
+            setFoodRatings(initialRatings);
+            setFoodComments(initialComments);
+
             if (orderData.shipperId) {
-                // Nếu shipperId là object (đã populate), lấy ._id. Nếu là string, dùng luôn.
                 const shipperUserId = typeof orderData.shipperId === 'object'
                     ? orderData.shipperId._id
                     : orderData.shipperId;
-
                 const shipRes = await api.get(`/shippers/profile/${shipperUserId}`);
                 setShipper(shipRes.data);
             }
@@ -48,6 +58,18 @@ function ReviewOrder() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Hàm xử lý khi khách bấm sao cho món ăn
+    const handleFoodRate = (foodId, index, rating) => {
+        const key = `${foodId}_${index}`;
+        setFoodRatings(prev => ({ ...prev, [key]: rating }));
+    };
+
+    // Hàm xử lý khi khách nhập comment cho món ăn
+    const handleFoodComment = (foodId, index, comment) => {
+        const key = `${foodId}_${index}`;
+        setFoodComments(prev => ({ ...prev, [key]: comment }));
+    };
 
     const handleSubmit = async () => {
         const currentUserId = user?._id || user?.id;
@@ -65,12 +87,16 @@ function ReviewOrder() {
                 comment: driverComment,
                 shipperRating: driverRating,
                 shipperComment: driverComment,
-                itemReviews: Object.keys(foodRatings).map(foodId => ({
-                    foodId: foodId, // Đảm bảo đây là ID 24 ký tự hợp lệ
-                    name: order.items.find(it => (it.foodId || it._id) === foodId)?.name,
-                    rating: foodRatings[foodId],
-                    comment: foodComments[foodId]
-                }))
+                itemReviews: order.items.map((item, index) => {
+                    const key = `${item.foodId}_${index}`;
+                    return {
+                        foodId: item.foodId,
+                        name: item.name,
+                        options: item.options,
+                        rating: foodRatings[key],
+                        comment: foodComments[key]
+                    };
+                }),
             };
 
             // GỌI API THỰC TẾ
@@ -82,14 +108,6 @@ function ReviewOrder() {
             console.error("Chi tiết lỗi:", error.response?.data || error.message);
             alertError("Không thể gửi đánh giá. Lỗi: " + (error.response?.data?.error || "Vui lòng thử lại sau"));
         }
-    };
-
-    const handleFoodRate = (foodId, rating) => {
-        setFoodRatings(prev => ({ ...prev, [foodId]: rating }));
-    };
-
-    const handleFoodComment = (foodId, comment) => {
-        setFoodComments(prev => ({ ...prev, [foodId]: comment }));
     };
 
     if (!order) return <div style={{ padding: '80px', textAlign: 'center', background: '#F7F2E5', minHeight: '100vh' }}>Đang tải thông tin đơn hàng...</div>;
@@ -184,23 +202,50 @@ function ReviewOrder() {
                                         <h4 style={S.header}><i className="fa-solid fa-bowl-food" style={{ color: '#F97350' }}></i> Chất lượng món ăn</h4>
                                         <div style={{ padding: '25px' }}>
                                             {order.items.map((item, index) => {
-                                                const itemId = item.foodId || item._id;
+                                                const key = `${item.foodId}_${index}`;
                                                 return (
-                                                    <div key={index} style={{ paddingBottom: '25px', marginBottom: '25px', borderBottom: index !== order.items.length - 1 ? '1px dashed #f1f1f1' : 'none' }}>
-                                                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
-                                                            <img src={item.image || "https://via.placeholder.com/60"} alt={item.name} style={{ width: '60px', height: '60px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #eee' }} />
-                                                            <div style={{ fontWeight: '800', fontSize: '16px', color: '#1e293b' }}>{item.name}</div>
-                                                        </div>
+                                                    <div key={key} style={{ paddingBottom: '25px', marginBottom: '25px', borderBottom: index !== order.items.length - 1 ? '1px dashed #f1f1f1' : 'none' }}>
+
+                                                        {/* HÀNG TRÊN: Ảnh, Tên + Topping bên trái | Sao bên phải */}
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                                            <span style={{ fontSize: '14px', color: '#64748b' }}>Đánh giá món ăn:</span>
-                                                            <StarRow value={foodRatings[itemId]} onChange={(val) => handleFoodRate(itemId, val)} size="20px" />
+                                                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                                                <img
+                                                                    src={item.image || "https://via.placeholder.com/60"}
+                                                                    alt={item.name}
+                                                                    style={{ width: '60px', height: '60px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #eee' }}
+                                                                />
+                                                                <div>
+                                                                    <div style={{ fontWeight: '800', fontSize: '16px', color: '#1e293b' }}>{item.name}</div>
+                                                                    <div style={{ fontSize: '12px', color: '#F97350', fontWeight: '600', marginTop: '2px' }}>
+                                                                        <i className="fa-solid fa-layer-group"></i> {item.options || "Món nguyên bản"}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* ✅ DÙNG CHUNG STARROW VÀ ĐẨY SANG PHẢI */}
+                                                            <StarRow
+                                                                value={foodRatings[key]}
+                                                                onChange={(val) => handleFoodRate(item.foodId, index, val)}
+                                                                size="28px"
+                                                            />
                                                         </div>
+
+                                                        {/* Ô NHẬP NHẬN XÉT */}
                                                         <input
                                                             type="text"
-                                                            placeholder="Nhận xét về món ăn này..."
-                                                            value={foodComments[itemId]}
-                                                            onChange={(e) => handleFoodComment(itemId, e.target.value)}
-                                                            style={{ width: '100%', padding: '12px 15px', borderRadius: '12px', border: '1px solid #eee', outline: 'none', fontSize: '14px' }}
+                                                            placeholder="Nhận xét về món này..."
+                                                            // ✅ SỬA LỖI: Dùng đúng KEY unique để không bị nhảy chữ món này sang món kia
+                                                            value={foodComments[key] || ''}
+                                                            onChange={(e) => handleFoodComment(item.foodId, index, e.target.value)}
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '12px 15px',
+                                                                borderRadius: '12px',
+                                                                border: '1px solid #eee',
+                                                                outline: 'none',
+                                                                fontSize: '14px',
+                                                                background: '#fcfcfc'
+                                                            }}
                                                         />
                                                     </div>
                                                 );

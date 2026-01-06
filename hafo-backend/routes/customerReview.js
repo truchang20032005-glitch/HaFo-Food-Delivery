@@ -138,7 +138,7 @@ router.get('/notifications/customer/:userId', async (req, res) => {
         }).populate('reviewId');
 
         // 3. Lấy đơn hàng của khách (Dùng trường 'customer')
-        const userOrders = await Order.find({ customer: userId }).select('_id');
+        const userOrders = await Order.find({ userId: userId }).select('_id');
         const orderIds = userOrders.map(o => o._id);
 
         // 4. Lấy khiếu nại Admin đã xử lý và CHƯA ĐỌC

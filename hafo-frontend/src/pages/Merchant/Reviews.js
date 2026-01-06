@@ -291,6 +291,12 @@ function Reviews() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                         <div>
                                             <b style={{ fontSize: '15px', color: '#1E293B' }}>{it.name}</b>
+
+                                            {/* ✅ BỔ SUNG: Hiển thị Size/Topping để chủ quán biết món nào ra món đó */}
+                                            <div style={{ fontSize: '11px', color: '#F97350', fontWeight: '600', marginTop: '2px' }}>
+                                                <i className="fa-solid fa-layer-group"></i> {it.options || "Món nguyên bản"}
+                                            </div>
+
                                             <div style={{ marginTop: '4px' }}>{renderStars(it.rating)}</div>
                                         </div>
                                         <div style={{ fontSize: '13px', color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: '8px' }}>

@@ -166,11 +166,20 @@ export const CartProvider = ({ children }) => {
         localStorage.removeItem('temp_checkout_location');
     };
 
+    const updateItemOptions = (uniqueId, newOptions) => {
+        setCartItems(prev => prev.map(item =>
+            item.uniqueId === uniqueId
+                ? { ...item, ...newOptions } // Ghi đè options mới vào item cũ
+                : item
+        ));
+        showToast("Đã cập nhật tùy chọn! ✨");
+    };
+
     return (
         <CartContext.Provider value={{
             cartItems, addToCart, updateQuantity, removeFromCart,
             totalAmount, subtotal,
-            shippingDetails, clearCart,
+            shippingDetails, clearCart, updateItemOptions,
             applyVoucher, appliedVoucher, voucherError,
             totalCount: cartItems.reduce((sum, item) => sum + item.quantity, 0)
         }}>

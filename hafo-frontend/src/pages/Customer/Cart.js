@@ -3,13 +3,14 @@ import { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
 import { confirmDialog, alertSuccess } from '../../utils/hafoAlert';
+import FoodModal from '../../components/FoodModal';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
 function Cart() {
     const {
         cartItems, updateQuantity, removeFromCart,
-        totalAmount, subtotal, clearCart,
+        totalAmount, subtotal, clearCart, updateItemOptions,
         applyVoucher, appliedVoucher, voucherError
     } = useCart();
 
@@ -47,6 +48,14 @@ function Cart() {
         acc[rId].items.push(item);
         return acc;
     }, {});
+
+    // ✅ 1. Thêm State để quản lý việc sửa món
+    const [editingItem, setEditingItem] = useState(null);
+
+    // ✅ 2. Định nghĩa hàm handleOpenEditModal (Hàm này fix lỗi má đang gặp)
+    const handleOpenEditModal = (item) => {
+        setEditingItem(item);
+    };
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh', paddingBottom: 50 }}>
@@ -114,9 +123,18 @@ function Cart() {
 
                                 {/* Danh sách món của nhà hàng này */}
                                 <div style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                    {group.items.map((item) => (
-                                        <div key={item.uniqueId} style={{ display: 'flex', gap: '15px', alignItems: 'center', borderBottom: group.items.indexOf(item) === group.items.length - 1 ? 'none' : '1px solid #f9f9f9', paddingBottom: group.items.indexOf(item) === group.items.length - 1 ? 0 : 15 }}>
-                                            {/* Ảnh món */}
+                                    {group.items.map((item, index) => (
+                                        <div
+                                            key={item.uniqueId}
+                                            style={{
+                                                display: 'flex',
+                                                gap: '15px',
+                                                alignItems: 'center',
+                                                borderBottom: index === group.items.length - 1 ? 'none' : '1px solid #f9f9f9',
+                                                paddingBottom: index === group.items.length - 1 ? 0 : 15
+                                            }}
+                                        >
+                                            {/* 1. Ảnh món ăn */}
                                             <img
                                                 src={getImageUrl(item.image)}
                                                 alt={item.name}
@@ -124,33 +142,103 @@ function Cart() {
                                                 onError={(e) => e.target.src = 'https://via.placeholder.com/80'}
                                             />
 
-                                            {/* Thông tin - Giữ nguyên logic của bạn */}
+                                            {/* 2. Nội dung chi tiết */}
                                             <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 }}>
-                                                    <h4 style={{ margin: 0, fontSize: '15px', color: '#333' }}>{item.name}</h4>
-                                                    <button onClick={() => removeFromCart(item.uniqueId)} style={{ border: 'none', background: 'none', color: '#ccc', cursor: 'pointer', fontSize: '16px', padding: 0 }}>
-                                                        <i className="fa-solid fa-xmark"></i>
-                                                    </button>
+                                                {/* Dòng tiêu đề: Tên món + Nút Sửa + Nút Xóa */}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                                                    <h4 style={{ margin: 0, fontSize: '15px', color: '#333', fontWeight: '600', flex: 1 }}>
+                                                        {item.name}
+                                                    </h4>
+
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {/* ✨ Nút Sửa tinh tế */}
+                                                        <button
+                                                            onClick={() => handleOpenEditModal(item)}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                color: '#F97350',
+                                                                fontSize: '12px',
+                                                                fontWeight: '600',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '3px',
+                                                                padding: '2px 6px',
+                                                                borderRadius: '4px',
+                                                                transition: '0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => e.currentTarget.style.background = '#FFF5F2'}
+                                                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                                        >
+                                                            <i className="fa-solid fa-pen-to-square" style={{ fontSize: '11px' }}></i> Sửa
+                                                        </button>
+
+                                                        {/* Nút Xóa khỏi giỏ */}
+                                                        <button
+                                                            onClick={() => removeFromCart(item.uniqueId)}
+                                                            style={{ border: 'none', background: 'none', color: '#ccc', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
+                                                        >
+                                                            <i className="fa-solid fa-xmark"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-                                                    <span style={{ background: '#FFF5F2', color: '#F97350', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', marginRight: 5 }}>
+                                                {/* Thông tin Size, Topping và Ghi chú */}
+                                                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px', lineHeight: '1.4' }}>
+                                                    <span style={{
+                                                        background: '#FFF5F2',
+                                                        color: '#F97350',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        fontWeight: 'bold',
+                                                        marginRight: '6px',
+                                                        fontSize: '11px'
+                                                    }}>
                                                         {item.selectedSize}
                                                     </span>
-                                                    {item.selectedToppings?.map(t => t.name).join(', ')}
-                                                    {item.note && <div style={{ color: '#888', fontStyle: 'italic', marginTop: 2 }}>📝 "{item.note}"</div>}
+                                                    {item.selectedToppings && item.selectedToppings.length > 0 ? (
+                                                        item.selectedToppings.map(t => t.name).join(', ')
+                                                    ) : (
+                                                        <span style={{ color: '#999' }}>Không thêm topping</span>
+                                                    )}
+
+                                                    {item.note && (
+                                                        <div style={{ color: '#888', fontStyle: 'italic', marginTop: '4px', fontSize: '11px' }}>
+                                                            📝 "{item.note}"
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                                                {/* Giá tiền và Bộ tăng giảm số lượng */}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
                                                     <div style={{ fontWeight: 'bold', color: '#F97350', fontSize: '15px' }}>
                                                         {toVND(item.finalPrice)}đ
                                                     </div>
 
-                                                    {/* Bộ điều khiển số lượng - Giữ nguyên logic */}
-                                                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden' }}>
-                                                        <button onClick={() => updateQuantity(item.uniqueId, -1)} style={{ width: '28px', height: '28px', border: 'none', background: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>−</button>
-                                                        <span style={{ width: '30px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>{item.quantity}</span>
-                                                        <button onClick={() => updateQuantity(item.uniqueId, 1)} style={{ width: '28px', height: '28px', border: 'none', background: '#fff', cursor: 'pointer', fontWeight: 'bold', color: '#F97350' }}>+</button>
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        border: '1px solid #E2E8F0',
+                                                        borderRadius: '8px',
+                                                        overflow: 'hidden',
+                                                        background: '#fff'
+                                                    }}>
+                                                        <button
+                                                            onClick={() => updateQuantity(item.uniqueId, -1)}
+                                                            style={{ width: '28px', height: '28px', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', color: '#64748B' }}
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <span style={{ width: '30px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: '#1E293B' }}>
+                                                            {item.quantity}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => updateQuantity(item.uniqueId, 1)}
+                                                            style={{ width: '28px', height: '28px', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', color: '#F97350' }}
+                                                        >
+                                                            +
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -226,6 +314,17 @@ function Cart() {
                     </div>
                 </div>
             </main>
+            <FoodModal
+                isOpen={!!editingItem}
+                onClose={() => setEditingItem(null)}
+                food={editingItem} // Modal cần dữ liệu món để hiển thị
+                editItem={editingItem} // Truyền item hiện tại để Modal biết là đang "Sửa"
+                onAddToCart={(updatedData) => {
+                    // Logic cập nhật món trong giỏ hàng (sẽ làm ở Bước 2)
+                    updateItemOptions(editingItem.uniqueId, updatedData);
+                    setEditingItem(null);
+                }}
+            />
         </div>
     );
 }
