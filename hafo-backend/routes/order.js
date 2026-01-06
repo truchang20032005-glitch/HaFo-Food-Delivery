@@ -169,9 +169,17 @@ router.put('/:id', async (req, res) => {
         if (review) updateData.review = review;
         if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
 
+        if (status) {
+            if (status === 'prep') updateData['timeline.confirmedAt'] = new Date();
+            if (status === 'ready') updateData['timeline.readyAt'] = new Date();
+            if (status === 'pickup') updateData['timeline.pickupAt'] = new Date();
+            if (status === 'done') updateData['timeline.completedAt'] = new Date();
+            if (status === 'cancel') updateData['timeline.canceledAt'] = new Date();
+        }
+
         const updatedOrder = await Order.findByIdAndUpdate(
             req.params.id,
-            updateData,
+            { $set: updateData }, // Dùng $set để update nested object timeline
             { new: true }
         );
 

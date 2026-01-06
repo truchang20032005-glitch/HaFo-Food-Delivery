@@ -34,7 +34,14 @@ const OrderSchema = new mongoose.Schema({
     lat: { type: Number },
     lng: { type: Number },
     note: { type: String, default: '' },
-    createdAt: { type: Date, default: Date.now }
-});
+    createdAt: { type: Date, default: Date.now },
+    timeline: {
+        confirmedAt: { type: Date }, // Lúc quán bấm xác nhận (prep)
+        readyAt: { type: Date },     // Lúc quán làm xong (ready)
+        pickupAt: { type: Date },    // Lúc shipper lấy hàng (pickup)
+        completedAt: { type: Date }, // Lúc hoàn tất (done)
+        canceledAt: { type: Date }   // Lúc hủy đơn
+    }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);
