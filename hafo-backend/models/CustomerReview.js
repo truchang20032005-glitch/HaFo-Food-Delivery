@@ -16,6 +16,7 @@ const CustomerReviewSchema = new mongoose.Schema({
     itemReviews: [{
         foodId: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
         name: String,
+        options: String, // ✅ Thêm trường này để lưu "Topping: Trứng chần..."
         rating: Number,
         comment: String
     }],

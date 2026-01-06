@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 // Helper format tiền
 const toVND = (n) => Number(n || 0).toLocaleString('vi-VN');
 
-function FoodModal({ isOpen, onClose, food, onAddToCart }) {
+function FoodModal({ isOpen, onClose, food, onAddToCart, editItem }) {
     const [quantity, setQuantity] = useState(1);
     const [size, setSize] = useState('Vừa');
     const [sizePrice, setSizePrice] = useState(0);
@@ -12,17 +12,25 @@ function FoodModal({ isOpen, onClose, food, onAddToCart }) {
 
     useEffect(() => {
         if (isOpen && food) {
-            setQuantity(1);
-            setSize('Vừa');
-            setSizePrice(0);
-            setToppings([]);
-            setNote('');
-            if (food.options && food.options.length > 0) {
-                setSize(food.options[0].name);
-                setSizePrice(Number(food.options[0].price || 0));
+            // ✅ Nếu là CHẾ ĐỘ SỬA: Lấy lại dữ liệu cũ
+            if (editItem) {
+                setQuantity(editItem.quantity || 1);
+                setSize(editItem.selectedSize || 'Vừa');
+                setSizePrice(editItem.sizePrice || 0);
+                setToppings(editItem.selectedToppings || []);
+                setNote(editItem.note || '');
+            } else {
+                // Chế độ THÊM MỚI: Reset về mặc định
+                setQuantity(1);
+                setNote('');
+                if (food.options?.length > 0) {
+                    setSize(food.options[0].name);
+                    setSizePrice(Number(food.options[0].price || 0));
+                }
+                setToppings([]);
             }
         }
-    }, [isOpen, food]);
+    }, [isOpen, food, editItem]);
 
     // Tính toán giá
     const basePrice = food?.price || 0;
@@ -49,7 +57,7 @@ function FoodModal({ isOpen, onClose, food, onAddToCart }) {
     const handleConfirm = () => {
         const cartItem = {
             ...food,
-            uniqueId: Date.now() + Math.random(),
+            uniqueId: editItem ? editItem.uniqueId : (Date.now() + Math.random()),
             selectedSize: size,
             sizePrice: sizePrice,
             selectedToppings: toppings,
@@ -57,7 +65,7 @@ function FoodModal({ isOpen, onClose, food, onAddToCart }) {
             quantity: quantity,
             finalPrice: unitPrice
         };
-        onAddToCart(cartItem);
+        onAddToCart(cartItem, !!editItem);
         onClose();
     };
 
