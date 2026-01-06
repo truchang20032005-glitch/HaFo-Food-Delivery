@@ -10,13 +10,15 @@ function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [bump, setBump] = useState(false);
     const prevNotiCount = useRef(0);
+    const location = useLocation();
+    const showSearchPaths = ['/home', '/', '/history'];
+    const isSearchVisible = showSearchPaths.includes(location.pathname) && !hideSearch;
 
     // ✅ STATE CHO THÔNG BÁO
     const [notiList, setNotiList] = useState([]);
     const [notiCount, setNotiCount] = useState(0);
     const [showNoti, setShowNoti] = useState(false);
 
-    const location = useLocation();
     const isRegisterPage = location.pathname.startsWith('/register');
 
     const getAvatarUrl = (path) => {
@@ -100,7 +102,7 @@ function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
                 {user ? (
                     <>
 
-                        {!isRegisterPage && !hideSearch && (
+                        {!isRegisterPage && !hideSearch && isSearchVisible && (
                             <div className="search" style={{ flex: 1, maxWidth: '550px', margin: '0 20px', marginLeft: 'auto', display: 'flex', alignItems: 'center', background: '#f8f8f8', border: '1px solid #ccc', borderRadius: '50px', padding: '2px 10px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', cursor: 'pointer' }}>
                                 <span style={{ marginRight: '12px', opacity: 0.6 }}>🔍</span>
                                 <input

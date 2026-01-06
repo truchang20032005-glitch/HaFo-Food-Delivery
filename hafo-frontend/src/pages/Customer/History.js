@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import { useCart } from '../../context/CartContext';
 import { alertSuccess, alertError, alertWarning, alertInfo } from '../../utils/hafoAlert';
+import { removeVietnameseTones } from '../../utils/stringUtils';
 
 const toVND = (n) => n?.toLocaleString('vi-VN');
 
@@ -17,6 +18,9 @@ function History() {
     const location = useLocation(); // ✅ Lấy thông tin điều hướng từ Navbar gửi qua
     const { addToCart } = useCart();
 
+    const [searchTerm, setSearchTerm] = useState(""); // State cho ô tìm kiếm
+    const [selectedOrder, setSelectedOrder] = useState(null); // Lưu đơn đang xem chi tiết
+    const [showDetailModal, setShowDetailModal] = useState(false);
 
     // LOGIC ĐIỀU HƯỚNG THÔNG MINH (Mở modal khi bấm từ chuông thông báo)
     const handleViewReview = useCallback(async (orderId) => {
@@ -75,15 +79,32 @@ function History() {
         return diffInHours <= 24;
     };
 
-    // Logic lọc tab
-    const filteredOrders = orders.filter(o => {
-        if (filter === 'all') return true;
-        // ✅ THÊM 'ready' vào mảng này
-        if (filter === 'danggiao') return ['new', 'prep', 'ready', 'pickup'].includes(o.status);
-        if (filter === 'damua') return o.status === 'done';
-        if (filter === 'dahuy') return o.status === 'cancel';
-        return true;
-    });
+    const filteredOrders = useMemo(() => {
+        let result = [...orders];
+
+        // Bước A: Lọc theo Tab (giữ nguyên logic cũ)
+        if (filter !== 'all') {
+            if (filter === 'danggiao') {
+                result = result.filter(o => ['new', 'prep', 'ready', 'pickup'].includes(o.status));
+            } else if (filter === 'damua') {
+                result = result.filter(o => o.status === 'done');
+            } else if (filter === 'dahuy') {
+                result = result.filter(o => o.status === 'cancel');
+            }
+        }
+
+        // ✅ 2. XỬ LÝ TÌM KIẾM KHÔNG DẤU
+        const keyword = removeVietnameseTones((searchTerm || "").toLowerCase().trim());
+        if (keyword) {
+            result = result.filter(order =>
+                order.items.some(item =>
+                    removeVietnameseTones(item.name.toLowerCase()).includes(keyword)
+                )
+            );
+        }
+
+        return result;
+    }, [orders, filter, searchTerm]);
 
     // Xử lí đặt lại/mua lại
     const handleReorder = async (oldOrder) => {
@@ -189,7 +210,7 @@ function History() {
 
     return (
         <div style={{ background: '#F7F2E5', minHeight: '100vh', paddingBottom: '60px' }}>
-            <Navbar />
+            <Navbar onSearch={setSearchTerm} searchValue={searchTerm} />
 
             <div className="container" style={{ maxWidth: '800px', margin: '20px auto', padding: '0 15px' }}>
                 <h2 style={{ color: '#3A2E2E', marginBottom: '20px', fontSize: '24px' }}>📜 Lịch sử đơn hàng</h2>
@@ -211,12 +232,15 @@ function History() {
                 {/* DANH SÁCH ĐƠN */}
                 <div className="order-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Đang tải lịch sử...</div>
+                        <div style={{ textAlign: 'center', padding: 40 }}>Đang tải...</div>
                     ) : filteredOrders.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                            <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-cart-7359557-6024626.png" alt="Empty" style={{ width: '150px', opacity: 0.7, marginBottom: '15px' }} />
-                            <p style={{ fontSize: '16px', color: '#555', fontWeight: 'bold' }}>Chưa có đơn hàng nào ở mục này.</p>
-                            <Link to="/home" style={{ display: 'inline-block', marginTop: '15px', textDecoration: 'none', background: '#F97350', color: '#fff', padding: '10px 25px', borderRadius: '25px', fontWeight: 'bold' }}>Đặt món ngay</Link>
+                        <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '16px' }}>
+                            <img src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png" alt="Empty" style={{ width: '100px', opacity: 0.5, marginBottom: '15px' }} />
+                            {searchTerm ? (
+                                <p style={{ color: '#666' }}>Không tìm thấy món ăn nào khớp với <b>"{searchTerm}"</b></p>
+                            ) : (
+                                <p style={{ color: '#666' }}>Chưa có đơn hàng nào ở mục này.</p>
+                            )}
                         </div>
                     ) : (
                         filteredOrders.map(order => {
@@ -256,6 +280,29 @@ function History() {
                                             {['new', 'prep', 'ready', 'pickup'].includes(order.status) && (
                                                 <Link to={`/order-tracking/${order._id}`} style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '20px', background: '#e0f2fe', color: '#0070f3', fontSize: '13px', fontWeight: 'bold' }}>Theo dõi</Link>
                                             )}
+                                            <button
+                                                className="btn-detail"
+                                                onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
+                                                style={{
+                                                    padding: '8px 16px',
+                                                    borderRadius: '12px',
+                                                    border: 'none',
+                                                    background: '#FFF7ED', // Màu cam cực nhạt
+                                                    color: '#F97350',      // Màu cam thương hiệu
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                                // Hiệu ứng hover nhẹ khi rê chuột vào
+                                                onMouseOver={(e) => e.currentTarget.style.background = '#FFEDD5'}
+                                                onMouseOut={(e) => e.currentTarget.style.background = '#FFF7ED'}
+                                            >
+                                                <i className="fa-solid fa-circle-info"></i> Chi tiết
+                                            </button>
                                             {order.status === 'done' && (
                                                 <>
                                                     <button
@@ -347,13 +394,80 @@ function History() {
                     </div>
                 </div>
             )}
+
+            {/* MODAL CHI TIẾT ĐƠN HÀNG */}
+            {showDetailModal && selectedOrder && (
+                <div className="modal-bg" onClick={() => setShowDetailModal(false)} style={S.modalOverlay}>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={S.modalContainer}>
+
+                        {/* Header: Luôn cố định ở trên */}
+                        <div style={S.modalHeader}>
+                            <h3 style={{ color: '#F97350', margin: 0 }}>
+                                Chi tiết đơn #{selectedOrder._id.slice(-6).toUpperCase()}
+                            </h3>
+                            <button onClick={() => setShowDetailModal(false)} style={S.closeBtn}>✕</button>
+                        </div>
+
+                        {/* ✅ THÊM THẺ BỌC Ở GIỮA: Thẻ này sẽ tự cuộn nếu nội dung quá dài */}
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {/* Thông tin chung */}
+                            <div style={S.infoSection}>
+                                <p><b>Quán:</b> {selectedOrder.restaurantId?.name || "N/A"}</p>
+                                <p><b>Thời gian:</b> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
+                                <p><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</p>
+                            </div>
+
+                            {/* Danh sách món ăn */}
+                            <div style={S.itemListContainer}>
+                                <h4 style={{ marginBottom: '15px', fontSize: '15px' }}>Món đã đặt:</h4>
+                                {/* Bỏ maxHeight cố định của scrollArea để Flexbox tự xử lý */}
+                                <div style={{ paddingRight: '10px' }}>
+                                    {selectedOrder.items.map((item, index) => (
+                                        <div key={index} style={S.foodItem}>
+                                            <img src={item.image || "/images/food.png"} alt="" style={S.foodImg} />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</div>
+                                                <div style={{ fontSize: '12px', color: '#666' }}>{item.note}</div>
+                                            </div>
+                                            <div style={{ fontWeight: 'bold', color: '#F97350' }}>
+                                                {(item.price * item.quantity).toLocaleString()}đ
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer: Luôn cố định ở dưới cùng */}
+                        <div style={S.modalFooter}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px' }}>
+                                <b>TỔNG CỘNG:</b>
+                                <b style={{ color: '#F97350' }}>{selectedOrder.total.toLocaleString()}đ</b>
+                            </div>
+                            <button className="btn primary" onClick={() => setShowDetailModal(false)} style={S.btnPrimary}>
+                                Đóng cửa sổ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
 const S = {
     modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', padding: '20px' },
-    modalContainer: { background: '#fff', width: '100%', maxWidth: '550px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', display: 'flex', flexDirection: 'column', maxHeight: '80vh' },
+    modalContainer: {
+        background: '#fff',
+        width: '100%',
+        maxWidth: '550px',
+        borderRadius: '24px',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        display: 'flex',           // Kích hoạt Flexbox
+        flexDirection: 'column',    // Xếp theo chiều dọc
+        maxHeight: '85vh'          // Giới hạn chiều cao modal (ví dụ 85% màn hình)
+    },
     modalHeader: { padding: '20px 25px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' },
     modalTitle: { margin: 0, fontSize: '20px', fontWeight: '800', color: '#111827' },
     modalSubtitle: { margin: '4px 0 0', fontSize: '13px', color: '#6B7280' },
@@ -381,6 +495,14 @@ const S = {
     editBtnPrimary: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#F97350', color: '#fff', fontWeight: '800', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(249, 115, 80, 0.25)', transition: 'all 0.2s' },
     expiredNotice: { textAlign: 'center', fontSize: '13px', color: '#6B7280', padding: '10px', background: '#F3F4F6', borderRadius: '12px', fontWeight: '600' },
     closeBtnText: { width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#fff', color: '#6B7280', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' },
+    closeBtn: { border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' },
+    infoSection: { padding: '20px 25px', background: '#fcfcfc', borderBottom: '1px solid #f5f5f5', fontSize: '14px', lineHeight: '1.6' },
+    itemListContainer: { padding: '20px 25px' },
+    // ✅ Khu vực cuộn
+    scrollArea: { maxHeight: '250px', overflowY: 'auto', paddingRight: '10px' },
+    foodItem: { display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #f9f9f9' },
+    foodImg: { width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover' },
+    btnPrimary: { width: '100%', marginTop: '15px', padding: '12px', borderRadius: '12px', border: 'none', background: '#F97350', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }
 };
 
 export default History;
