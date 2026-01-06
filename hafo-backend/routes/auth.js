@@ -94,7 +94,7 @@ router.post('/social-login', async (req, res) => {
                 avatar: avatar || '',
                 role: 'customer', // Mặc định là khách hàng
                 addresses: [],
-                approvalStatus: user.approvalStatus
+                approvalStatus: 'none'
             });
 
             await user.save();

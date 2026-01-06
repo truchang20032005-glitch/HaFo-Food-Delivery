@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { useLocation } from 'react-router-dom';
-import { alertSuccess, alertError, alertWarning, alertInfo, confirmDialog } from '../../utils/hafoAlert';
+import { alertSuccess, alertError, alertWarning, confirmDialog } from '../../utils/hafoAlert';
 
 function Pending() {
     const location = useLocation();
@@ -87,25 +87,16 @@ function Pending() {
 
     // 3. Xử lý Từ chối (Nâng cấp)
     const handleSubmitReject = async () => {
-        if (!rejectReason.trim()) {
-            alertWarning("Thiếu thông tin", "Vui lòng nhập lý do từ chối!");
-            return;
-        }
-
+        if (!rejectReason.trim()) return alertWarning("Vui lòng nhập lý do từ chối");
         try {
-            // Gửi reason trong body (tham số thứ 2 của axios.put)
-            /*await axios.put(
-                `http://localhost:5000/api/pending/reject/${selectedReq.type}/${selectedReq._id}`,
-                { reason: rejectReason } // <--- QUAN TRỌNG: Gửi lý do xuống đây
-            );*/
-            await api.put(`/pending/reject/${selectedReq.type}/${selectedReq._id}`, { reason: rejectReason });
-
-            await alertInfo("Đã từ chối hồ sơ và gửi email thông báo.");
-            fetchPending();
-            closeDetail();
-        } catch (err) {
-            alertError("Lỗi", err.message);
-        }
+            await api.put(`/pending/reject/${selectedReq.type}/${selectedReq._id}`, {
+                reason: rejectReason
+            });
+            alertSuccess("Đã từ chối hồ sơ!");
+            setIsRejecting(false);
+            setSelectedReq(null);
+            fetchPending(); // Tải lại danh sách
+        } catch (err) { alertError("Lỗi", err.message); }
     };
 
     // --- HELPER HIỂN THỊ ẢNH (ĐÃ FIX LỖI) ---

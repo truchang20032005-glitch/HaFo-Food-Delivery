@@ -5,6 +5,7 @@ import L from 'leaflet';
 import api from '../../services/api';
 import Navbar from '../../components/Navbar';
 import 'leaflet/dist/leaflet.css';
+import { useAuth } from '../../context/AuthContext';
 
 // Fix icon Marker Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -29,6 +30,7 @@ function ShipperRegister() {
     const [cities, setCities] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
+    const { updateUser } = useAuth();
 
     const [data, setData] = useState(() => {
         const savedData = localStorage.getItem('shipper_draft');
@@ -122,8 +124,10 @@ function ShipperRegister() {
 
             await api.post('/pending/shipper', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             localStorage.removeItem('shipper_draft');
-            const updatedUser = { ...user, approvalStatus: 'pending' };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            updateUser({
+                role: 'pending_shipper',
+                approvalStatus: 'pending'
+            });
             setIsSuccess(true);
             window.scrollTo(0, 0);
         } catch (err) { alertError("Lỗi", err.message); }
