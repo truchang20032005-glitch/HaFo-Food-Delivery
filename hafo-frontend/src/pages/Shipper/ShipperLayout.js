@@ -32,7 +32,7 @@ function ShipperLayout() {
     const fetchNotifications = useCallback(async () => {
         if (!user.id) return;
         try {
-            const res = await api.get(`/reports/notifications/partner/${user.id}`);
+            const res = await api.get(`/notifications/partner/${user.id}`);
             // ✅ KIỂM TRA DỮ LIỆU: Backend trả về mảng list trực tiếp
             const data = res.data || [];
             const newCount = data.length;
@@ -89,10 +89,10 @@ function ShipperLayout() {
         setShowNoti(false); // Đóng thông báo khi chuyển trang
     }, [location.pathname]);
 
-    const handleMarkRead = async (notificationId) => {
+    const handleMarkRead = async (type, notificationId) => {
         try {
             // Chỉ gọi API nếu đây là thông báo loại khiếu nại (bạn có thể check n.type)
-            await api.put(`/reports/mark-read-partner/${notificationId}`);
+            await api.put(`/notifications/mark-read/${type}/${notificationId}`);
             fetchNotifications(); // Tải lại danh sách để số chuông giảm xuống ngay lập tức
         } catch (err) {
             console.error("Lỗi đánh dấu đã đọc:", err);

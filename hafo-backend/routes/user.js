@@ -5,6 +5,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
+const authRoutes = require('./auth');
 
 // 1. LẤY THÔNG TIN PROFILE
 router.get('/:id', async (req, res) => {
@@ -92,4 +94,41 @@ router.put('/:id/toggle-status', async (req, res) => {
     }
 });
 
+const handleViolation = async (userId, reason) => {
+    const User = require('../models/User');
+    const { sendLockAccountEmail } = require('./auth'); // Dùng lại helper gửi mail má đã có
+
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    user.violationCount += 1; // Tăng số lần vi phạm
+
+    // Lần vi phạm 1 & 2: Chỉ cảnh cáo qua "Chuông"
+    if (user.violationCount < 3) {
+        const newNoti = new Notification({
+            userId: user._id,
+            msg: `Cảnh báo: Bạn đã sử dụng ngôn từ khiếm nhã. Vi phạm thêm ${3 - user.violationCount} lần nữa tài khoản sẽ bị khóa!`,
+            type: 'warning'
+        });
+        await newNoti.save();
+    }
+    // Lần thứ 3: Khóa nick tự động
+    else {
+        const LOCK_DAYS = 7; // Vi phạm ngôn từ khóa nặng hơn, cho 7 ngày đi má
+        const unlockDate = new Date();
+        unlockDate.setDate(unlockDate.getDate() + LOCK_DAYS);
+
+        user.status = 'locked';
+        user.lockReason = `Tái diễn hành vi sử dụng ngôn từ khiếm nhã (${reason})`;
+        user.lockUntil = unlockDate;
+
+        // Gửi email thông báo khóa nick
+        await sendLockAccountEmail(user.email, user.fullName, user.lockReason, LOCK_DAYS, unlockDate);
+    }
+
+    await user.save();
+    return user.violationCount;
+};
+
+router.handleViolation = handleViolation;
 module.exports = router;

@@ -31,7 +31,7 @@ function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
         const currentUserId = user?._id || user?.id;
         if (!currentUserId) return;
         try {
-            const res = await api.get(`/customer-reviews/notifications/customer/${currentUserId}`);
+            const res = await api.get(`/notifications/customer/${currentUserId}`);
             const newCount = res.data.total;
 
             // ✅ Bước 3: Nếu số lượng mới lớn hơn số lượng cũ -> Phát âm thanh
@@ -71,7 +71,7 @@ function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
 
     const handleMarkRead = async (type, notificationId) => {
         try {
-            await api.put(`/customer-reviews/notifications/mark-read/${type}/${notificationId}`);
+            await api.put(`/notifications/mark-read/${type}/${notificationId}`);
             fetchNotifications(); // Gọi lại hàm lấy thông báo để cập nhật số lượng chuông ngay
         } catch (err) {
             console.error("Lỗi đánh dấu đã đọc:", err);
@@ -136,26 +136,44 @@ function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
                                             </div>
                                             <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                                                 {notiList.length === 0 ? (
-                                                    <div style={{ padding: '30px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>Không có thông báo nào</div>
+                                                    <div style={{ padding: '30px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                                                        Không có thông báo nào
+                                                    </div>
                                                 ) : (
                                                     notiList.map((n, i) => (
-                                                        /* ✅ ĐIỀU HƯỚNG THÔNG MINH: TRUYỀN ID QUA STATE ĐỂ History.js TỰ MỞ MODAL */
                                                         <Link
                                                             key={i}
-                                                            to="/history"
-                                                            state={{ openOrderId: n.orderId || n.id }}
+                                                            // ✅ ĐIỀU HƯỚNG THÔNG MINH: Nếu link là '#' thì ở lại trang hiện tại (location.pathname)
+                                                            to={n.link === '#' ? location.pathname : n.link}
+
+                                                            // ✅ CHỈ TRUYỀN STATE KHI CẦN: Warning (AI) thì không cần mở modal ở trang Lịch sử
+                                                            state={n.type !== 'warning' ? { openOrderId: n.orderId || n.id } : null}
+
                                                             onClick={() => {
                                                                 setShowNoti(false);
                                                                 handleMarkRead(n.type, n.notificationId);
                                                             }}
-                                                            style={{ display: 'block', padding: '12px 15px', borderBottom: '1px solid #f8fafc', textDecoration: 'none', color: 'inherit', transition: '0.2s' }}
-                                                            onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
-                                                            onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                                                            style={{
+                                                                display: 'block',
+                                                                padding: '12px 15px',
+                                                                borderBottom: '1px solid #f8fafc',
+                                                                textDecoration: 'none',
+                                                                color: 'inherit',
+                                                                transition: '0.2s',
+                                                                // ✅ PHÂN BIỆT MÀU NỀN: Cảnh cáo AI sẽ có màu đỏ nhạt để gây chú ý
+                                                                background: n.type === 'warning' ? '#FFF1F0' : '#fff'
+                                                            }}
+                                                            onMouseOver={e => e.currentTarget.style.background = n.type === 'warning' ? '#FEE2E2' : '#f8fafc'}
+                                                            onMouseOut={e => e.currentTarget.style.background = n.type === 'warning' ? '#FFF1F0' : '#fff'}
                                                         >
                                                             <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.4' }}>
-                                                                <i className={n.type === 'reply' ? "fa-solid fa-comment-dots" : "fa-solid fa-triangle-exclamation"}
-                                                                    style={{ color: '#F97350', marginRight: '10px' }}></i>
-                                                                {n.msg}
+                                                                {/* ✅ ICON THÔNG MINH: Đổi sang icon cảnh báo tam giác nếu là warning */}
+                                                                <i className={n.type === 'warning' ? "fa-solid fa-triangle-exclamation" : "fa-solid fa-comment-dots"}
+                                                                    style={{ color: n.type === 'warning' ? '#EF4444' : '#F97350', marginRight: '10px' }}>
+                                                                </i>
+                                                                <span style={{ fontWeight: n.type === 'warning' ? '800' : 'normal' }}>
+                                                                    {n.msg}
+                                                                </span>
                                                             </div>
                                                             <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px', marginLeft: '24px' }}>
                                                                 {new Date(n.time).toLocaleString('vi-VN')}
