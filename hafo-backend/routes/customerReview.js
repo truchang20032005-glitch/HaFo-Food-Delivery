@@ -6,6 +6,9 @@ const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const Report = require('../models/Report');
+const { checkContentAI } = require('../utils/aiModerator');
+const User = require('../models/User'); // Import model User để xử phạt
+const { sendLockAccountEmail } = require('./auth'); // Import hàm gửi mail
 
 // 1. Lấy tất cả đánh giá của 1 quán (Kèm các phản hồi)
 router.get('/restaurant/:restaurantId', async (req, res) => {
@@ -28,19 +31,59 @@ router.get('/restaurant/:restaurantId', async (req, res) => {
 // Gửi phản hồi (Dùng chung cho cả Merchant và Shipper)
 router.post('/:reviewId/reply', async (req, res) => {
     try {
-        const { userId, content, userRole } = req.body; // userRole lấy từ User đang đăng nhập
+        const { userId, content, userRole } = req.body;
 
+        // 1. SỬ DỤNG AI ĐỂ QUÉT NỘI DUNG PHẢN HỒI
+        const isBad = await checkContentAI(content);
+
+        if (isBad) {
+            const user = await User.findById(userId);
+            if (user) {
+                // Tăng số lần vi phạm ngôn từ
+                user.violationCount = (user.violationCount || 0) + 1;
+
+                // Nếu vi phạm từ lần thứ 3 trở đi -> Khóa tài khoản 7 ngày
+                if (user.violationCount >= 3) {
+                    const LOCK_DAYS = 7;
+                    const unlockDate = new Date();
+                    unlockDate.setDate(unlockDate.getDate() + LOCK_DAYS);
+
+                    user.status = 'locked'; // Cập nhật trạng thái locked
+                    user.lockReason = "Tái diễn hành vi sử dụng ngôn từ khiếm nhã trong phản hồi đánh giá";
+                    user.lockUntil = unlockDate; // Cập nhật thời gian mở khóa
+                    await user.save();
+
+                    // Gửi email thông báo cho người dùng
+                    await sendLockAccountEmail(user.email, user.fullName, user.lockReason, LOCK_DAYS, unlockDate);
+
+                    return res.status(403).json({
+                        message: "Tài khoản của bạn đã bị khóa 7 ngày do vi phạm tiêu chuẩn cộng đồng nhiều lần!",
+                        violationCount: user.violationCount
+                    });
+                } else {
+                    // Nếu vi phạm lần 1 hoặc 2 -> Cảnh cáo
+                    await user.save();
+                    return res.status(400).json({
+                        message: `Cảnh báo: Phản hồi của bạn chứa từ ngữ không phù hợp. Bạn đã vi phạm ${user.violationCount}/3 lần. Tái diễn sẽ bị khóa tài khoản!`,
+                        violationCount: user.violationCount
+                    });
+                }
+            }
+        }
+
+        // 2. NẾU NỘI DUNG SẠCH -> LƯU PHẢN HỒI NHƯ BÌNH THƯỜNG
         const newReply = new ReviewReply({
             reviewId: req.params.reviewId,
             userId,
             content,
-            userRole // 'merchant' hoặc 'shipper'
+            userRole
         });
 
         await newReply.save();
         res.status(201).json(newReply);
+
     } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(500).json({ message: err.message });
     }
 });
 
@@ -119,79 +162,6 @@ router.put('/:reviewId', async (req, res) => {
         );
         res.json(updatedReview);
     } catch (err) { res.status(400).json({ error: err.message }); }
-});
-
-// API lấy thông báo cho Khách hàng
-router.get('/notifications/customer/:userId', async (req, res) => {
-    try {
-        const userId = req.params.userId;
-
-        // 1. Lấy review IDs của khách
-        const userReviews = await CustomerReview.find({ customerId: userId }).select('_id');
-        const reviewIds = userReviews.map(r => r._id);
-
-        // 2. Lấy phản hồi CHƯA ĐỌC
-        const replies = await ReviewReply.find({
-            reviewId: { $in: reviewIds },
-            userRole: { $in: ['merchant', 'shipper'] },
-            isReadByCustomer: false // ✅ Lọc tin chưa đọc
-        }).populate('reviewId');
-
-        // 3. Lấy đơn hàng của khách (Dùng trường 'customer')
-        const userOrders = await Order.find({ userId: userId }).select('_id');
-        const orderIds = userOrders.map(o => o._id);
-
-        // 4. Lấy khiếu nại Admin đã xử lý và CHƯA ĐỌC
-        const adminWarnings = await Report.find({
-            orderId: { $in: orderIds },
-            status: { $ne: 'pending' },
-            isReadByCustomer: false // ✅ Lọc tin chưa đọc
-        }).sort({ updatedAt: -1 });
-
-        let list = [];
-
-        replies.forEach(rep => {
-            list.push({
-                id: rep.reviewId?._id || rep.reviewId,
-                orderId: rep.reviewId?.orderId, // ✅ Lấy orderId từ review object
-                notificationId: rep._id, // Để mark-read
-                type: 'reply',
-                msg: `${rep.userRole === 'merchant' ? 'Nhà hàng' : 'Tài xế'} đã phản hồi đánh giá`,
-                time: rep.createdAt,
-                link: '/history'
-            });
-        });
-
-        adminWarnings.forEach(warn => {
-            list.push({
-                id: warn._id,
-                orderId: warn.orderId,
-                notificationId: warn._id, // Để mark-read
-                type: 'admin_warning',
-                msg: `Thông báo từ Admin: ${warn.adminNote || 'Yêu cầu kiểm tra lại đánh giá'}`,
-                time: warn.updatedAt,
-                link: '/history'
-            });
-        });
-
-        list.sort((a, b) => new Date(b.time) - new Date(a.time));
-        res.json({ total: list.length, notifications: list });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// API Đánh dấu đã đọc thông báo
-router.put('/notifications/mark-read/:type/:id', async (req, res) => {
-    const { type, id } = req.params;
-    try {
-        if (type === 'reply') {
-            await ReviewReply.findByIdAndUpdate(id, { isReadByCustomer: true });
-        } else {
-            await Report.findByIdAndUpdate(id, { isReadByCustomer: true });
-        }
-        res.json({ message: "Đã đánh dấu đã đọc" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
 });
 
 module.exports = router;

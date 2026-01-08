@@ -4,16 +4,58 @@ const Report = require('../models/Report');
 const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const CustomerReview = require('../models/CustomerReview');
+const { checkContentAI } = require('../utils/aiModerator'); // Import bộ quét AI
+const User = require('../models/User'); // Import model User để xử phạt
+const { sendLockAccountEmail } = require('./auth');
+const Notification = require('../models/Notification');
 
 // Gửi báo cáo (Merchant hoặc Shipper gọi chung API này)
 router.post('/review', async (req, res) => {
     try {
         const { orderId, reporterId, reporterRole, reason, reviewContent } = req.body;
 
+        // 1. KIỂM TRA NGÔN TỪ TRONG LÝ DO BÁO CÁO BẰNG AI
+        const isBad = await checkContentAI(reason);
+
+        if (isBad) {
+            const user = await User.findById(reporterId);
+            if (user) {
+                user.violationCount = (user.violationCount || 0) + 1; // Tăng số lần vi phạm
+
+                // Nếu vi phạm từ lần thứ 3 -> Khóa tài khoản 7 ngày
+                if (user.violationCount >= 3) {
+                    const LOCK_DAYS = 7;
+                    const unlockDate = new Date();
+                    unlockDate.setDate(unlockDate.getDate() + LOCK_DAYS);
+
+                    user.status = 'locked';
+                    user.lockReason = "Sử dụng ngôn từ khiếm nhã khi gửi báo cáo khiếu nại";
+                    user.lockUntil = unlockDate;
+                    await user.save();
+
+                    // Gửi email thông báo khóa nick
+                    await sendLockAccountEmail(user.email, user.fullName, user.lockReason, LOCK_DAYS, unlockDate);
+
+                    return res.status(403).json({
+                        message: "Tài khoản của bạn đã bị khóa do sử dụng ngôn từ không phù hợp khi báo cáo!",
+                        violationCount: user.violationCount
+                    });
+                } else {
+                    // Vi phạm lần 1 hoặc 2 -> Cảnh cáo
+                    await user.save();
+                    return res.status(400).json({
+                        message: `Cảnh báo: Nội dung báo cáo không phù hợp. Bạn đã vi phạm ${user.violationCount}/3 lần. Tái diễn sẽ bị khóa tài khoản!`,
+                        violationCount: user.violationCount
+                    });
+                }
+            }
+        }
+
+        // 2. NẾU NỘI DUNG SẠCH -> LƯU BÁO CÁO NHƯ CŨ
         const newReport = new Report({
             orderId,
             reporterId,
-            reporterRole, // 'merchant' hoặc 'shipper'
+            reporterRole,
             reason,
             reviewContent
         });
@@ -26,8 +68,9 @@ router.post('/review', async (req, res) => {
         );
 
         res.status(201).json({ message: "Gửi báo cáo thành công!", data: newReport });
+
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ message: err.message });
     }
 });
 

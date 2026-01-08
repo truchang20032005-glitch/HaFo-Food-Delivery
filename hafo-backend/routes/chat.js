@@ -5,6 +5,9 @@ const Food = require('../models/Food');
 const Order = require('../models/Order');
 const ChatHistory = require('../models/ChatHistory');
 const Restaurant = require('../models/Restaurant');
+const { checkContentAI } = require('../utils/aiModerator'); // ✅ Import AI
+const { handleViolation } = require('./user'); // ✅ Import hàm xử phạt
+const Notification = require('../models/Notification');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -13,6 +16,19 @@ router.post('/', async (req, res) => {
     const { message, history, userId, userName, address } = req.body;
 
     try {
+        // 🟢 BƯỚC 1: QUÉT NGÔN TỪ CỦA KHÁCH TRƯỚC KHI GỬI CHO GEMINI
+        const isBad = await checkContentAI(message);
+        if (isBad) {
+            if (userId) {
+                await handleViolation(userId, "Dùng từ ngữ không phù hợp với Chatbot AI");
+            }
+            return res.json({
+                reply: "Hic, HaFo AI xin phép không trả lời những tin nhắn có từ ngữ như vậy ạ. Bạn hãy giữ lịch sự nhé!",
+                foods: []
+            });
+        }
+
+        // 🟢 BƯỚC 2: NẾU SẠCH THÌ MỚI CHẠY LOGIC GEMINI PHÍA DƯỚI
         // 1. TÌM KIẾM THÔNG MINH
         const keywords = message.split(' ').filter(word => word.length > 1);
         const searchRegex = keywords.length > 0 ? keywords.join('|') : message;

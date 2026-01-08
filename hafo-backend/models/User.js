@@ -28,6 +28,7 @@ const UserSchema = new mongoose.Schema({
     // lí do admin khóa tài khoản
     lockReason: { type: String, default: '' },
     lockUntil: { type: Date, default: null },
+    violationCount: { type: Number, default: 0 },
 
     // THÊM MỚI: Trạng thái duyệt
     approvalStatus: {

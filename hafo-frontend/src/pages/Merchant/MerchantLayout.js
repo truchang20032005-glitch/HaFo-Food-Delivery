@@ -54,7 +54,7 @@ function MerchantLayout() {
     const fetchNotifications = async (shopId) => {
         try {
             // ✅ SỬA ĐƯỜNG DẪN: Gọi sang /restaurants chứ không phải /reports
-            const res = await api.get(`/restaurants/notifications/${shopId}`);
+            const res = await api.get(`/notifications/partner/${shopId}`);
 
             const data = res.data || [];
             const newCount = data.length;
@@ -146,9 +146,9 @@ function MerchantLayout() {
         }
     };
 
-    const handleMarkRead = async (notificationId) => {
+    const handleMarkRead = async (type, notificationId) => {
         try {
-            await api.put(`/reports/mark-read-partner/${notificationId}`);
+            await api.put(`/notifications/mark-read/${type}/${notificationId}`);
             // Cập nhật lại số lượng thông báo bằng cách gọi lại hàm fetch
             if (myShop) fetchNotifications(myShop._id);
         } catch (err) {
