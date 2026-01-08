@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Report = require('../models/Report');
+const Order = require('../models/Order');
+const Restaurant = require('../models/Restaurant');
 const CustomerReview = require('../models/CustomerReview');
 
 // Gửi báo cáo (Merchant hoặc Shipper gọi chung API này)
@@ -71,41 +73,53 @@ router.put('/mark-read-partner/:id', async (req, res) => {
 router.get('/notifications/partner/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
-        // Tìm các báo cáo do user này gửi mà đã được xử lý và chưa đọc
+        let notifications = []; // ✅ Khởi tạo mảng thông báo chung
+
+        // 1. Tìm các báo cáo (khiếu nại) đã được xử lý
         const reports = await Report.find({
             reporterId: userId,
             status: { $ne: 'pending' },
-            isReadByPartner: false // Bạn nên thêm trường này vào Model Report tương tự Khách hàng
+            isReadByPartner: false
         }).sort({ updatedAt: -1 });
 
-        const newOrders = await Order.find({
-            restaurantId: shopId,
-            status: 'new'
-        }).sort({ createdAt: -1 }).limit(5);
-
-        newOrders.forEach(o => {
-            list.push({
-                id: o._id,          // Để khi click vào thì biết ID đơn nào
-                type: 'order',      // Loại thông báo đơn hàng
-                msg: `Bạn có đơn hàng mới #${o._id.toString().slice(-6).toUpperCase()}`,
-                time: o.createdAt,
-                link: '/merchant/orders' // Đường dẫn khi click vào thông báo
+        // Đẩy báo cáo vào mảng chung
+        reports.forEach(r => {
+            notifications.push({
+                id: r._id,
+                type: 'report_processed',
+                msg: `Khiếu nại đơn #${r.orderId.toString().slice(-6).toUpperCase()} đã được xử lý: ${r.adminNote}`,
+                time: r.updatedAt,
+                link: '/shipper/history' // Hoặc link phù hợp với role
             });
         });
 
-        const list = reports.map(r => ({
-            id: r._id,
-            notificationId: r._id,
-            type: 'report_processed',
-            time: r.updatedAt,
-            msg: `Khiếu nại đơn #${r.orderId.toString().slice(-6).toUpperCase()} đã được Admin xử lý: ${r.adminNote}`,
-            time: r.updatedAt
-        }));
+        // 2. Nếu là Nhà hàng, lấy thêm thông báo đơn hàng mới
+        // (Bước này cần tìm xem user này có quán nào không)
+        const restaurant = await Restaurant.findOne({ owner: userId });
+        if (restaurant) {
+            const newOrders = await Order.find({
+                restaurantId: restaurant._id,
+                status: 'new'
+            }).sort({ createdAt: -1 }).limit(5);
 
-        list.sort((a, b) => new Date(b.time) - new Date(a.time));
+            newOrders.forEach(o => {
+                notifications.push({
+                    id: o._id,
+                    type: 'order',
+                    msg: `Bạn có đơn hàng mới #${o._id.toString().slice(-6).toUpperCase()}`,
+                    time: o.createdAt,
+                    link: '/merchant/orders'
+                });
+            });
+        }
 
-        res.json(list);
+        // Sắp xếp tất cả theo thời gian mới nhất
+        notifications.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        res.json(notifications);
+
     } catch (err) {
+        console.error("LỖI NOTIFICATION:", err); // ✅ Thêm dòng này để Terminal hiện lỗi cho bạn thấy
         res.status(500).json({ error: err.message });
     }
 });

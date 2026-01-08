@@ -101,8 +101,6 @@ function ShipperWallet() {
         }
     };
 
-
-
     const filteredTransactions = useMemo(() => {
         return transactions
             .filter(t => {

@@ -3,7 +3,7 @@ import api from '../../services/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { alertError, alertSuccess, alertWarning } from '../../utils/hafoAlert';
 
-const toVND = (n) => n?.toLocaleString('vi-VN') + 'đ';
+const toVND = (n) => (n || 0).toLocaleString('vi-VN') + 'đ';
 
 function ShipperHistory() {
     const [allOrders, setAllOrders] = useState([]);
@@ -103,7 +103,19 @@ function ShipperHistory() {
     }, [allOrders, filter]);
 
     // Thu nhập chỉ tính trên đơn đã giao thành công (done)
-    const totalEarnings = allOrders.filter(o => o.status === 'done').length * 15000;
+    const parseMoney = (val) => {
+        if (typeof val === 'string') return parseInt(val.replace(/\D/g, '')) || 0;
+        return Number(val || 0);
+    };
+
+    const totalEarnings = useMemo(() => {
+        return allOrders
+            .filter(o => o.status === 'done')
+            .reduce((sum, order) => {
+                const tipAmount = parseMoney(order.tipAmount);
+                return sum + 15000 + (tipAmount * 0.8);
+            }, 0);
+    }, [allOrders]);
 
     const handleSendReply = async () => {
         if (!replyText.trim()) return;
@@ -204,32 +216,45 @@ function ShipperHistory() {
             </div>
 
             {filteredOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Không có đơn hàng nào ở mục này.</div>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                    Không có đơn hàng nào ở mục này.
+                </div>
             ) : (
+                // ✅ Đã xóa bỏ cặp ngoặc nhọn dư thừa ở đây
                 filteredOrders.map(order => {
                     const isActive = ['prep', 'ready', 'pickup'].includes(order.status);
+                    const tipEarn = Number(order.tipAmount || 0) * 0.8;
+                    const totalOrderEarn = 15000 + tipEarn;
+
                     return (
                         <div key={order._id} style={S.orderCard} onClick={() => handleItemClick(order)}>
                             <div>
                                 <div style={S.boldText}>#{order._id.slice(-6).toUpperCase()}</div>
                                 <div style={S.smallText}>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
                             </div>
+
                             <div style={{ textAlign: 'right' }}>
-                                {isActive ? (
-                                    <span style={{
-                                        fontSize: '10px', color: '#F97350', fontWeight: '800',
-                                        border: '1px solid #F97350', padding: '2px 8px', borderRadius: '10px',
-                                        display: 'inline-block'
-                                    }}>
-                                        TIẾP TỤC GIAO ➔
-                                    </span>
+                                {order.status === 'cancel' ? (
+                                    <div style={{ fontWeight: '800', color: '#94A3B8', fontSize: '14px' }}>Đã hủy</div>
                                 ) : (
                                     <>
+                                        {/* Hiển thị tiền: toVND đã có sẵn chữ 'đ' */}
                                         <div style={{ fontWeight: '800', color: '#F97350', fontSize: '14px' }}>
-                                            {order.status === 'done' ? '+15.000đ' : 'Đã hủy'}
+                                            {order.status === 'done' ? '+' : ''}{toVND(totalOrderEarn)}
                                         </div>
-                                        {order.isReviewed && (
-                                            <div style={{ marginTop: '2px', display: 'flex', justifyContent: 'flex-end', gap: '2px' }}>
+
+                                        {/* Chú thích thông minh */}
+                                        <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: '700' }}>
+                                            {isActive ? (
+                                                <span style={{ color: '#F97350' }}>DỰ KIẾN GIAO ➔</span>
+                                            ) : (
+                                                order.tipAmount > 0 ? `(Gồm ${toVND(tipEarn)} Tip)` : 'Phí giao hàng'
+                                            )}
+                                        </div>
+
+                                        {/* Đánh giá sao */}
+                                        {!isActive && order.isReviewed && (
+                                            <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'flex-end', gap: '2px' }}>
                                                 {order.shipperRating > 0 ? (
                                                     [...Array(5)].map((_, i) => (
                                                         <i key={i} className="fa-solid fa-star"

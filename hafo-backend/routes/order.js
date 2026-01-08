@@ -61,7 +61,7 @@ router.get('/available-orders', async (req, res) => {
         const orders = await Order.find({
             restaurantId: { $in: restaurantIds },
             shipperId: null,
-            status: { $in: ['new', 'prep', 'ready'] }
+            status: { $in: ['prep', 'ready'] }
         }).populate('restaurantId');
 
         res.json(orders);
@@ -144,7 +144,8 @@ router.put('/:id', async (req, res) => {
 
         // ✅ LOGIC CỘNG TIỀN: Chỉ chạy khi đơn hàng chuyển sang 'done' lần đầu tiên
         if (status === 'done' && order.status !== 'done') {
-            const actualTip = order.tipAmount || 0;
+            const tipFromReq = req.body.tipAmount !== undefined ? Number(req.body.tipAmount) : undefined;
+            const actualTip = tipFromReq ?? (order.tipAmount || 0);
             const BASE_SHIP_FEE = 15000; // Phí ship cứng shipper nhận được mỗi đơn
 
             // 1. Cộng doanh thu cho Quán (Tổng đơn - toàn bộ tiền tip)
@@ -155,7 +156,6 @@ router.put('/:id', async (req, res) => {
             // 2. Cộng tiền vào ví Shipper: 15k phí cứng + 80% tiền tip
             if (order.shipperId) {
                 const totalShipperEarn = BASE_SHIP_FEE + (actualTip * 0.8);
-
                 await Shipper.findOneAndUpdate(
                     { user: order.shipperId },
                     { $inc: { income: totalShipperEarn } }
