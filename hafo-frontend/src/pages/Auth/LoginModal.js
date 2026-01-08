@@ -154,7 +154,7 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
                             </div>
 
                             <div style={{ textAlign: 'right', marginBottom: 20 }}>
-                                <span onClick={() => setView('forgot')} style={{ color: '#F97350', fontSize: 13, cursor: 'pointer' }}>Quên mật khẩu?</span>
+                                <span className="hover-link" onClick={() => setView('forgot')} style={{ color: '#F97350', fontSize: 13, cursor: 'pointer' }}>Quên mật khẩu?</span>
                             </div>
 
                             <button className="nut-dang-nhap-chinh" onClick={handleLogin}>ĐĂNG NHẬP</button>
@@ -163,6 +163,8 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
                                 Bạn chưa có tài khoản?{' '}
                                 <span
                                     onClick={() => { onClose(); onOpenRegister(); }}
+                                    onMouseOver={(e) => (e.target.style.textDecoration = 'underline')}
+                                    onMouseOut={(e) => (e.target.style.textDecoration = 'none')}
                                     style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer' }}
                                 >
                                     Đăng ký ngay
@@ -177,17 +179,10 @@ function LoginModal({ isOpen, onClose, onOpenRegister }) {
                             </div>
 
                             <div style={{ display: 'flex', gap: 10 }}>
-                                {/* Nút Facebook */}
-                                <button
-                                    onClick={() => handleSocialLogin('Facebook')}
-                                    style={{ flex: 1, padding: 10, border: '1px solid #3b5998', background: '#3b5998', color: '#fff', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                                >
-                                    <i className="fa-brands fa-facebook-f"></i> Facebook
-                                </button>
-
                                 {/* Nút Google */}
                                 <button
                                     onClick={() => handleSocialLogin('Google')}
+                                    className="social-btn"
                                     style={{ flex: 1, padding: 10, border: '1px solid #db4437', background: '#db4437', color: '#fff', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                                 >
                                     <i className="fa-brands fa-google"></i> Google

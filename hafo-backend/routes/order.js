@@ -3,6 +3,8 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
+const { sendLockAccountEmail } = require('./auth');
+const User = require('../models/User');
 // const io = req.app.get('socketio');
 
 // --- 1. LẤY DANH SÁCH TẤT CẢ ĐƠN (Cho Admin/Chủ quán) ---
@@ -90,6 +92,11 @@ router.get('/:id', async (req, res) => {
 // --- 3. TẠO ĐƠN HÀNG MỚI (CẬP NHẬT) ---
 router.post('/', async (req, res) => {
     const { customer, items, total, userId, restaurantId, lat, lng, note, tipAmount } = req.body;
+
+    const user = await User.findById(req.body.userId);
+    if (user && user.status === 'locked') {
+        return res.status(403).json({ message: "Tài khoản của bạn đang bị khóa, không thể đặt hàng!" });
+    }
 
     try {
         const newOrder = new Order({
@@ -197,18 +204,59 @@ router.put('/:id/customer-cancel', async (req, res) => {
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
 
-        // ✅ CHỈ CHO PHÉP HỦY KHI TRẠNG THÁI LÀ 'new' (Quán chưa xác nhận)
+        // Chỉ cho phép hủy khi trạng thái là 'new'
         if (order.status !== 'new') {
             return res.status(400).json({ message: "Quán đã xác nhận đơn, bạn không thể tự hủy lúc này!" });
         }
 
+        // 1. Thực hiện hủy đơn và cập nhật timeline
         order.status = 'cancel';
+        if (!order.timeline) order.timeline = {}; // Đảm bảo object timeline tồn tại
+        order.timeline.canceledAt = new Date();
         order.note = (order.note || "") + " [Khách tự hủy]";
         await order.save();
 
-        res.json({ message: "Hủy đơn thành công!", order });
+        // 2. LOGIC KIỂM TRA VI PHẠM TRONG 7 NGÀY
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const cancelCount = await Order.countDocuments({
+            userId: order.userId,
+            status: 'cancel',
+            createdAt: { $gte: oneWeekAgo }
+        });
+
+        const LIMIT_CANCEL = 5;
+
+        // 3. Nếu đạt ngưỡng khóa (Đơn thứ 5 trở lên)
+        if (cancelCount >= LIMIT_CANCEL) {
+            const LOCK_DAYS = 3;
+            const unlockDate = new Date();
+            unlockDate.setDate(unlockDate.getDate() + LOCK_DAYS);
+
+            const user = await User.findById(order.userId);
+            if (user) {
+                user.status = 'locked';
+                user.lockReason = `Hủy đơn quá nhiều (${cancelCount} đơn/tuần)`;
+                user.lockUntil = unlockDate;
+                await user.save();
+
+                // ✅ SỬA Ở ĐÂY: Gọi trực tiếp hàm đã import ở đầu file, bỏ chữ authRoutes đi
+                if (sendLockAccountEmail) {
+                    await sendLockAccountEmail(user.email, user.fullName, user.lockReason, LOCK_DAYS, unlockDate);
+                }
+            }
+        }
+
+        // ✅ QUAN TRỌNG: Trả về cancelCount để Frontend hiện Alert cảnh báo ở đơn thứ 4
+        res.json({
+            message: "Hủy đơn thành công!",
+            order,
+            cancelCount: cancelCount
+        });
+
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ message: err.message });
     }
 });
 

@@ -308,7 +308,17 @@ function Home() {
                                                     "Chưa có đánh giá"
                                                 )}
                                             </span>
-                                            <span style={{ color: '#F97350', fontWeight: 'bold', fontSize: '13px', background: '#fff5f2', padding: '4px 10px', borderRadius: '20px' }}>
+                                            <span
+                                                className="xem-menu-hover" // ✅ CHỈ CẦN THÊM DÒNG NÀY
+                                                style={{
+                                                    color: '#F97350',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '13px',
+                                                    background: '#fff5f2',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '20px'
+                                                }}
+                                            >
                                                 Xem Menu →
                                             </span>
                                         </div>

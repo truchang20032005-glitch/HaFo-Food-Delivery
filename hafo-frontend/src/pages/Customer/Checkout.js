@@ -280,6 +280,8 @@ function Checkout() {
 
                 const resOrder = await api.post('/orders', orderData);
                 orderIds.push(resOrder.data._id);
+
+
             }
 
             // ✅ BƯỚC 3: Xử lý sau khi đặt hàng thành công
@@ -298,7 +300,20 @@ function Checkout() {
                 navigate('/history');
             }
         } catch (error) {
-            alertError("Lỗi đặt hàng", error.message);
+            if (error.response && error.response.status === 403) {
+                // Nếu Backend trả về 403 (Tài khoản bị khóa)
+                const reason = error.response.data.reason || "";
+                const serverMsg = error.response.data.message || "Tài khoản của bạn đang bị khóa.";
+
+                return alertError(
+                    "BẠN KHÔNG THỂ ĐẶT MÓN!",
+                    `${serverMsg}${reason ? `\nLý do: ${reason}` : ""}`
+                );
+            }
+
+            // Xử lý các lỗi khác (lỗi mạng, 400, 500...)
+            const errorMessage = error.response?.data?.message || "Đã có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!";
+            alertError("Lỗi đặt hàng", errorMessage);
         }
     };
 

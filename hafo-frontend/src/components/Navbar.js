@@ -170,22 +170,70 @@ function Navbar({ onOpenLogin, onSearch, searchValue, hideSearch }) {
                             )}
 
                             {/* AVATAR VÀ MENU CÁ NHÂN */}
-                            <div className="profile" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => { setShowProfileMenu(!showProfileMenu); setShowNoti(false); }}>
-                                <div className="avatar" style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#ddd', border: '2px solid var(--vang)', backgroundImage: `url(${getAvatarUrl(user.avatar)})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
-                                <span style={{ fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    {user.fullName || user.username} ▾
+                            <div
+                                className="profile profile-container"
+                                style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                                onClick={() => { setShowProfileMenu(!showProfileMenu); setShowNoti(false); }}
+                            >
+                                {/* Avatar với viền sáng */}
+                                <div
+                                    className="avatar"
+                                    style={{
+                                        width: '38px',
+                                        height: '38px',
+                                        borderRadius: '50%',
+                                        border: '2px solid #F97350',
+                                        backgroundImage: `url(${getAvatarUrl(user.avatar)})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        boxShadow: '0 2px 8px rgba(249, 115, 80, 0.2)'
+                                    }}
+                                ></div>
+
+                                {/* Tên User và Caret icon */}
+                                <span style={{ fontWeight: '800', fontSize: '14px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {user.fullName || user.username}
+                                    <i className={`fa-solid fa-chevron-down ${showProfileMenu ? 'fa-rotate-180' : ''}`} style={{ fontSize: '10px', transition: '0.3s', color: '#94a3b8' }}></i>
                                 </span>
+
+                                {/* MENU DROPDOWN */}
                                 {showProfileMenu && (
-                                    <div className="profile-menu" style={{ position: 'absolute', top: '120%', right: 0, background: '#fff', border: '1px solid #e5dfd2', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '8px', minWidth: '200px', zIndex: 2147483647, display: 'block' }}>
+                                    <div
+                                        className="profile-menu animate-menu-pop"
+                                        style={{
+                                            position: 'absolute',
+                                            top: 'calc(100% + 15px)',
+                                            right: 0,
+                                            background: '#fff',
+                                            borderRadius: '15px',
+                                            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                                            padding: '8px',
+                                            minWidth: '220px',
+                                            zIndex: 10000,
+                                            border: '1px solid #f1f5f9'
+                                        }}
+                                    >
                                         {!isRegisterPage && (
                                             <>
-                                                <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', textDecoration: 'none', color: '#333', fontWeight: '600', borderRadius: '8px' }}><i className="fa-regular fa-user"></i> Hồ sơ cá nhân</Link>
-                                                <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', textDecoration: 'none', color: '#333', fontWeight: '600', borderRadius: '8px' }}><i className="fa-regular fa-clock"></i> Lịch sử mua hàng</Link>
-                                                <div style={{ borderTop: '1px solid #eee', margin: '6px 0' }} />
+                                                <Link to="/profile" className="profile-menu-item">
+                                                    <i className="fa-regular fa-circle-user" style={{ fontSize: '18px' }}></i>
+                                                    Hồ sơ cá nhân
+                                                </Link>
+
+                                                <Link to="/history" className="profile-menu-item">
+                                                    <i className="fa-regular fa-rectangle-list" style={{ fontSize: '17px' }}></i>
+                                                    Lịch sử mua hàng
+                                                </Link>
                                             </>
                                         )}
-                                        <button onClick={handleLogoutClick} style={{ width: '100%', textAlign: 'left', padding: '10px', background: 'none', border: 'none', color: '#EF4444', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '8px' }}>
-                                            <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
+
+                                        <button
+                                            onClick={handleLogoutClick}
+                                            className="profile-menu-item profile-menu-item-logout"
+                                            style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                                        >
+                                            <i className="fa-solid fa-power-off"></i>
+                                            Đăng xuất tài khoản
                                         </button>
                                     </div>
                                 )}

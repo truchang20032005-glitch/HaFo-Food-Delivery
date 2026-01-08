@@ -282,16 +282,36 @@ body {
 }
 
 .nut-chinh {
-  display: inline-block;
-  background: var(--mau-cam);
-  color: #fff;
-  font-weight: 700;
+  /* Style cơ bản (nếu má chưa có) */
+  background: linear-gradient(135deg, #F97350 0%, #FF5F6D 100%);
+  color: white;
+  padding: 15px 35px;
   border: none;
-  border-radius: 8px;
-  padding: 14px 22px;
-  text-decoration: none;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, .15);
-  transition: .2s;
+  border-radius: 50px;
+  font-weight: 900;
+  font-size: 18px;
+  cursor: pointer;
+
+  /* ✅ PHẦN QUAN TRỌNG: Hiệu ứng chuyển động mượt mà */
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 15px rgba(249, 115, 80, 0.2);
+}
+
+/* 🟢 Khi rê chuột vào (Hover) */
+.nut-chinh:hover {
+  transform: translateY(-3px) scale(1.02);
+  /* Bay lên nhẹ và hơi to ra */
+  box-shadow: 0 8px 25px rgba(249, 115, 80, 0.4);
+  /* Bóng đậm và sâu hơn */
+  filter: brightness(1.05);
+  /* Sáng hơn một chút */
+}
+
+/* 🟡 Khi nhấn vào (Active) */
+.nut-chinh:active {
+  transform: translateY(0) scale(0.96);
+  /* Nhấn lún xuống tạo cảm giác vật lý */
+  box-shadow: 0 2px 10px rgba(249, 115, 80, 0.2);
 }
 
 .the-doi-tac {
@@ -301,6 +321,36 @@ body {
   border-radius: 10px;
   font-weight: 600;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.the-doi-tac {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  /* Chuyển động mượt mà */
+  border: 1px solid transparent;
+}
+
+/* 🟢 Hiệu ứng khi rê chuột vào (Hover) */
+.the-doi-tac:hover {
+  background: #ffffff !important;
+  /* Chuyển từ trắng mờ sang trắng tinh */
+  transform: translateY(-8px);
+  /* Bay lên cao hơn một chút */
+  box-shadow: 0 15px 30px rgba(249, 115, 80, 0.15);
+  /* Đổ bóng màu cam nhẹ */
+  border: 1px solid rgba(249, 115, 80, 0.3);
+  /* Hiện viền cam mờ */
+}
+
+/* Đổi màu chữ Tiêu đề khi hover */
+.the-doi-tac:hover b {
+  color: #F97350;
+  transition: color 0.3s ease;
+}
+
+/* 🟡 Hiệu ứng khi nhấn vào (Active) */
+.the-doi-tac:active {
+  transform: translateY(-2px) scale(0.98);
+  /* Nhấn lún xuống nhẹ */
 }
 
 .gioi-thieu {
@@ -2546,4 +2596,216 @@ input:checked+.slider:before {
 
 .animate-pop-in {
   animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.9);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: popIn 0.2s ease-out forwards;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.premium-tooltip {
+  animation: tooltipFadeIn 0.25s ease-out;
+}
+
+.nut-dang-nhap-chinh {
+  transition: all 0.3s ease !important;
+}
+
+.nut-dang-nhap-chinh:hover {
+  background-color: #e85d3a !important;
+  /* Đậm hơn một chút */
+  transform: translateY(-2px);
+  /* Bay lên nhẹ */
+  box-shadow: 0 5px 15px rgba(249, 115, 80, 0.4);
+  /* Đổ bóng cam */
+}
+
+.nut-dang-nhap-chinh:active {
+  transform: scale(0.98);
+  /* Nhấn xuống */
+}
+
+/* Hiệu ứng cho nút Quay lại / Hủy */
+.btn.soft {
+  transition: all 0.2s ease;
+}
+
+.btn.soft:hover {
+  background-color: #f1f5f9 !important;
+  color: #F97350 !important;
+}
+
+/* Hiệu ứng cho nút X đóng modal */
+.auth-modal__close:hover {
+  background: #ffeded !important;
+  color: #ef4444 !important;
+  transform: translateY(-50%) rotate(90deg) !important;
+  /* Xoay nhẹ cho vui mắt */
+}
+
+/* Hiệu ứng cho các nút mạng xã hội */
+.social-btn {
+  transition: all 0.3s ease;
+}
+
+.social-btn:hover {
+  filter: brightness(1.1);
+  /* Sáng hơn */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.hover-link:hover {
+  text-decoration: underline !important;
+  opacity: 0.8;
+}
+
+.role-btn {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Khi rê chuột vào nút chung */
+.role-btn:hover {
+  transform: translateY(-5px);
+  /* Nhấc bổng lên */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  /* Đổ bóng sâu */
+  background-color: #fcfcfc !important;
+}
+
+/* Hiệu ứng riêng khi hover vào nút NHÀ HÀNG */
+.role-btn-merchant:hover {
+  border-color: #F97350 !important;
+  background-color: #FFF5F2 !important;
+}
+
+/* Hiệu ứng riêng khi hover vào nút TÀI XẾ */
+.role-btn-shipper:hover {
+  border-color: #22C55E !important;
+  background-color: #F0FDF4 !important;
+}
+
+/* Animation cho Modal lúc hiện ra */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.role-modal-animate {
+  animation: modalFadeIn 0.3s ease-out forwards;
+}
+
+.profile-container {
+  transition: all 0.2s ease;
+  padding: 5px 10px;
+  border-radius: 50px;
+}
+
+.profile-container:hover {
+  background: rgba(249, 115, 80, 0.05);
+  /* Nền cam cực nhạt khi hover vùng profile */
+}
+
+/* Các mục trong menu */
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  text-decoration: none;
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 10px;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.profile-menu-item:hover {
+  background-color: #FFF5F2 !important;
+  color: #F97350 !important;
+  padding-left: 20px !important;
+  /* Hiệu ứng nhích sang phải */
+}
+
+/* Mục đăng xuất */
+.profile-menu-item-logout {
+  color: #EF4444 !important;
+  border-top: 1px solid #f1f5f9 !important;
+  margin-top: 5px;
+  border-radius: 0 0 12px 12px !important;
+}
+
+.profile-menu-item-logout:hover {
+  background-color: #FEF2F2 !important;
+  color: #dc2626 !important;
+}
+
+/* Animation bung menu */
+@keyframes profileMenuPop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-menu-pop {
+  animation: profileMenuPop 0.2s ease-out forwards;
+  transform-origin: top right;
+}
+
+.xem-menu-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
+  display: inline-block;
+  /* Đảm bảo hiệu ứng transform hoạt động chuẩn */
+}
+
+.xem-menu-hover:hover {
+  background-color: #F97350 !important;
+  /* Nền cam đậm */
+  color: #ffffff !important;
+  /* Chữ trắng tinh */
+  box-shadow: 0 4px 12px rgba(249, 115, 80, 0.3);
+  /* Đổ bóng cam nhẹ */
+  transform: translateY(-2px);
+  /* Nhích nhẹ lên trên */
+  padding-right: 15px !important;
+  /* Dãn rộng bên phải để tạo cảm giác mũi tên đang bay */
 }

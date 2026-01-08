@@ -21,6 +21,8 @@ function RestaurantDetail() {
     const [detailFood, setDetailFood] = useState(null); // Lưu món đang xem chi tiết
     const [showDetailModal, setShowDetailModal] = useState(false);
 
+    const [hoveredPromo, setHoveredPromo] = useState(null);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -100,6 +102,38 @@ function RestaurantDetail() {
                 .menu-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
                 .menu-scroll-container::-webkit-scrollbar-thumb { background: #F97350; border-radius: 10px; }
                 .menu-scroll-container::-webkit-scrollbar-thumb:hover { background: #e85d3a; }
+                @keyframes popIn {
+                    0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.9); }
+                    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+                }
+                .animate-pop-in {
+                    animation: popIn 0.2s ease-out forwards;
+                }
+
+                /* --- ✅ THÊM ĐOẠN NÀY VÀO ĐÂY --- */
+
+                /* 1. Thiết lập chuyển động mượt mà cho ảnh */
+                .food-card img {
+                    /* Dùng cubic-bezier để tạo cảm giác "nhún" nhẹ khi bắt đầu và kết thúc */
+                    transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+                    will-change: transform; /* Tối ưu hiệu suất trình duyệt */
+                }
+
+                /* 2. Khi rê chuột vào thẻ món ăn (.food-item), thì phóng to cái ảnh bên trong */
+                .food-card:hover img {
+                    transform: scale(1.12); /* Phóng to lên 12% */
+                }
+
+                /* (Tùy chọn) Thêm hiệu ứng nổi nhẹ cho cả cái thẻ để tăng cảm giác 3D */
+                .food-card {
+                     transition: all 0.3s ease;
+                }
+                .food-card:hover {
+                     transform: translateY(-3px);
+                     box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; /* Ghi đè box-shadow cũ */
+                     background: #fff !important;
+                }
+                
             `}</style>
 
             <Navbar hideSearch={true} />
@@ -140,24 +174,63 @@ function RestaurantDetail() {
 
                         {/* --- DANH SÁCH MÃ GIẢM GIÁ (PROMOS) --- */}
                         {promos.length > 0 && (
-                            <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px dashed #ddd' }}>
+                            <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px dashed #ddd', position: 'relative' }}>
                                 <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#F97350', marginBottom: '10px' }}>
                                     <i className="fa-solid fa-ticket"></i> Mã khuyến mãi
                                 </div>
-                                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '5px' }}>
+
+                                {/* ✅ BẢNG CHI TIẾT CỐ ĐỊNH TRONG KHU VỰC NÀY (Không bị cắt bởi scroll) */}
+                                {hoveredPromo && (
+                                    <div className="animate-pop-in" style={{
+                                        position: 'absolute',
+                                        top: '-10px', // Nhảy lên trên tiêu đề một chút
+                                        right: '0',
+                                        background: '#333',
+                                        color: '#fff',
+                                        padding: '15px',
+                                        borderRadius: '12px',
+                                        width: '240px',
+                                        zIndex: 9999,
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                                        fontSize: '12px'
+                                    }}>
+                                        <div style={{ color: '#F97350', fontWeight: '900', marginBottom: '8px', borderBottom: '1px solid #555', paddingBottom: '5px' }}>
+                                            THÔNG TIN ƯU ĐÃI: {hoveredPromo.code}
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <span>• <b>Giảm giá:</b> {hoveredPromo.type === 'amount' ? hoveredPromo.value.toLocaleString() + 'đ' : hoveredPromo.value + '%'}</span>
+                                            <span>• <b>Đơn tối thiểu:</b> {hoveredPromo.minOrder.toLocaleString()}đ</span>
+                                            <span>• <b>Số lượng còn:</b> {hoveredPromo.limit} lượt</span>
+                                            <span style={{ fontSize: '11px', color: '#aaa', marginTop: '5px' }}>
+                                                Hạn dùng: {new Date(hoveredPromo.startDate).toLocaleDateString('vi-VN')} - {new Date(hoveredPromo.endDate).toLocaleDateString('vi-VN')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* KHUNG CUỘN VÉ (GIỮ NGUYÊN GIAO DIỆN CŨ) */}
+                                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
                                     {promos.map(promo => (
                                         promo.isActive && (
-                                            <div key={promo._id} style={{
-                                                border: '1px dashed #F97350', background: '#FFF5F2',
-                                                padding: '8px 12px', borderRadius: '8px', minWidth: '140px',
-                                                display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', position: 'relative'
-                                            }} onClick={() => navigator.clipboard.writeText(promo.code) && alertInfo(`Đã sao chép mã: ${promo.code}`)}>
+                                            <div
+                                                key={promo._id}
+                                                onMouseEnter={() => setHoveredPromo(promo)} // Rê chuột vào: hiện modal
+                                                onMouseLeave={() => setHoveredPromo(null)}  // Rê chuột ra: ẩn modal
+                                                onClick={() => navigator.clipboard.writeText(promo.code) && alertInfo(`Đã sao chép mã: ${promo.code}`)}
+                                                style={{
+                                                    border: '1px dashed #F97350', background: '#FFF5F2',
+                                                    padding: '8px 12px', borderRadius: '8px', minWidth: '140px',
+                                                    display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', position: 'relative',
+                                                    flexShrink: 0 // Đảm bảo không bị bóp méo khi cuộn
+                                                }}
+                                            >
                                                 <div style={{ fontWeight: 'bold', color: '#F97350', fontSize: '13px' }}>{promo.code}</div>
                                                 <div style={{ fontSize: '11px', color: '#666' }}>
                                                     Giảm {promo.type === 'amount' ? promo.value.toLocaleString() + 'đ' : promo.value + '%'}
                                                 </div>
                                                 <div style={{ fontSize: '10px', color: '#999' }}>Đơn tối thiểu {promo.minOrder.toLocaleString()}đ</div>
-                                                {/* Vòng tròn trang trí giống vé */}
+
+                                                {/* Hai cái lỗ tròn trang trí của má */}
                                                 <div style={{ position: 'absolute', left: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderRight: '1px solid #F97350' }}></div>
                                                 <div style={{ position: 'absolute', right: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderLeft: '1px solid #F97350' }}></div>
                                             </div>

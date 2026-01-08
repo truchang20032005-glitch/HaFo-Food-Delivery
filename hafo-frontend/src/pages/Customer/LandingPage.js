@@ -123,9 +123,11 @@ function LandingPage() {
                     <div className="the-doi-tac" onClick={handlePartnerClick} style={{
                         cursor: 'pointer',
                         background: 'rgba(255,255,255,0.9)',
-                        padding: '20px',
-                        borderRadius: '20px',
-                        textAlign: 'center'
+                        padding: '25px 20px', // Tăng padding dọc một chút cho thoáng
+                        borderRadius: '24px', // Bo tròn hơn cho hiện đại
+                        textAlign: 'center',
+                        position: 'relative',
+                        overflow: 'hidden'
                     }}>
                         <b>Trở thành<br />Đối tác Nhà hàng / Shipper</b>
                         <small style={{ display: 'block' }}>Đăng ký ngay để tăng thu nhập</small>
@@ -224,17 +226,44 @@ function LandingPage() {
             </section>
 
             {showRoleModal && (
-                <div className="overlay show" onClick={() => setShowRoleModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="role-modal" onClick={e => e.stopPropagation()} style={{ background: '#fff', padding: '30px', borderRadius: '25px', width: '90%', maxWidth: '400px' }}>
-                        <h2 style={{ marginTop: 0, color: '#F97350', textAlign: 'center' }}>Bạn muốn đăng ký làm?</h2>
-                        <p style={{ marginBottom: '20px', color: '#666', textAlign: 'center' }}>Vui lòng chọn vai trò đối tác để tiếp tục</p>
-                        <button className="role-btn" onClick={() => handleSelectRole('merchant')} style={{ width: '100%', padding: '15px', margin: '10px 0', display: 'flex', alignItems: 'center', gap: '15px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', borderRadius: '15px' }}>
-                            <i className="fa-solid fa-store" style={{ fontSize: '24px', color: '#F97350' }}></i>
-                            <div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: '16px' }}>Đối tác Nhà hàng</div><div style={{ fontSize: '13px', color: '#666' }}>Dành cho chủ quán, nhà hàng, cafe...</div></div>
+                <div className="overlay show" onClick={() => setShowRoleModal(false)}
+                    style={{
+                        position: 'fixed', inset: 0,
+                        background: 'rgba(0,0,0,0.6)', // Giảm độ đen 
+                        backdropFilter: 'blur(8px)',  // ✅ THÊM: Làm mờ nền cực sang
+                        zIndex: 2000,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+
+                    {/* THÊM class role-modal-animate để có hiệu ứng bung ra */}
+                    <div className="role-modal role-modal-animate" onClick={e => e.stopPropagation()}
+                        style={{ background: '#fff', padding: '35px 30px', borderRadius: '30px', width: '90%', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+
+                        <h2 style={{ marginTop: 0, color: '#1e293b', textAlign: 'center', fontWeight: '900', fontSize: '22px' }}>Bạn muốn đăng ký làm?</h2>
+                        <p style={{ marginBottom: '25px', color: '#64748b', textAlign: 'center', fontSize: '14px' }}>Vui lòng chọn vai trò đối tác để tiếp tục</p>
+
+                        {/* NÚT NHÀ HÀNG - THÊM class role-btn-merchant */}
+                        <button className="role-btn role-btn-merchant" onClick={() => handleSelectRole('merchant')}
+                            style={{ width: '100%', padding: '18px', margin: '12px 0', display: 'flex', alignItems: 'center', gap: '18px', border: '2px solid #f1f5f9', background: '#fff', cursor: 'pointer', borderRadius: '20px' }}>
+                            <div style={{ background: '#FFF5F2', padding: '12px', borderRadius: '15px' }}>
+                                <i className="fa-solid fa-store" style={{ fontSize: '24px', color: '#F97350' }}></i>
+                            </div>
+                            <div style={{ textAlign: 'left' }}>
+                                <div style={{ fontWeight: '800', fontSize: '16px', color: '#1e293b' }}>Đối tác Nhà hàng</div>
+                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Dành cho chủ quán, cafe, tiệm ăn...</div>
+                            </div>
                         </button>
-                        <button className="role-btn" onClick={() => handleSelectRole('shipper')} style={{ width: '100%', padding: '15px', margin: '10px 0', display: 'flex', alignItems: 'center', gap: '15px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', borderRadius: '15px' }}>
-                            <i className="fa-solid fa-motorcycle" style={{ fontSize: '24px', color: '#22C55E' }}></i>
-                            <div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: '16px' }}>Đối tác Tài xế</div><div style={{ fontSize: '13px', color: '#666' }}>Dành cho người có xe máy/xe đạp...</div></div>
+
+                        {/* NÚT TÀI XẾ - THÊM class role-btn-shipper */}
+                        <button className="role-btn role-btn-shipper" onClick={() => handleSelectRole('shipper')}
+                            style={{ width: '100%', padding: '18px', margin: '12px 0', display: 'flex', alignItems: 'center', gap: '18px', border: '2px solid #f1f5f9', background: '#fff', cursor: 'pointer', borderRadius: '20px' }}>
+                            <div style={{ background: '#F0FDF4', padding: '12px', borderRadius: '15px' }}>
+                                <i className="fa-solid fa-motorcycle" style={{ fontSize: '24px', color: '#22C55E' }}></i>
+                            </div>
+                            <div style={{ textAlign: 'left' }}>
+                                <div style={{ fontWeight: '800', fontSize: '16px', color: '#1e293b' }}>Đối tác Tài xế</div>
+                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Dành cho người có phương tiện di chuyển...</div>
+                            </div>
                         </button>
                     </div>
                 </div>
