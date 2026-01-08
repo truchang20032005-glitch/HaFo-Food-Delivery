@@ -218,7 +218,7 @@ function RegisterModal({ isOpen, onClose, role, onOpenLogin }) {
 
                     {/* Phần đăng nhập nằm ngoài thanh trượt để cố định */}
                     <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>
-                        Đã có tài khoản? <span onClick={() => { onClose(); onOpenLogin(); }} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer' }}>Đăng nhập</span>
+                        Đã có tài khoản? <span className="hover-link" onClick={() => { onClose(); onOpenLogin(); }} style={{ color: '#F97350', fontWeight: 'bold', cursor: 'pointer' }}>Đăng nhập</span>
                     </div>
                 </div>
             </div>

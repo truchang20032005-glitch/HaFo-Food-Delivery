@@ -7,7 +7,7 @@ import L from 'leaflet';
 import Chat from '../../components/Chat';
 import 'leaflet/dist/leaflet.css';
 import { io } from 'socket.io-client';
-import { alertSuccess, alertError, confirmDialog } from '../../utils/hafoAlert';
+import { alertSuccess, alertError, confirmDialog, alertWarning } from '../../utils/hafoAlert';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
 const socket = io(SOCKET_URL, {
@@ -224,7 +224,7 @@ function OrderTracking() {
     ];
 
     const handleCancelOrder = async () => {
-        // 1. Dùng confirmDialog để xác nhận (Nhớ có await)
+        // 1. Dùng confirmDialog để xác nhận
         const isConfirmed = await confirmDialog(
             "Xác nhận hủy đơn?",
             "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác."
@@ -233,21 +233,32 @@ function OrderTracking() {
         // 2. Nếu người dùng chọn "Đồng ý"
         if (isConfirmed) {
             try {
-                // Gọi API hủy đơn
-                await api.put(`/orders/${id}/customer-cancel`);
+                // ✅ SỬA: Lưu kết quả trả về từ API vào biến res
+                const res = await api.put(`/orders/${id}/customer-cancel`);
 
-                // 3. Thông báo thành công và ĐỢI 2 giây (để user kịp đọc)
-                await alertSuccess(
-                    "Đã hủy đơn!",
-                    "Đơn hàng của bạn đã được hủy thành công."
-                );
+                // ✅ Lấy số lượng đơn đã hủy từ Backend trả về
+                const count = res.data.cancelCount;
 
-                // 4. Sau khi thông báo đóng mới chuyển trang
+                // 3. Kiểm tra nếu là đơn thứ 4 thì hiện Alert cảnh báo gắt
+                if (count === 4) {
+                    await alertWarning(
+                        "CẢNH BÁO VI PHẠM!",
+                        "Bạn đã hủy 4 đơn trong tuần này. Nếu hủy thêm 1 đơn nữa, tài khoản sẽ bị KHÓA 3 NGÀY theo chính sách của HaFo!"
+                    );
+                } else {
+                    // Các lần hủy khác (1, 2, 3) thì hiện thông báo thành công bình thường
+                    await alertSuccess(
+                        "Đã hủy đơn!",
+                        "Đơn hàng của bạn đã được hủy thành công."
+                    );
+                }
+
+                // 4. Sau khi đóng alert mới chuyển trang
                 navigate('/history');
 
             } catch (err) {
-                // 5. Xử lý lỗi chuyên nghiệp hơn
-                const errorMessage = err.response?.data?.message || "Không thể kết nối đến máy chủ để hủy đơn.";
+                // 5. Xử lý lỗi (Ví dụ: Quán đã nhận đơn nên không cho hủy nữa)
+                const errorMessage = err.response?.data?.message || err.response?.data?.error || "Lỗi hệ thống khi hủy đơn.";
                 alertError("Lỗi khi hủy đơn", errorMessage);
             }
         }

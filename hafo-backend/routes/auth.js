@@ -208,7 +208,33 @@ router.post('/login', async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: 'Sai tên đăng nhập hoặc mật khẩu!' });
 
         if (user.status === 'locked') {
-            return res.status(403).json({ message: 'Tài khoản bị khóa', reason: user.lockReason });
+            const now = new Date();
+
+            // TRƯỜNG HỢP 1: Có đặt ngày mở khóa (Khóa tự động do hủy đơn/vi phạm)
+            if (user.lockUntil) {
+                if (now < user.lockUntil) {
+                    // Vẫn còn trong thời gian bị phạt
+                    return res.status(403).json({
+                        message: `Tài khoản của bạn đang bị khóa tạm thời.`,
+                        reason: user.lockReason,
+                        unlockAt: user.lockUntil
+                    });
+                } else {
+                    // Đã quá ngày khóa -> Tự động mở lại
+                    user.status = 'active';
+                    user.lockUntil = null;
+                    user.lockReason = '';
+                    await user.save();
+                    // Sau khi save xong thì code sẽ chạy tiếp xuống phần tạo Token bên dưới
+                }
+            }
+            // TRƯỜNG HỢP 2: KHÔNG có ngày mở khóa (Admin khóa tay vĩnh viễn)
+            else {
+                return res.status(403).json({
+                    message: 'Tài khoản của bạn đã bị khóa bởi Quản trị viên.',
+                    reason: user.lockReason || 'Vi phạm điều khoản cộng đồng'
+                });
+            }
         }
 
         const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
@@ -295,4 +321,32 @@ router.get('/me/:userId', async (req, res) => {
     }
 });
 
+// Helper gửi mail thông báo khóa nick
+const sendLockAccountEmail = async (email, fullName, reason, durationDays, unlockDate) => {
+    try {
+        await transporter.sendMail({
+            from: '"Hệ thống HaFo" <happyfoodcskh2025@gmail.com>',
+            to: email,
+            subject: 'Thông báo tạm khóa tài khoản - HaFo Food',
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #eee; padding: 20px;">
+                    <h2 style="color: #EF4444;">Tài khoản của bạn đã bị khóa tạm thời</h2>
+                    <p>Chào <b>${fullName}</b>,</p>
+                    <p>Hệ thống ghi nhận bạn đã vi phạm chính sách của HaFo:</p>
+                    <div style="background: #FFF1F0; padding: 10px; border-left: 4px solid #EF4444;">
+                        <b>Lý do:</b> ${reason}
+                    </div>
+                    <p>Thời gian khóa: <b>${durationDays} ngày</b></p>
+                    <p>Tài khoản sẽ tự động mở lại vào: <b>${new Date(unlockDate).toLocaleString('vi-VN')}</b></p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    <small style="color: #888;">Đây là email tự động, vui lòng không trả lời.</small>
+                </div>
+            `
+        });
+    } catch (err) {
+        console.error("Lỗi gửi mail khóa nick:", err);
+    }
+};
+
+router.sendLockAccountEmail = sendLockAccountEmail;
 module.exports = router;
