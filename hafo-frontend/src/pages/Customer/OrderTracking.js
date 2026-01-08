@@ -343,7 +343,7 @@ function OrderTracking() {
                             </div>
                             <div style={{ fontSize: '13px', color: '#888', marginTop: '6px' }}>Mã đơn: <span style={{ fontWeight: '700' }}>#{order._id.slice(-6).toUpperCase()}</span></div>
                             <div style={{ marginTop: '18px', height: '10px', background: '#eee', borderRadius: '10px', overflow: 'hidden' }}>
-                                <div style={{ width: `${(currentStepIndex / 5) * 100}%`, height: '100%', background: '#F97350', transition: 'width 1s' }}></div>
+                                <div style={{ width: `${Math.max((currentStepIndex / (steps.length - 1)) * 100, 5)}%`, height: '100%', background: '#F97350', transition: 'width 1s' }}></div>
                             </div>
                         </div>
                     </div>
@@ -563,7 +563,7 @@ function OrderTracking() {
                     <div style={{ background: '#fff', width: '420px', borderRadius: '32px', padding: '40px', textAlign: 'center' }}>
                         <div style={{ fontSize: '50px', marginBottom: '15px' }}>😋</div>
                         <h3 style={{ marginTop: 0, fontSize: '22px', fontWeight: '900' }}>Đồ ăn đã tới nơi?</h3>
-                        <p style={{ color: '#666', fontSize: '14px', marginBottom: '30px' }}>Má hãy kiểm tra món và xác nhận cho shipper nha!</p>
+                        <p style={{ color: '#666', fontSize: '14px', marginBottom: '30px' }}>Bạn hãy kiểm tra món và xác nhận cho shipper nha!</p>
                         <div style={{ display: 'flex', gap: '15px' }}>
                             <button style={{ flex: 1, padding: '15px', borderRadius: '16px', border: '1px solid #eee', cursor: 'pointer' }} onClick={() => setShowModal(false)}>Chưa có</button>
                             <button style={{ flex: 1, padding: '15px', borderRadius: '16px', border: 'none', background: '#22C55E', color: '#fff', fontWeight: '800', cursor: 'pointer' }} onClick={handleReceiveOrder}>Đã nhận rồi!</button>

@@ -11,10 +11,9 @@ function Cart() {
     const {
         cartItems, updateQuantity, removeFromCart,
         totalAmount, subtotal, clearCart, updateItemOptions,
-        applyVoucher, appliedVoucher, voucherError
     } = useCart();
 
-    const [voucherInput, setVoucherInput] = useState('');
+    //const [voucherInput, setVoucherInput] = useState('');
 
     // Hàm xử lý ảnh (Fix lỗi không hiện ảnh)
     const getImageUrl = (path) => {
@@ -258,30 +257,6 @@ function Cart() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#555' }}>
                             <span>Tạm tính ({cartItems.length} món)</span>
                             <b>{toVND(subtotal)}đ</b>
-                        </div>
-
-                        {/* Ô NHẬP VOUCHER REAL */}
-                        <div style={{ marginBottom: '20px' }}>
-                            <div style={{ display: 'flex', gap: '5px' }}>
-                                <input
-                                    value={voucherInput}
-                                    onChange={(e) => setVoucherInput(e.target.value)}
-                                    placeholder="Nhập mã (HAFO50, STUDENT...)"
-                                    style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: voucherError ? '1px solid red' : '1px solid #ddd', fontSize: '13px' }}
-                                />
-                                <button
-                                    onClick={() => applyVoucher(voucherInput)}
-                                    style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 12px', fontSize: '13px', cursor: 'pointer' }}
-                                >
-                                    Áp dụng
-                                </button>
-                            </div>
-                            {voucherError && <div style={{ color: 'red', fontSize: '11px', marginTop: '5px' }}>{voucherError}</div>}
-                            {appliedVoucher && (
-                                <div style={{ color: '#22C55E', fontSize: '12px', marginTop: '5px', fontWeight: '500' }}>
-                                    ✅ Đã giảm {toVND(appliedVoucher.discountAmount)}đ (Mã: {appliedVoucher.code})
-                                </div>
-                            )}
                         </div>
 
                         <div style={{ borderTop: '2px dashed #eee', margin: '15px 0' }}></div>

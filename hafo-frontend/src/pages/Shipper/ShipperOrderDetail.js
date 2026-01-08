@@ -303,7 +303,7 @@ function ShipperOrderDetail() {
             <div style={styles.statusBanner(order.status)}>
                 {isPickup ? <><i className="fa-solid fa-motorcycle"></i> ĐANG GIAO HÀNG</> :
                     isReady ? <><i className="fa-solid fa-check-circle"></i> QUÁN ĐÃ XONG MÓN</> :
-                        <><i className="fa-solid fa-fire-burner"></i> QUÁN ĐANG CHUẨN BỊ</>}
+                        <><i className="fa-solid fa-fire-burner"></i> ĐƠN HÀNG ĐÃ HOÀN TẤT</>}
             </div>
 
             <div style={styles.section}>
