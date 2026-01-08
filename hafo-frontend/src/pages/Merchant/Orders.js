@@ -159,7 +159,7 @@ function Orders() {
                                         <div style={{ fontWeight: '700' }}>{o.customer.split('|')[0]}</div>
                                         <div style={{ fontSize: '12px', color: '#64748B' }}>{o.customer.split('|')[1]}</div>
                                     </td>
-                                    <td><b style={{ fontSize: '15px' }}>{fmtMoney(o.total)}</b></td>
+                                    <td><b style={{ fontSize: '15px' }}>{fmtMoney(o.total - (o.tipAmount || 0))}</b></td>
                                     <td style={{ textAlign: 'center' }}><span style={S.badge(o.status)}>{o.status.toUpperCase()}</span></td>
                                     <td style={{ textAlign: 'right', paddingRight: '20px' }} onClick={e => e.stopPropagation()}>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
