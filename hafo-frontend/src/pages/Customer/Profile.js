@@ -30,6 +30,9 @@ function Profile() {
     const [previewAvatar, setPreviewAvatar] = useState('');
     const [avatarFile, setAvatarFile] = useState(null); // File ảnh thực tế để upload
 
+    const [showTierModal, setShowTierModal] = useState(false);
+    const [showOffersModal, setShowOffersModal] = useState(false);
+
     // State Form
     const [formData, setFormData] = useState({
         fullName: '',
@@ -316,6 +319,131 @@ function Profile() {
                     <h3 style={{ margin: '0 0 20px', borderBottom: '1px solid #eee', paddingBottom: '15px', color: '#F97350' }}>
                         <i className="fa-solid fa-address-card"></i> Thông tin cá nhân
                     </h3>
+                    {(() => {
+                        // Logic tính toán hạng tiếp theo và phần trăm
+                        const spending = user?.totalSpending || 0;
+                        let nextTier = "Silver";
+                        let nextLimit = 1000000;
+                        let currentTierName = "THÀNH VIÊN ĐỒNG";
+                        let tierColor = 'linear-gradient(135deg, #F97350 0%, #FF5F6D 100%)'; // Basic
+
+                        if (spending >= 15000000) {
+                            currentTierName = "THÀNH VIÊN KIM CƯƠNG";
+                            tierColor = 'linear-gradient(135deg, #0f172a 0%, #334155 100%)';
+                            nextTier = "Max"; nextLimit = 15000000;
+                        } else if (spending >= 5000000) {
+                            currentTierName = "THÀNH VIÊN VÀNG";
+                            tierColor = 'linear-gradient(135deg, #ca8a04 0%, #facc15 100%)';
+                            nextTier = "Diamond"; nextLimit = 15000000;
+                        } else if (spending >= 1000000) {
+                            currentTierName = "THÀNH VIÊN BẠC";
+                            tierColor = 'linear-gradient(135deg, #475569 0%, #94a3b8 100%)';
+                            nextTier = "Gold"; nextLimit = 5000000;
+                        }
+
+                        const progress = Math.min((spending / nextLimit) * 100, 100);
+                        const remaining = nextLimit - spending;
+
+                        return (
+                            <div style={{
+                                background: tierColor,
+                                borderRadius: '28px',
+                                padding: '28px',
+                                color: '#fff',
+                                marginBottom: '35px',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                boxShadow: '0 15px 35px rgba(0,0,0,0.15)',
+                                border: '1px solid rgba(255,255,255,0.1)'
+                            }}>
+                                {/* Họa tiết trang trí chìm */}
+                                <div style={{ position: 'absolute', top: '-10%', right: '-5%', width: '200px', height: '200px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }}></div>
+                                <i className="fa-solid fa-crown" style={{ position: 'absolute', right: '-15px', bottom: '-15px', fontSize: '140px', opacity: 0.08, transform: 'rotate(-15deg)' }}></i>
+
+                                <div style={{ position: 'relative', zIndex: 2 }}>
+                                    {/* Header Thẻ */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '25px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '10px', fontWeight: '800', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>Membership Card</div>
+                                            <div style={{ fontSize: '26px', fontWeight: '900', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                {currentTierName}
+                                            </div>
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px', borderRadius: '14px', backdropFilter: 'blur(10px)' }}>
+                                            <img src="/images/logo.png" alt="HaFo" style={{ width: '32px', filter: 'brightness(0) invert(1)' }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Thông tin Chi tiêu & Progress */}
+                                    <div style={{ marginBottom: '30px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px' }}>
+                                            <div>
+                                                <span style={{ fontSize: '13px', opacity: 0.8 }}>Tổng tích lũy chi tiêu</span>
+                                                <div style={{ fontSize: '22px', fontWeight: '800' }}>{spending.toLocaleString('vi-VN')}đ</div>
+                                            </div>
+                                            {nextTier !== "Max" && (
+                                                <div style={{ fontSize: '11px', textAlign: 'right', opacity: 0.9, fontWeight: '600' }}>
+                                                    Còn {(remaining).toLocaleString('vi-VN')}đ để lên <b>{nextTier}</b>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Thanh Progress cực mượt */}
+                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '10px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${progress}%`, height: '100%', background: '#fff', borderRadius: '10px', boxShadow: '0 0 15px rgba(255,255,255,0.5)', transition: 'width 1s ease-in-out' }}></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Nhóm Nút bấm Glassmorphism */}
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button
+                                            onClick={() => setShowTierModal(true)}
+                                            style={{
+                                                flex: 1,
+                                                background: 'rgba(255,255,255,0.15)',
+                                                backdropFilter: 'blur(15px)',
+                                                border: '1px solid rgba(255,255,255,0.2)',
+                                                color: '#fff',
+                                                fontSize: '13px',
+                                                fontWeight: '700',
+                                                padding: '12px',
+                                                borderRadius: '16px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                transition: '0.3s'
+                                            }}
+                                        >
+                                            <i className="fa-solid fa-circle-info"></i> Quyền lợi
+                                        </button>
+                                        <button
+                                            onClick={() => setShowOffersModal(true)}
+                                            style={{
+                                                flex: 1,
+                                                background: '#fff',
+                                                border: 'none',
+                                                color: '#1e293b',
+                                                fontSize: '13px',
+                                                fontWeight: '800',
+                                                padding: '12px',
+                                                borderRadius: '16px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                boxShadow: '0 8px 15px rgba(0,0,0,0.1)'
+                                            }}
+                                        >
+                                            <i className="fa-solid fa-gift" style={{ color: '#F97350' }}></i> Kho ưu đãi ({user?.systemVouchers?.filter(v => !v.isUsed).length || 0})
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         <div className="field-group">
@@ -582,6 +710,186 @@ function Profile() {
                     </div>
                 </div>
             )}
+
+            {showTierModal && (
+                <div style={S.overlay}>
+                    <div style={{ ...S.sheet, maxWidth: '500px', padding: '0', overflow: 'hidden', border: 'none' }}>
+                        {/* Header Modal với Gradient đồng bộ với App */}
+                        <div style={{
+                            padding: '30px 25px',
+                            background: 'linear-gradient(135deg, #F97350 0%, #FF5F6D 100%)',
+                            color: '#fff',
+                            textAlign: 'center',
+                            position: 'relative'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900', letterSpacing: '-0.5px' }}>
+                                <i className="fa-solid fa-crown" style={{ marginRight: '10px' }}></i>
+                                Đặc Quyền Thành Viên
+                            </h3>
+                            <p style={{ margin: '8px 0 0', fontSize: '13px', opacity: 0.9 }}>Tích lũy chi tiêu để mở khóa các ưu đãi hấp dẫn</p>
+
+                            {/* Nút đóng X phía trên góc phải */}
+                            <button onClick={() => setShowTierModal(false)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: 'rgba(255,255,255,0.2)', color: '#fff', width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer' }}>×</button>
+                        </div>
+
+                        <div style={{ padding: '25px' }}>
+                            {[
+                                { name: 'ĐỒNG (Basic)', limit: 'Dưới 1.000.000đ', gift: 'Hạng khởi đầu', color: '#F97350', icon: 'fa-award' },
+                                { name: 'BẠC (Silver)', limit: 'Từ 1.000.000đ', gift: 'Tặng 2 mã giảm 20k', color: '#94A3B8', icon: 'fa-medal' },
+                                { name: 'VÀNG (Gold)', limit: 'Từ 5.000.000đ', gift: 'Tặng 3 mã giảm 50k', color: '#FACC15', icon: 'fa-crown' },
+                                { name: 'KIM CƯƠNG (Diamond)', limit: 'Từ 15.000.000đ', gift: 'Tặng 5 mã giảm 100k', color: '#0F172A', icon: 'fa-gem' }
+                            ].map((t, i) => (
+                                <div key={i} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '15px',
+                                    padding: '16px',
+                                    marginBottom: '12px',
+                                    borderRadius: '18px',
+                                    background: '#f8fafc',
+                                    borderLeft: `6px solid ${t.color}`,
+                                    transition: '0.3s'
+                                }}>
+                                    {/* Biểu tượng hạng tương ứng */}
+                                    <div style={{
+                                        width: '45px', height: '45px', borderRadius: '14px', background: '#fff',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '20px', color: t.color, boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+                                    }}>
+                                        <i className={`fa-solid ${t.icon}`}></i>
+                                    </div>
+
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <b style={{ fontSize: '15px', color: '#1e293b' }}>{t.name}</b>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: '#fff',
+                                                background: t.color,
+                                                padding: '3px 10px',
+                                                borderRadius: '20px',
+                                                fontWeight: '800'
+                                            }}>
+                                                ƯU ĐÃI
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+                                            <i className="fa-solid fa-check-circle" style={{ marginRight: '5px', fontSize: '10px' }}></i>
+                                            {t.gift}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', fontWeight: '600' }}>
+                                            Mốc chi tiêu: {t.limit}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ padding: '0 25px 25px' }}>
+                            <button
+                                className="btn primary"
+                                style={{
+                                    width: '100%',
+                                    padding: '15px',
+                                    borderRadius: '16px',
+                                    fontWeight: '900',
+                                    fontSize: '16px',
+                                    background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)', // Nút màu tối cho sang
+                                    border: 'none',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
+                                }}
+                                onClick={() => setShowTierModal(false)}
+                            >
+                                Đã hiểu, tiếp tục mua sắm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showOffersModal && (
+                <div style={S.overlay}>
+                    <div style={{ ...S.sheet, maxWidth: '480px', padding: '0', overflow: 'hidden' }}>
+                        {/* Header Modal - Thêm nút đóng X cho chuyên nghiệp */}
+                        <div style={{ padding: '25px 25px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+                            <h3 style={{ margin: 0, fontSize: '20px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <i className="fa-solid fa-gift" style={{ color: '#F97350' }}></i> Kho voucher của bạn
+                            </h3>
+                            <button onClick={() => setShowOffersModal(false)} style={{ border: 'none', background: '#f1f5f9', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', color: '#64748b' }}>×</button>
+                        </div>
+
+                        <div className="checkout-scroll-container" style={{ maxHeight: '450px', overflowY: 'auto', padding: '25px', background: '#f8fafc' }}>
+                            {user?.systemVouchers?.filter(v => !v.isUsed).length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                                    <i className="fa-solid fa-ticket-simple" style={{ fontSize: '50px', color: '#cbd5e1', marginBottom: '15px' }}></i>
+                                    <p style={{ color: '#94a3b8', fontSize: '15px' }}>Bạn chưa có mã giảm giá nào trong kho quà tặng.</p>
+                                </div>
+                            ) : (
+                                user?.systemVouchers?.filter(v => !v.isUsed).map((v, i) => (
+                                    /* GIAO DIỆN VÉ (TICKET) */
+                                    <div key={i} style={{
+                                        display: 'flex',
+                                        marginBottom: '15px',
+                                        filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.05))',
+                                        position: 'relative',
+                                        height: '100px'
+                                    }}>
+                                        {/* Phần trái: Giá trị */}
+                                        <div style={{
+                                            width: '120px',
+                                            background: 'linear-gradient(135deg, #F97350 0%, #FF5F6D 100%)',
+                                            borderRadius: '15px 0 0 15px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#fff',
+                                            position: 'relative'
+                                        }}>
+                                            <span style={{ fontSize: '10px', fontWeight: '700', opacity: 0.8 }}>GIẢM NGAY</span>
+                                            <b style={{ fontSize: '20px', fontWeight: '900' }}>{v.value / 1000}K</b>
+
+                                            {/* Nét đứt ngăn cách */}
+                                            <div style={{ position: 'absolute', right: '-1px', top: '10%', bottom: '10%', borderRight: '2px dashed rgba(255,255,255,0.3)', zIndex: 2 }}></div>
+                                        </div>
+
+                                        {/* Phần phải: Thông tin */}
+                                        <div style={{
+                                            flex: 1,
+                                            background: '#fff',
+                                            borderRadius: '0 15px 15px 0',
+                                            padding: '15px 20px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                            border: '1px solid #edf2f7',
+                                            borderLeft: 'none'
+                                        }}>
+                                            <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b', marginBottom: '4px' }}>Mã: {v.code}</div>
+                                            <div style={{ fontSize: '12px', color: '#64748b' }}>Đơn tối thiểu: {v.minOrder?.toLocaleString()}đ</div>
+                                            <div style={{ fontSize: '11px', color: '#F97350', fontWeight: '700', marginTop: '8px' }}>
+                                                <i className="fa-regular fa-clock" style={{ marginRight: '4px' }}></i>
+                                                HSD: {new Date(v.endDate).toLocaleDateString('vi-VN')}
+                                            </div>
+                                        </div>
+
+                                        {/* Các lỗ tròn khuyết tạo hiệu ứng vé */}
+                                        <div style={{ position: 'absolute', left: '112px', top: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#f8fafc', border: '1px solid #edf2f7', borderTop: 'none' }}></div>
+                                        <div style={{ position: 'absolute', left: '112px', bottom: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#f8fafc', border: '1px solid #edf2f7', borderBottom: 'none' }}></div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div style={{ padding: '15px 25px', background: '#fff', borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+                            <p style={{ margin: '0 0 15px', fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>* Mã giảm giá này chỉ áp dụng cho dịch vụ của HaFo</p>
+                            <button className="btn primary" style={{ width: '100%', borderRadius: '12px', height: '45px', fontWeight: '800' }} onClick={() => setShowOffersModal(false)}>Đã hiểu</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -595,6 +903,29 @@ const inputStyle = {
     outline: 'none',
     fontSize: '14px',
     transition: 'border-color 0.2s',
+};
+
+const S = {
+    overlay: {
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        backdropFilter: 'blur(5px)',
+        padding: '20px'
+    },
+    sheet: {
+        background: '#fff',
+        width: '100%',
+        maxWidth: '450px',
+        borderRadius: '24px',
+        padding: '30px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+        position: 'relative'
+    }
 };
 
 export default Profile;

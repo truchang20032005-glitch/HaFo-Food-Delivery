@@ -130,5 +130,66 @@ const handleViolation = async (userId, reason) => {
     return user.violationCount;
 };
 
+router.get('/maintenance/update-tier-fields', async (req, res) => {
+    try {
+        // Cập nhật tất cả user chưa có trường totalSpending
+        await User.updateMany(
+            { totalSpending: { $exists: false } },
+            {
+                $set: {
+                    totalSpending: 0,
+                    membershipTier: 'Basic',
+                    systemVouchers: []
+                }
+            }
+        );
+        res.json({ message: "Đã cập nhật database thành công!" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/maintenance/set-gold-tier/:userId', async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const user = await User.findById(req.params.userId);
+        if (!user) return res.status(404).json({ message: "Không tìm thấy User" });
+
+        // 1. Cập nhật hạng và chi tiêu
+        user.membershipTier = 'Gold';
+        user.totalSpending = 7000000;
+
+        // 2. Thêm 3 mã giảm giá 50k của hạng Vàng vào kho
+        user.systemVouchers = [
+            {
+                code: 'HAFOGOLD_TEST1',
+                value: 50000,
+                minOrder: 100000,
+                endDate: new Date('2026-12-31'), // HSD xa để test
+                isUsed: false
+            },
+            {
+                code: 'HAFOGOLD_TEST2',
+                value: 50000,
+                minOrder: 100000,
+                endDate: new Date('2026-12-31'),
+                isUsed: false
+            },
+            {
+                code: 'HAFOGOLD_TEST3',
+                value: 50000,
+                minOrder: 100000,
+                endDate: new Date('2026-12-31'),
+                isUsed: false
+            }
+        ];
+
+        await user.save();
+        res.json({ message: "Đã nâng cấp tài khoản lên hạng Vàng thành công!", user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.handleViolation = handleViolation;
 module.exports = router;

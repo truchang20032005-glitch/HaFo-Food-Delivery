@@ -54,6 +54,9 @@ function Checkout() {
 
     const [tipAmount, setTipAmount] = useState(0);
     const [customTip, setCustomTip] = useState('');
+    const [user, setUser] = useState(null);
+
+    const [selectedSystemVoucher, setSelectedSystemVoucher] = useState(null);
 
     const formatTipInput = (val) => {
         const number = val.replace(/\D/g, ''); // Chỉ lấy số
@@ -124,7 +127,13 @@ function Checkout() {
         return { total, details };
     }, [groups, formData.lat, formData.lng]);
 
-    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total + APP_FEE - discountAmount + tipAmount);
+    const totalDiscount = useMemo(() => {
+        let merchantDiscount = discountAmount; // Tiền giảm từ mã của Quán
+        let systemDiscount = selectedSystemVoucher ? selectedSystemVoucher.value : 0; // Tiền giảm từ mã Hệ thống
+        return merchantDiscount + systemDiscount;
+    }, [discountAmount, selectedSystemVoucher]);
+
+    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total + APP_FEE - totalDiscount + tipAmount);
 
     const handleSelectVoucher = (voucher) => {
         if (selectedVoucher?._id === voucher._id) {
@@ -187,6 +196,8 @@ function Checkout() {
                 try {
                     const res = await api.get(`/auth/me/${userObj.id}`);
                     const userData = res.data;
+                    setUser(userData);
+
                     setFormData(prev => ({
                         ...prev,
                         name: userData.fullName || prev.name,
@@ -251,6 +262,9 @@ function Checkout() {
                 }
 
                 const groupFinalTotal = subTotal + currentResShipping + APP_FEE - currentDiscount;
+                const systemDiscountPerOrder = selectedSystemVoucher
+                    ? (selectedSystemVoucher.value / Object.keys(groups).length)
+                    : 0;
 
                 const orderData = {
                     userId: user.id,
@@ -272,7 +286,9 @@ function Checkout() {
                         // Giữ lại options text nếu má muốn hiện trên Admin/Shipper
                         options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
                     })),
-                    total: groupFinalTotal + (tipAmount / Object.keys(groups).length), // Chia đều tip nếu đặt nhiều quán
+                    total: groupFinalTotal - systemDiscountPerOrder + (tipAmount / Object.keys(groups).length),
+                    systemVoucherId: selectedSystemVoucher?._id,
+                    systemDiscount: systemDiscountPerOrder,
                     tipAmount: tipAmount, // ✅ Gửi tiền tip thực tế
                     note: formData.note + (currentDiscount > 0 ? ` [Voucher: ${selectedVoucher.code}]` : ""),
                     lat: formData.lat, lng: formData.lng
@@ -465,53 +481,92 @@ function Checkout() {
                     <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px dashed #ddd' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                             <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#F97350' }}>
-                                <i className="fa-solid fa-ticket"></i> Mã khuyến mãi
+                                <i className="fa-solid fa-shop"></i> Voucher từ Nhà hàng
                             </div>
                             {discountAmount > 0 && (
-                                <span
-                                    style={{ fontSize: '12px', color: '#F97350', cursor: 'pointer', fontWeight: 'bold' }}
-                                    onClick={() => { setSelectedVoucher(null); setDiscountAmount(0) }}
-                                >
-                                    Gỡ bỏ
-                                </span>
+                                <span style={{ fontSize: '12px', color: '#F97350', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => { setSelectedVoucher(null); setDiscountAmount(0) }}>Gỡ bỏ</span>
                             )}
                         </div>
 
                         {vouchers.length === 0 ? (
-                            <div style={{ fontSize: '13px', color: '#999', fontStyle: 'italic', background: '#f9f9f9', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                                Không có mã giảm giá.
-                            </div>
+                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', background: '#f9f9f9', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>Quán hiện không có mã giảm giá.</div>
                         ) : (
                             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
-                                {vouchers.map(promo => (
-                                    promo.isActive && (
-                                        <div
-                                            key={promo._id}
-                                            onClick={() => handleSelectVoucher(promo)}
+                                {vouchers.map(promo => {
+                                    const isSelected = selectedVoucher?._id === promo._id;
+                                    return (
+                                        <div key={promo._id} onClick={() => handleSelectVoucher(promo)}
                                             style={{
-                                                border: selectedVoucher?._id === promo._id ? '1px solid #F97350' : '1px dashed #F97350',
+                                                border: selectedVoucher?._id === promo._id ? '1.5px solid #F97350' : '1px dashed #F97350',
                                                 background: selectedVoucher?._id === promo._id ? '#FFF1ED' : '#FFF5F2',
-                                                padding: '8px 12px', borderRadius: '8px', minWidth: '140px',
-                                                display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', position: 'relative'
-                                            }}
-                                        >
+                                                padding: '8px 12px', borderRadius: '8px', minWidth: '140px', display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', position: 'relative'
+                                            }}>
                                             <div style={{ fontWeight: 'bold', color: '#F97350', fontSize: '13px' }}>{promo.code}</div>
-                                            <div style={{ fontSize: '11px', color: '#666' }}>
-                                                Giảm {promo.type === 'amount' ? promo.value.toLocaleString() + 'đ' : promo.value + '%'}
-                                            </div>
-                                            <div style={{ fontSize: '10px', color: '#999' }}>Đơn tối thiểu {promo.minOrder.toLocaleString()}đ</div>
-
-                                            {/* Vòng tròn trang trí giống vé */}
+                                            <div style={{ fontSize: '11px', color: '#666' }}>Giảm {promo.type === 'amount' ? promo.value.toLocaleString() + 'đ' : promo.value + '%'}</div>
+                                            <div style={{ fontSize: '10px', color: '#999' }}>Đơn từ {promo.minOrder.toLocaleString()}đ</div>
+                                            {/* Vòng tròn đục lỗ giả vé */}
                                             <div style={{ position: 'absolute', left: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderRight: '1px solid #F97350' }}></div>
                                             <div style={{ position: 'absolute', right: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderLeft: '1px solid #F97350' }}></div>
+                                            {isSelected && (
+                                                <div style={{
+                                                    position: 'absolute', top: -5, right: -5,
+                                                    background: '#F97350', color: '#fff',
+                                                    borderRadius: '50%', width: 16, height: 16,
+                                                    fontSize: 10, display: 'flex', alignItems: 'center',
+                                                    justifyContent: 'center', border: '2px solid #fff'
+                                                }}>
+                                                    ✓
+                                                </div>
+                                            )}
 
-                                            {/* Icon check khi được chọn */}
-                                            {selectedVoucher?._id === promo._id && (
-                                                <div style={{ position: 'absolute', top: -5, right: -5, background: '#F97350', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>✓</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* --- PHẦN 2: ƯU ĐÃI HẠNG THÀNH VIÊN (HỆ THỐNG - MÀU XANH LÁ) --- */}
+                    <div style={{ marginTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#16A34A' }}>
+                                <i className="fa-solid fa-crown" style={{ color: '#FACC15' }}></i> Ưu đãi hạng {user?.membershipTier || 'Đồng'}
+                            </div>
+                            {selectedSystemVoucher && (
+                                <span style={{ fontSize: '12px', color: '#16A34A', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setSelectedSystemVoucher(null)}>Gỡ bỏ</span>
+                            )}
+                        </div>
+
+                        {/* Lọc các mã chưa dùng của user */}
+                        {!user?.systemVouchers?.filter(v => !v.isUsed).length ? (
+                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', padding: '5px 10px' }}>Bạn chưa có mã ưu đãi hệ thống nào.</div>
+                        ) : (
+                            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
+                                {user.systemVouchers.filter(v => !v.isUsed).map(v => {
+                                    const isSelected = selectedSystemVoucher?._id === v._id;
+                                    return (
+                                        <div key={v._id}
+                                            onClick={() => {
+                                                // Chỉ cho phép chọn 1 mã: Bấm cái khác thì cái cũ mất, bấm lại chính nó thì bỏ chọn
+                                                setSelectedSystemVoucher(isSelected ? null : v);
+                                            }}
+                                            style={{
+                                                border: isSelected ? '1.5px solid #16A34A' : '1px dashed #16A34A',
+                                                background: isSelected ? '#F0FDF4' : '#F7FEE7',
+                                                padding: '8px 12px', borderRadius: '8px', minWidth: '140px', display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', position: 'relative'
+                                            }}>
+                                            <div style={{ fontWeight: 'bold', color: '#16A34A', fontSize: '13px' }}>MÃ HỆ THỐNG</div>
+                                            <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: '800' }}>Giảm {v.value.toLocaleString()}đ</div>
+                                            <div style={{ fontSize: '10px', color: '#666' }}>HSD: {new Date(v.endDate).toLocaleDateString('vi-VN')}</div>
+                                            {/* Vòng tròn đục lỗ giả vé (màu xanh) */}
+                                            <div style={{ position: 'absolute', left: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderRight: '1px solid #16A34A' }}></div>
+                                            <div style={{ position: 'absolute', right: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderLeft: '1px solid #16A34A' }}></div>
+                                            {isSelected && (
+                                                <div style={{ position: 'absolute', top: -5, right: -5, background: '#16A34A', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>✓</div>
                                             )}
                                         </div>
-                                    )
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -620,10 +675,10 @@ function Checkout() {
                             </div>
                         )}
 
-                        {discountAmount > 0 && (
+                        {totalDiscount > 0 && (
                             <div style={{ ...S.summaryRow, color: '#22C55E', fontWeight: 'bold' }}>
                                 <span>Voucher giảm giá</span>
-                                <span>-{toVND(discountAmount)}đ</span>
+                                <span>-{toVND(totalDiscount)}đ</span>
                             </div>
                         )}
 
