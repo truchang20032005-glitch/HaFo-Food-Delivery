@@ -327,10 +327,69 @@ function History() {
                 </div>
             </div>
 
+
+
+            {/* MODAL CHI TIẾT ĐƠN HÀNG */}
+            {showDetailModal && selectedOrder && (
+                <div className="modal-bg" onClick={() => setShowDetailModal(false)} style={S.modalOverlay}>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={S.modalContainer}>
+
+                        {/* Header: Luôn cố định ở trên */}
+                        <div style={S.modalHeader}>
+                            <h3 style={{ color: '#F97350', margin: 0 }}>
+                                Chi tiết đơn #{selectedOrder._id.slice(-6).toUpperCase()}
+                            </h3>
+                            <button onClick={() => setShowDetailModal(false)} style={S.closeBtn}>✕</button>
+                        </div>
+
+                        {/* ✅ THÊM THẺ BỌC Ở GIỮA: Thẻ này sẽ tự cuộn nếu nội dung quá dài */}
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {/* Thông tin chung */}
+                            <div style={S.infoSection}>
+                                <p><b>Quán:</b> {selectedOrder.restaurantId?.name || "N/A"}</p>
+                                <p><b>Thời gian:</b> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
+                                <p><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</p>
+                            </div>
+
+                            {/* Danh sách món ăn */}
+                            <div style={S.itemListContainer}>
+                                <h4 style={{ marginBottom: '15px', fontSize: '15px' }}>Món đã đặt:</h4>
+                                {/* Bỏ maxHeight cố định của scrollArea để Flexbox tự xử lý */}
+                                <div style={{ paddingRight: '10px' }}>
+                                    {selectedOrder.items.map((item, index) => (
+                                        <div key={index} style={S.foodItem}>
+                                            <img src={item.image || "/images/food.png"} alt="" style={S.foodImg} />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</div>
+                                                <div style={{ fontSize: '12px', color: '#666' }}>{item.note}</div>
+                                            </div>
+                                            <div style={{ fontWeight: 'bold', color: '#F97350' }}>
+                                                {(item.price * item.quantity).toLocaleString()}đ
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer: Luôn cố định ở dưới cùng */}
+                        <div style={S.modalFooter}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px' }}>
+                                <b>TỔNG CỘNG:</b>
+                                <b style={{ color: '#F97350' }}>{selectedOrder.total.toLocaleString()}đ</b>
+                            </div>
+                            <button className="btn primary" onClick={() => setShowDetailModal(false)} style={S.btnPrimary}>
+                                Đóng cửa sổ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL CHI TIẾT ĐÁNH GIÁ */}
             {showReviewModal && selectedReview && (
                 <div style={S.modalOverlay}>
-                    <div className="animate-pop-in" style={S.modalContainer}>
+                    <div style={S.modalContainer} onClick={e => e.stopPropagation()}>
                         <div style={S.modalHeader}>
                             <div>
                                 <h3 style={S.modalTitle}>Chi tiết đánh giá</h3>
@@ -394,85 +453,92 @@ function History() {
                     </div>
                 </div>
             )}
-
-            {/* MODAL CHI TIẾT ĐƠN HÀNG */}
-            {showDetailModal && selectedOrder && (
-                <div className="modal-bg" onClick={() => setShowDetailModal(false)} style={S.modalOverlay}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={S.modalContainer}>
-
-                        {/* Header: Luôn cố định ở trên */}
-                        <div style={S.modalHeader}>
-                            <h3 style={{ color: '#F97350', margin: 0 }}>
-                                Chi tiết đơn #{selectedOrder._id.slice(-6).toUpperCase()}
-                            </h3>
-                            <button onClick={() => setShowDetailModal(false)} style={S.closeBtn}>✕</button>
-                        </div>
-
-                        {/* ✅ THÊM THẺ BỌC Ở GIỮA: Thẻ này sẽ tự cuộn nếu nội dung quá dài */}
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            {/* Thông tin chung */}
-                            <div style={S.infoSection}>
-                                <p><b>Quán:</b> {selectedOrder.restaurantId?.name || "N/A"}</p>
-                                <p><b>Thời gian:</b> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
-                                <p><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</p>
-                            </div>
-
-                            {/* Danh sách món ăn */}
-                            <div style={S.itemListContainer}>
-                                <h4 style={{ marginBottom: '15px', fontSize: '15px' }}>Món đã đặt:</h4>
-                                {/* Bỏ maxHeight cố định của scrollArea để Flexbox tự xử lý */}
-                                <div style={{ paddingRight: '10px' }}>
-                                    {selectedOrder.items.map((item, index) => (
-                                        <div key={index} style={S.foodItem}>
-                                            <img src={item.image || "/images/food.png"} alt="" style={S.foodImg} />
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</div>
-                                                <div style={{ fontSize: '12px', color: '#666' }}>{item.note}</div>
-                                            </div>
-                                            <div style={{ fontWeight: 'bold', color: '#F97350' }}>
-                                                {(item.price * item.quantity).toLocaleString()}đ
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer: Luôn cố định ở dưới cùng */}
-                        <div style={S.modalFooter}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px' }}>
-                                <b>TỔNG CỘNG:</b>
-                                <b style={{ color: '#F97350' }}>{selectedOrder.total.toLocaleString()}đ</b>
-                            </div>
-                            <button className="btn primary" onClick={() => setShowDetailModal(false)} style={S.btnPrimary}>
-                                Đóng cửa sổ
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
 
 const S = {
-    modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', padding: '20px' },
+    modalOverlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.75)', // Nền tối sang trọng
+        display: 'grid',
+        placeItems: 'center',       // Căn giữa cả ngang và dọc 100%
+        zIndex: 99999,
+        backdropFilter: 'blur(8px)', // Làm mờ nền cực đẹp
+        padding: '20px'
+    },
+
+    // 2. Container: Xóa bỏ margin và transform cũ để hết méo
     modalContainer: {
-        background: '#fff',
+        backgroundColor: '#fff',
         width: '100%',
         maxWidth: '550px',
-        borderRadius: '24px',
+        borderRadius: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: '90vh',           // Không quá 90% màn hình
         overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        display: 'flex',           // Kích hoạt Flexbox
-        flexDirection: 'column',    // Xếp theo chiều dọc
-        maxHeight: '85vh'          // Giới hạn chiều cao modal (ví dụ 85% màn hình)
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+        position: 'relative',
+        margin: 'auto'               // Hỗ trợ thêm căn giữa
     },
-    modalHeader: { padding: '20px 25px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' },
+
+    // 3. Body: Thanh cuộn mượt mà
+    modalBody: {
+        padding: '0 30px 30px',
+        overflowY: 'auto',           // ✅ TỰ HIỆN THANH CUỘN KHI DÀI
+        flex: 1,
+        textAlign: 'left',
+        // Tùy chỉnh thanh cuộn cho đẹp
+        scrollbarWidth: 'thin',
+    },
+
+    // Thẻ hiển thị thời gian
+    timeHighlightBox: {
+        background: '#F8FAFC',
+        padding: '15px',
+        borderRadius: '18px',
+        border: '1px solid #E2E8F0',
+        marginBottom: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+    },
+
+    // Ô hiển thị thời gian
+    timeBox: {
+        background: '#F8FAFC',
+        padding: '15px',
+        borderRadius: '16px',
+        border: '1px solid #E2E8F0',
+        marginBottom: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px'
+    },
+
+    // Các phần khác giữ nguyên hoặc chỉnh nhẹ
+    modalHeader: {
+        padding: '24px 30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#fff'
+    },
+    modalFooter: {
+        padding: '20px 30px',
+        borderTop: '1px solid #F1F5F9',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+    },
     modalTitle: { margin: 0, fontSize: '20px', fontWeight: '800', color: '#111827' },
     modalSubtitle: { margin: '4px 0 0', fontSize: '13px', color: '#6B7280' },
     closeBtnCircle: { width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: '#F3F4F6', color: '#4B5563', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' },
-    modalBody: { padding: '25px', overflowY: 'auto', flex: 1, background: '#F9FAFB' },
     shipperHighlightCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '20px', background: '#FFF7ED', borderRadius: '16px', border: '1px solid #FFEDD5' },
     shipperAvatarLarge: { width: '56px', height: '56px', borderRadius: '50%', background: '#F97350', color: 'white', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)' },
     labelText: { fontSize: '12px', color: '#9A3412', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' },
@@ -491,7 +557,6 @@ const S = {
     replyAuthorName: { fontWeight: '700', fontSize: '14px', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' },
     replyRoleBadge: (isMerchant) => ({ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: isMerchant ? '#DBEAFE' : '#DCFCE7', color: isMerchant ? '#1E40AF' : '#166534', fontWeight: '800', textTransform: 'uppercase' }),
     replyContent: { marginTop: '4px', padding: '10px 14px', background: '#fff', borderRadius: '4px 16px 16px 16px', border: '1px solid #E5E7EB', fontSize: '13px', color: '#374151', lineHeight: '1.5' },
-    modalFooter: { padding: '20px 25px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff' },
     editBtnPrimary: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#F97350', color: '#fff', fontWeight: '800', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(249, 115, 80, 0.25)', transition: 'all 0.2s' },
     expiredNotice: { textAlign: 'center', fontSize: '13px', color: '#6B7280', padding: '10px', background: '#F3F4F6', borderRadius: '12px', fontWeight: '600' },
     closeBtnText: { width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#fff', color: '#6B7280', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' },
