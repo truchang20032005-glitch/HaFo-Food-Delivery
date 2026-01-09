@@ -160,11 +160,101 @@ function ReviewOrder() {
                         {/* CỘT TRÁI: FORM ĐÁNH GIÁ CHI TIẾT */}
                         <section style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
                             {isSubmitted ? (
-                                <div style={{ ...S.card, padding: '60px', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '70px', marginBottom: '25px' }}>✅</div>
-                                    <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#1e293b' }}>Đánh giá thành công!</h3>
-                                    <p style={{ color: '#64748b', marginTop: '10px', fontSize: '16px' }}>Cảm ơn bạn đã đóng góp ý kiến để HaFo hoàn thiện dịch vụ tốt hơn.</p>
-                                    <button onClick={() => navigate('/history')} style={{ marginTop: '30px', padding: '15px 40px', background: '#F97350', color: '#fff', border: 'none', borderRadius: '15px', fontWeight: '800', cursor: 'pointer' }}>Xem lịch sử đơn hàng</button>
+                                <div style={{
+                                    ...S.card,
+                                    padding: '80px 40px',
+                                    textAlign: 'center',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    background: 'linear-gradient(to bottom, #ffffff, #fffaf9)',
+                                    border: '1px solid #ffe5dd',
+                                    boxShadow: '0 20px 40px rgba(249, 115, 80, 0.05)'
+                                }}>
+                                    {/* Biểu tượng thành công với hiệu ứng vòng tròn */}
+                                    <div style={{
+                                        width: '100px',
+                                        height: '100px',
+                                        background: '#85eaa3',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        marginBottom: '30px',
+                                        boxShadow: '0 10px 20px rgba(34, 197, 94, 0.1)',
+                                        border: '4px solid #888b88'
+                                    }}>
+                                        <i className="fa-solid fa-check" style={{ fontSize: '40px', color: '#0b8437' }}></i>
+                                    </div>
+
+                                    <h3 style={{
+                                        fontSize: '28px',
+                                        fontWeight: '900',
+                                        color: '#1e293b',
+                                        letterSpacing: '-0.5px',
+                                        margin: 0
+                                    }}>
+                                        Tuyệt vời!
+                                    </h3>
+
+                                    <p style={{
+                                        color: '#64748b',
+                                        marginTop: '15px',
+                                        fontSize: '16px',
+                                        maxWidth: '400px',
+                                        lineHeight: '1.6'
+                                    }}>
+                                        Đánh giá của bạn đã được ghi nhận. Cảm ơn bạn đã giúp cộng đồng <b>HaFo</b> tìm được những món ngon nhất!
+                                    </p>
+
+                                    {/* Cụm nút bấm chuyên nghiệp */}
+                                    <div style={{ display: 'flex', gap: '15px', marginTop: '40px' }}>
+                                        <button
+                                            onClick={() => navigate('/history')}
+                                            style={{
+                                                padding: '16px 35px',
+                                                background: '#F97350',
+                                                color: '#fff',
+                                                border: 'none',
+                                                borderRadius: '50px',
+                                                fontWeight: '800',
+                                                fontSize: '15px',
+                                                cursor: 'pointer',
+                                                boxShadow: '0 10px 20px rgba(249, 115, 80, 0.3)',
+                                                transition: 'all 0.3s ease'
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+                                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                        >
+                                            <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '10px' }}></i>
+                                            Xem lịch sử
+                                        </button>
+
+                                        <button
+                                            onClick={() => navigate('/home')}
+                                            style={{
+                                                padding: '16px 35px',
+                                                background: '#fff',
+                                                color: '#64748b',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '50px',
+                                                fontWeight: '700',
+                                                fontSize: '15px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.3s ease'
+                                            }}
+                                            onMouseOver={(e) => {
+                                                e.currentTarget.style.background = '#f8fafc';
+                                                e.currentTarget.style.color = '#1e293b';
+                                            }}
+                                            onMouseOut={(e) => {
+                                                e.currentTarget.style.background = '#fff';
+                                                e.currentTarget.style.color = '#64748b';
+                                            }}
+                                        >
+                                            Về trang chủ
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <>

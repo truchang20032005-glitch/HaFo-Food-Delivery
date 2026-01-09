@@ -19,6 +19,25 @@ function Reviews() {
     const [searchParams] = useSearchParams();
     const searchQuery = searchParams.get('q')?.toLowerCase() || '';
 
+    const [orderDetailModal, setOrderDetailModal] = useState(null); // Lưu dữ liệu đơn hàng để hiện modal
+    const fmtMoney = (n) => (n || 0).toLocaleString('vi-VN') + 'đ'; // Hàm định dạng tiền
+
+    const handleViewOrder = async (orderSource) => {
+        // Sửa lại để lấy ID chuẩn dù là Object hay String
+        const orderId = orderSource?._id || orderSource;
+        if (!orderId) return alertWarning("Không tìm thấy mã đơn hàng!");
+
+        try {
+            setLoading(true);
+            const res = await api.get(`/orders/${orderId}`);
+            setOrderDetailModal(res.data);
+        } catch (err) {
+            alertError("Không thể tải chi tiết đơn hàng: " + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // LOGIC LỌC TÌM KIẾM (Tìm theo tên khách hoặc nội dung đánh giá)
     const filteredReviews = reviews.filter(r =>
         r.customerId?.fullName?.toLowerCase().includes(searchQuery) ||
@@ -129,7 +148,21 @@ function Reviews() {
             background: isMe ? '#FFF1ED' : '#F1F5F9',
             borderLeft: `4px solid ${isMe ? '#F97350' : '#94A3B8'}`,
             alignSelf: 'flex-start'
-        })
+        }),
+        infoBox: {
+            background: '#F8FAFC', padding: '18px', borderRadius: '18px',
+            border: '1px solid #E2E8F0', marginBottom: '25px', textAlign: 'left'
+        },
+        itemRow: {
+            display: 'flex', gap: '15px', marginBottom: '18px',
+            paddingBottom: '15px', borderBottom: '1px dashed #E2E8F0', textAlign: 'left'
+        },
+        // Nút "Xem đơn" nhỏ gọn
+        viewOrderBtn: {
+            marginLeft: '10px', padding: '4px 12px', borderRadius: '8px',
+            border: '1px solid #F97350', background: '#FFF1ED', color: '#F97350',
+            fontSize: '11px', fontWeight: '800', cursor: 'pointer'
+        }
     };
 
     return (
@@ -266,9 +299,45 @@ function Reviews() {
                 <div style={S.overlay}>
                     <div style={S.sheet}>
                         <div style={S.modalHeader}>
-                            <div>
-                                <b style={{ fontSize: '20px', color: '#1E293B' }}>Chi tiết đánh giá</b>
-                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Đơn hàng #{selectedReview.orderId?.slice(-6).toUpperCase()}</div>
+                            <div style={{ textAlign: 'left' }}>
+                                <b style={{ fontSize: '20px', color: '#1E293B', display: 'block' }}>Chi tiết đánh giá</b>
+
+                                {/* Hàng chứa mã đơn và Nút - Ép hiển thị Flex hàng ngang */}
+                                <div style={{
+                                    fontSize: '13px',
+                                    color: '#64748B',
+                                    marginTop: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px' // Khoảng cách giữa chữ và nút
+                                }}>
+                                    <span>Đơn hàng #{(selectedReview.orderId?._id || selectedReview.orderId)?.toString().slice(-6).toUpperCase()}</span>
+
+                                    {/* NÚT BẤM XEM ĐƠN - Ép hiển thị bằng inline-flex */}
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: '6px 14px',
+                                            background: '#F97350',
+                                            color: '#fff',
+                                            border: 'none',
+                                            borderRadius: '10px',
+                                            fontSize: '11px',
+                                            fontWeight: '800',
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)'
+                                        }}
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Ngăn việc đóng modal khi bấm nút
+                                            handleViewOrder(selectedReview.orderId);
+                                        }}
+                                    >
+                                        <i className="fa-solid fa-eye"></i> Xem đơn hàng
+                                    </button>
+                                </div>
                             </div>
                             <button onClick={() => setSelectedReview(null)} style={{ border: 'none', background: '#F1F5F9', width: '36px', height: '36px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', color: '#64748B' }}>×</button>
                         </div>
@@ -401,6 +470,97 @@ function Reviews() {
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                             <button className="btn soft" style={{ flex: 1 }} onClick={() => setReportModal(null)}>Hủy</button>
                             <button className="btn primary" style={{ flex: 1, background: '#EF4444' }} onClick={handleReport} disabled={loading}>Gửi báo cáo</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL CHI TIẾT ĐƠN HÀNG (HIỆN TRÊN ĐÈ LÊN MODAL ĐÁNH GIÁ) */}
+            {orderDetailModal && (
+                <div style={{ ...S.overlay, zIndex: 30000 }}>
+                    <div style={{ ...S.sheet, maxWidth: '550px' }}>
+                        <div style={S.modalHeader}>
+                            <div style={{ textAlign: 'left' }}>
+                                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '900', color: '#1E293B' }}>
+                                    Đơn hàng #{orderDetailModal._id.slice(-6).toUpperCase()}
+                                </h2>
+                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                                    Trạng thái: <b style={{ color: '#F97350' }}>{orderDetailModal.status.toUpperCase()}</b>
+                                </div>
+                            </div>
+                            <button onClick={() => setOrderDetailModal(null)} style={{ border: 'none', background: '#F1F5F9', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer' }}>×</button>
+                        </div>
+
+                        <div style={{ ...S.modalBody, textAlign: 'left', maxHeight: '80vh', overflowY: 'auto' }}>
+
+                            {/* 1. THÔNG TIN THỜI GIAN */}
+                            <div style={S.sectionTitle}>TIẾN ĐỘ ĐƠN HÀNG</div>
+                            <div style={{ ...S.infoBox, display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                    <span style={{ color: '#64748B' }}>🕒 Thời gian đặt:</span>
+                                    <b style={{ color: '#1E293B' }}>{new Date(orderDetailModal.createdAt).toLocaleString('vi-VN')}</b>
+                                </div>
+                                {orderDetailModal.timeline?.completedAt && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                        <span style={{ color: '#64748B' }}>✅ Hoàn thành lúc:</span>
+                                        <b style={{ color: '#16A34A' }}>{new Date(orderDetailModal.timeline.completedAt).toLocaleString('vi-VN')}</b>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 2. THÔNG TIN KHÁCH */}
+                            <div style={S.sectionTitle}>THÔNG TIN KHÁCH</div>
+                            <div style={S.infoBox}>
+                                <div style={{ fontWeight: '800', fontSize: '15px' }}>{orderDetailModal.customer.split('|')[0]}</div>
+                                <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>SĐT: <b>{orderDetailModal.customer.split('|')[1]}</b></div>
+                                <div style={{ fontSize: '13px', color: '#475569' }}>ĐC: {orderDetailModal.customer.split('|')[2]}</div>
+                            </div>
+
+                            {/* 3. DANH SÁCH MÓN ĂN (CÓ THANH CUỘN) */}
+                            <div style={S.sectionTitle}>MÓN ĂN ĐÃ ĐẶT</div>
+                            <div style={{
+                                maxHeight: '250px',
+                                overflowY: 'auto',
+                                paddingRight: '10px',
+                                marginBottom: '20px',
+                                border: '1px solid #F1F5F9',
+                                borderRadius: '12px',
+                                padding: '10px'
+                            }}>
+                                {orderDetailModal.items.map((item, idx) => (
+                                    <div key={idx} style={{ ...S.itemRow, borderBottom: idx === orderDetailModal.items.length - 1 ? 'none' : '1px dashed #E2E8F0' }}>
+                                        <img src={item.image} style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover' }} alt="" />
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: '800', fontSize: '14px', color: '#1E293B' }}>{item.quantity}x {item.name}</div>
+                                            <div style={{ fontSize: '12px', color: '#F97350', fontWeight: '600' }}>{item.options}</div>
+                                        </div>
+                                        <div style={{ fontWeight: '700', fontSize: '14px' }}>{fmtMoney(item.price * item.quantity)}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* 4. TỔNG CỘNG */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                                padding: '20px',
+                                borderRadius: '18px',
+                                border: '1px solid #E2E8F0'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: '800', fontSize: '14px', color: '#64748B' }}>TỔNG THANH TOÁN</span>
+                                    <span style={{ fontWeight: '900', fontSize: '22px', color: '#F97350' }}>{fmtMoney(orderDetailModal.total)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '20px', textAlign: 'center' }}>
+                            <button
+                                className="btn primary"
+                                style={{ width: '100%', borderRadius: '14px', height: '48px', fontWeight: '800' }}
+                                onClick={() => setOrderDetailModal(null)}
+                            >
+                                Đóng chi tiết đơn
+                            </button>
                         </div>
                     </div>
                 </div>
