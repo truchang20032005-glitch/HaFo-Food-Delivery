@@ -456,23 +456,62 @@ function History() {
 }
 
 const S = {
-    modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', padding: '20px' },
-    modalContainer: {
-        background: '#fff',
-        width: '100%',
-        maxWidth: '550px',
-        borderRadius: '24px',
-        overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        display: 'flex',           // Kích hoạt Flexbox
-        flexDirection: 'column',    // Xếp theo chiều dọc
-        maxHeight: '85vh'          // Giới hạn chiều cao modal (ví dụ 85% màn hình)
+    modalOverlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Nền tối mờ
+        display: 'flex',
+        alignItems: 'center',       // Căn giữa theo chiều dọc
+        justifyContent: 'center',    // Căn giữa theo chiều ngang
+        zIndex: 10000,
+        backdropFilter: 'blur(4px)', // Hiệu ứng làm mờ nền phía sau
+        padding: '20px'              // Khoảng cách an toàn cho Mobile
     },
-    modalHeader: { padding: '20px 25px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' },
+
+    // 2. Container quy định kích thước và thanh cuộn
+    modalContainer: {
+        backgroundColor: '#fff',
+        width: '100%',
+        maxWidth: '550px',           // Chiều rộng tối đa như yêu cầu
+        borderRadius: '28px',
+        display: 'flex',             // Ép Header - Body - Footer vào cột
+        flexDirection: 'column',
+        maxHeight: '90vh',           // Không bao giờ cao quá 90% màn hình
+        overflow: 'hidden',          // Quan trọng: Để Body tự cuộn, Header đứng yên
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        position: 'relative',
+        animation: 'popIn 0.3s ease-out'
+    },
+
+    // 3. Body cho phép cuộn khi nội dung quá dài (như hình bạn gửi)
+    modalBody: {
+        padding: '0 30px 30px',
+        overflowY: 'auto',           // Hiện thanh cuộn khi đơn hàng nhiều món
+        flex: 1,                     // Chiếm hết phần còn lại của Modal
+        textAlign: 'left'
+    },
+
+    // Các phần khác giữ nguyên hoặc chỉnh nhẹ
+    modalHeader: {
+        padding: '24px 30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#fff'
+    },
+    modalFooter: {
+        padding: '20px 30px',
+        borderTop: '1px solid #F1F5F9',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+    },
     modalTitle: { margin: 0, fontSize: '20px', fontWeight: '800', color: '#111827' },
     modalSubtitle: { margin: '4px 0 0', fontSize: '13px', color: '#6B7280' },
     closeBtnCircle: { width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: '#F3F4F6', color: '#4B5563', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' },
-    modalBody: { padding: '25px', overflowY: 'auto', flex: 1, background: '#F9FAFB' },
     shipperHighlightCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '20px', background: '#FFF7ED', borderRadius: '16px', border: '1px solid #FFEDD5' },
     shipperAvatarLarge: { width: '56px', height: '56px', borderRadius: '50%', background: '#F97350', color: 'white', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(249, 115, 80, 0.2)' },
     labelText: { fontSize: '12px', color: '#9A3412', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' },
@@ -491,7 +530,6 @@ const S = {
     replyAuthorName: { fontWeight: '700', fontSize: '14px', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' },
     replyRoleBadge: (isMerchant) => ({ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: isMerchant ? '#DBEAFE' : '#DCFCE7', color: isMerchant ? '#1E40AF' : '#166534', fontWeight: '800', textTransform: 'uppercase' }),
     replyContent: { marginTop: '4px', padding: '10px 14px', background: '#fff', borderRadius: '4px 16px 16px 16px', border: '1px solid #E5E7EB', fontSize: '13px', color: '#374151', lineHeight: '1.5' },
-    modalFooter: { padding: '20px 25px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff' },
     editBtnPrimary: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#F97350', color: '#fff', fontWeight: '800', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(249, 115, 80, 0.25)', transition: 'all 0.2s' },
     expiredNotice: { textAlign: 'center', fontSize: '13px', color: '#6B7280', padding: '10px', background: '#F3F4F6', borderRadius: '12px', fontWeight: '600' },
     closeBtnText: { width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#fff', color: '#6B7280', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' },
