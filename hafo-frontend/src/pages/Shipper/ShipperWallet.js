@@ -324,8 +324,11 @@ function ShipperWallet() {
             </div>
 
             {showWithdrawModal && (
-                <div style={S.overlay}>
-                    <div className="animate-pop-in" style={S.sheet}>
+                <div style={S.overlay} onClick={() => setShowWithdrawModal(false)}>
+                    <div
+                        style={S.sheet}
+                        onClick={e => e.stopPropagation()}
+                    >
                         <h2 style={{ margin: '0 0 25px', color: '#F97350', fontSize: '22px', fontWeight: '800' }}>
                             <i className="fa-solid fa-money-bill-transfer"></i> Yêu cầu rút tiền
                         </h2>
@@ -424,11 +427,57 @@ const inputStyle = {
 };
 
 const S = {
-    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(5px)', padding: '20px' },
-    sheet: { background: '#fff', width: '100%', maxWidth: '450px', borderRadius: '24px', padding: '30px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' },
-    bankCard: { background: '#F8FAFC', padding: '20px', borderRadius: '16px', border: '1px solid #E2E8F0', marginBottom: '25px' },
-    label: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '700', color: '#475569' },
-    input: { width: '100%', padding: '15px', borderRadius: '12px', border: '2px solid #E2E8F0', fontSize: '20px', outline: 'none', transition: '0.2s', boxSizing: 'border-box' }
+    // 1. Overlay: Ép toàn màn hình và căn giữa tuyệt đối
+    overlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',    // Chiếm hết chiều ngang màn hình
+        height: '100vh',   // Chiếm hết chiều dọc màn hình
+        background: 'rgba(15, 23, 42, 0.7)', // Màu tối sang trọng hơn
+        display: 'grid',
+        placeItems: 'center', // Căn giữa nội dung bên trong theo cả 2 chiều
+        zIndex: 10000,
+        backdropFilter: 'blur(6px)', // Hiệu ứng mờ nền phía sau
+        padding: '20px',
+        boxSizing: 'border-box'
+    },
+
+    // 2. Sheet (Cửa sổ Modal): Xóa bỏ các margin thừa
+    sheet: {
+        background: '#fff',
+        width: '100%',
+        maxWidth: '450px',
+        borderRadius: '28px',
+        padding: '30px',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+        position: 'relative',
+        margin: 'auto', // Đảm bảo tự động căn giữa
+        boxSizing: 'border-box'
+    },
+
+    bankCard: {
+        background: '#F8FAFC',
+        padding: '20px',
+        borderRadius: '16px',
+        border: '1px solid #E2E8F0',
+        marginBottom: '25px',
+        textAlign: 'left' // Căn lề trái cho thông tin ngân hàng
+    },
+
+    label: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '700', color: '#475569', textAlign: 'left' },
+
+    input: {
+        width: '100%',
+        padding: '15px',
+        borderRadius: '12px',
+        border: '2px solid #E2E8F0',
+        fontSize: '20px',
+        outline: 'none',
+        transition: '0.2s',
+        boxSizing: 'border-box',
+        textAlign: 'center' // Số tiền hiện chính giữa ô nhập cho đẹp
+    }
 };
 
 const labelStyle = { color: '#666', fontSize: '13px', width: '120px', display: 'inline-block' };
