@@ -22,6 +22,7 @@ const OrderSchema = new mongoose.Schema({
         enum: ['new', 'prep', 'ready', 'pickup', 'done', 'cancel'],
         default: 'new'
     },
+    promoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Promo', default: null },
 
 
     // ✅ TÁCH RIÊNG 2 LOẠI ĐÁNH GIÁ ĐỂ KHÔNG ĐÈ NHAU

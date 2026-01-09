@@ -5,6 +5,7 @@ const Restaurant = require('../models/Restaurant');
 const Shipper = require('../models/Shipper');
 const { sendLockAccountEmail } = require('./auth');
 const User = require('../models/User');
+const Promo = require('../models/Promo');
 // const io = req.app.get('socketio');
 
 // --- 1. LẤY DANH SÁCH TẤT CẢ ĐƠN (Cho Admin/Chủ quán) ---
@@ -167,6 +168,19 @@ router.put('/:id', async (req, res) => {
                     { user: order.shipperId },
                     { $inc: { income: totalShipperEarn } }
                 );
+            }
+
+            if (order.promoId) {
+                await Promo.findByIdAndUpdate(order.promoId, {
+                    $inc: { limit: -1 } // Giảm limit đi 1 đơn vị
+                });
+
+                // (Tùy chọn) Kiểm tra nếu limit về 0 thì set isActive = false
+                const updatedPromo = await Promo.findById(order.promoId);
+                if (updatedPromo && updatedPromo.limit <= 0) {
+                    updatedPromo.isActive = false;
+                    await updatedPromo.save();
+                }
             }
         }
 

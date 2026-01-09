@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import './Merchant.css';
@@ -51,31 +51,24 @@ function MerchantLayout() {
     }, [searchQuery]);
 
     // Hàm lấy dữ liệu thông báo
-    const fetchNotifications = async (shopId) => {
+    const fetchNotifications = useCallback(async () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const uid = user?.id || user?._id;
+        if (!uid) return;
+
         try {
-            // ✅ SỬA ĐƯỜNG DẪN: Gọi sang /restaurants chứ không phải /reports
-            const res = await api.get(`/notifications/partner/${shopId}`);
-
+            const res = await api.get(`/notifications/partner/${uid}`);
             const data = res.data || [];
-            const newCount = data.length;
 
-            // Phát âm thanh nếu số lượng thông báo tăng lên
-            if (prevNotiCount.current !== -1 && newCount > prevNotiCount.current) {
+            if (prevNotiCount.current !== -1 && data.length > prevNotiCount.current) {
                 const audio = new Audio('/sounds/notification.mp3');
-                // Thử phát và bắt lỗi nếu trình duyệt chặn
-                audio.play().catch(() => {
-                    console.warn("Trình duyệt chặn âm thanh. Hãy click vào trang để kích hoạt!");
-                });
+                audio.play().catch(e => console.log("Autoplay blocked"));
             }
-
-            prevNotiCount.current = newCount;
-            setNotiCount(newCount);
+            prevNotiCount.current = data.length;
             setNotiList(data);
-        } catch (err) {
-            console.error("Lỗi lấy thông báo Merchant:", err);
-            setNotiList([]);
-        }
-    };
+            setNotiCount(data.length);
+        } catch (err) { console.error("Lỗi lấy thông báo Merchant:", err); }
+    }, []);
 
     useEffect(() => {
         const unlockAudio = () => {
@@ -121,7 +114,7 @@ function MerchantLayout() {
             socket.off('new-notification');
             // Không nhất thiết phải disconnect() nếu bạn muốn socket duy trì xuyên suốt app
         };
-    }, []);
+    }, [fetchNotifications]);
 
     const handleLogout = async () => {
         const isConfirmed = await confirmDialog(
@@ -148,12 +141,10 @@ function MerchantLayout() {
 
     const handleMarkRead = async (type, notificationId) => {
         try {
+            // Đổi đường dẫn cho khớp với notification.js
             await api.put(`/notifications/mark-read/${type}/${notificationId}`);
-            // Cập nhật lại số lượng thông báo bằng cách gọi lại hàm fetch
-            if (myShop) fetchNotifications(myShop._id);
-        } catch (err) {
-            console.error("Lỗi đánh dấu đã đọc:", err);
-        }
+            fetchNotifications();
+        } catch (err) { console.error(err); }
     };
 
     return (
@@ -223,7 +214,7 @@ function MerchantLayout() {
                                                         setShowNoti(false);
                                                         // ✅ GỌI HÀM ĐÁNH DẤU ĐÃ ĐỌC
                                                         if (n.notificationId || n.id) {
-                                                            handleMarkRead(n.notificationId || n.id);
+                                                            handleMarkRead(n.type, n.id);
                                                         }
                                                     }}
                                                     style={{ display: 'block', padding: '12px 15px', borderBottom: '1px solid #f8fafc', textDecoration: 'none', transition: '0.2s', background: '#fff' }}

@@ -25,11 +25,24 @@ const shipperIcon = iconMarker('/images/bike-icon.png', [45, 45]);
 const restaurantIcon = iconMarker('/images/store-icon.png', [35, 35]);
 const customerIcon = iconMarker('/images/home-icon.png', [35, 35]);
 
-function RecenterMap({ position }) {
+function RecenterMap({ position, isFollowing }) { // ✅ Thêm prop isFollowing
     const map = useMap();
     useEffect(() => {
-        if (position) map.setView(position, map.getZoom());
-    }, [position, map]);
+        // Chỉ tự động di chuyển bản đồ nếu có tọa độ VÀ đang bật chế độ bám theo
+        if (position && isFollowing) {
+            map.setView(position, map.getZoom());
+        }
+    }, [position, isFollowing, map]);
+    return null;
+}
+
+function MapFlyController({ target }) {
+    const map = useMap();
+    useEffect(() => {
+        if (target) {
+            map.flyTo(target, 16, { duration: 1.5 });
+        }
+    }, [target, map]);
     return null;
 }
 
@@ -52,6 +65,7 @@ const formatTime = (date) => {
 function OrderTracking() {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
+
     //const [shipper, setShipper] = useState(null);
     const [restaurant, setRestaurant] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -61,6 +75,8 @@ function OrderTracking() {
     const [lastNotifiedMsgId, setLastNotifiedMsgId] = useState(null);
     const navigate = useNavigate();
 
+    const [flyToTarget, setFlyToTarget] = useState(null);
+    const [isFollowing, setIsFollowing] = useState(true);
 
     const fetchData = useCallback(async () => {
         try {
@@ -69,10 +85,13 @@ function OrderTracking() {
             const orderData = resOrder.data;
             setOrder(orderData);
 
-            if (orderData.shipperId?.location?.coordinates) {
-                const [lng, lat] = orderData.shipperId.location.coordinates;
-                if (lat !== 0 && lng !== 0) {
-                    setShipperPos([lat, lng]);
+            if (orderData.shipperId) {
+                const shipperUserId = orderData.shipperId._id || orderData.shipperId;
+                // Má cần API này để lấy tọa độ ban đầu của Shipper
+                const resShip = await api.get(`/shippers/profile/${shipperUserId}`);
+                if (resShip.data?.location?.coordinates) {
+                    const [lng, lat] = resShip.data.location.coordinates;
+                    if (lat !== 0 && lng !== 0) setShipperPos([lat, lng]);
                 }
             }
 
@@ -219,7 +238,7 @@ function OrderTracking() {
             status: 'done',
             label: 'Hoàn tất đơn hàng',
             time: formatTime(order.timeline?.completedAt),
-            icon: 'fa-house-chimney-check'
+            icon: 'fa-circle-check'
         }
     ];
 
@@ -325,6 +344,23 @@ function OrderTracking() {
             background: 'red',
             borderRadius: '50%',
             border: '2px solid white'
+        },
+
+        mapQuickBtn: {
+            width: '40px',          // Tăng lên chút cho dễ bấm
+            height: '40px',
+            borderRadius: '10px',
+            background: '#fff',
+            border: '2px solid #F97350', // Viền cam cho nổi bật
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            cursor: 'pointer',
+            color: '#F97350',
+            fontSize: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s',
+            zIndex: 2000            // Đảm bảo nổi hẳn lên trên bản đồ
         }
     };
 
@@ -361,38 +397,85 @@ function OrderTracking() {
 
                     <div style={{ ...S.card, height: '450px', padding: 0, position: 'relative' }}>
                         {order.lat && order.lng ? (
-                            <MapContainer
-                                center={shipperPos || [order.lat, order.lng]}
-                                zoom={15}
-                                style={{ height: '100%', borderRadius: '16px' }}
-                            >
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <RecenterMap position={shipperPos} />
-
-                                {/* MỐC 1: SHIPPER (Di chuyển) */}
-                                {shipperPos && (
-                                    <Marker position={shipperPos} icon={shipperIcon}>
-                                        <Popup><b>Shipper:</b> {order.shipperId?.fullName || 'Tài xế'} đang đến!</Popup>
-                                    </Marker>
-                                )}
-
-                                {/* MỐC 2: NHÀ HÀNG */}
-                                {restaurant?.location?.coordinates && (
-                                    <Marker
-                                        position={[restaurant.location.coordinates[1], restaurant.location.coordinates[0]]}
-                                        icon={restaurantIcon}
+                            <>
+                                <div style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {/* Nút Shipper */}
+                                    <button
+                                        style={{
+                                            ...S.mapQuickBtn,
+                                            background: isFollowing ? '#F97350' : '#fff', // Cam đậm khi đang bám đuôi
+                                            color: isFollowing ? '#fff' : '#F97350'
+                                        }}
+                                        disabled={!shipperPos}
+                                        onClick={() => {
+                                            setIsFollowing(true); // ✅ Bật bám đuôi
+                                            setFlyToTarget(shipperPos);
+                                        }}
+                                        title="Theo dõi Shipper (Auto-follow)"
                                     >
-                                        <Popup><b>Cửa hàng:</b> {restaurant.name}<br />{restaurant.address}</Popup>
-                                    </Marker>
-                                )}
+                                        <i className={`fa-solid ${isFollowing ? 'fa-crosshairs' : 'fa-motorcycle'}`}></i>
+                                    </button>
 
-                                {/* MỐC 3: KHÁCH HÀNG (BẠN) */}
-                                {order.lat && order.lng && (
-                                    <Marker position={[order.lat, order.lng]} icon={customerIcon}>
-                                        <Popup><b>Vị trí của bạn:</b> Đồ ăn sẽ được giao đến đây.</Popup>
-                                    </Marker>
-                                )}
-                            </MapContainer>
+                                    {/* 2. Nút Nhà hàng: Tắt bám đuôi để bản đồ đứng yên ở quán */}
+                                    <button
+                                        style={S.mapQuickBtn}
+                                        disabled={!restaurant}
+                                        onClick={() => {
+                                            setIsFollowing(false); // 🛑 Tắt bám đuôi
+                                            const pos = [restaurant.location.coordinates[1], restaurant.location.coordinates[0]];
+                                            setFlyToTarget(pos);
+                                        }}
+                                        title="Vị trí Nhà hàng"
+                                    >
+                                        <i className="fa-solid fa-store"></i>
+                                    </button>
+
+                                    {/* 3. Nút Bạn: Tắt bám đuôi để xem nhà mình */}
+                                    <button
+                                        style={S.mapQuickBtn}
+                                        onClick={() => {
+                                            setIsFollowing(false); // 🛑 Tắt bám đuôi
+                                            setFlyToTarget([order.lat, order.lng]);
+                                        }}
+                                        title="Vị trí của bạn"
+                                    >
+                                        <i className="fa-solid fa-house-user"></i>
+                                    </button>
+                                </div>
+                                <MapContainer
+                                    center={shipperPos || [order.lat, order.lng]}
+                                    zoom={15}
+                                    style={{ height: '100%', borderRadius: '16px' }}
+                                >
+                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                    <MapFlyController target={flyToTarget} />
+                                    <RecenterMap position={shipperPos} />
+
+                                    {/* MỐC 1: SHIPPER (Di chuyển) */}
+                                    {shipperPos && (
+                                        <Marker position={shipperPos} icon={shipperIcon}>
+                                            <Popup><b>Shipper:</b> {order.shipperId?.fullName || 'Tài xế'} đang đến!</Popup>
+                                        </Marker>
+                                    )}
+
+                                    {/* MỐC 2: NHÀ HÀNG */}
+                                    {restaurant?.location?.coordinates && (
+                                        <Marker
+                                            position={[restaurant.location.coordinates[1], restaurant.location.coordinates[0]]}
+                                            icon={restaurantIcon}
+                                        >
+                                            <Popup><b>Cửa hàng:</b> {restaurant.name}<br />{restaurant.address}</Popup>
+                                        </Marker>
+                                    )}
+
+                                    {/* MỐC 3: KHÁCH HÀNG (BẠN) */}
+                                    {order.lat && order.lng && (
+                                        <Marker position={[order.lat, order.lng]} icon={customerIcon}>
+                                            <Popup><b>Vị trí của bạn:</b> Đồ ăn sẽ được giao đến đây.</Popup>
+                                        </Marker>
+                                    )}
+                                </MapContainer>
+                            </>
                         ) : (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                 <p>Đang xác định vị trí đơn hàng...</p>

@@ -30,29 +30,24 @@ function ShipperLayout() {
 
     // Hàm lấy dữ liệu thông báo từ Backend
     const fetchNotifications = useCallback(async () => {
-        if (!user.id) return;
+        const user = JSON.parse(localStorage.getItem('user'));
+        const uid = user?.id || user?._id;
+        if (!uid) return;
+
         try {
-            const res = await api.get(`/notifications/partner/${user.id}`);
-            // ✅ KIỂM TRA DỮ LIỆU: Backend trả về mảng list trực tiếp
+            // Đổi từ /reports/notifications/partner/... thành /notifications/partner/...
+            const res = await api.get(`/notifications/partner/${uid}`);
             const data = res.data || [];
-            const newCount = data.length;
 
-            // Phát âm thanh nếu có tin mới
-            if (newCount > prevNotiCount.current) {
+            if (data.length > prevNotiCount.current) {
                 const audio = new Audio('/sounds/notification.mp3');
-                audio.play().catch(e => console.log("Sound error"));
+                audio.play().catch(e => console.log("Autoplay blocked"));
             }
-
-            prevNotiCount.current = newCount;
-            setNotiCount(newCount);
-
-            // ✅ GÁN TRỰC TIẾP data (vì nó là mảng)
+            prevNotiCount.current = data.length;
             setNotiList(data);
-        } catch (err) {
-            console.error("Lỗi lấy thông báo:", err);
-            setNotiList([]); // Nếu lỗi thì set mảng rỗng để không bị crash trang
-        }
-    }, [user.id]);
+            setNotiCount(data.length);
+        } catch (err) { console.error("Lỗi lấy thông báo Shipper:", err); }
+    }, []);
 
     useEffect(() => {
         fetchNotifications();
@@ -91,12 +86,10 @@ function ShipperLayout() {
 
     const handleMarkRead = async (type, notificationId) => {
         try {
-            // Chỉ gọi API nếu đây là thông báo loại khiếu nại (bạn có thể check n.type)
+            // Đổi từ /reports/mark-read-partner/... thành /notifications/mark-read/...
             await api.put(`/notifications/mark-read/${type}/${notificationId}`);
-            fetchNotifications(); // Tải lại danh sách để số chuông giảm xuống ngay lập tức
-        } catch (err) {
-            console.error("Lỗi đánh dấu đã đọc:", err);
-        }
+            fetchNotifications();
+        } catch (err) { console.error(err); }
     };
 
     return (
@@ -157,7 +150,9 @@ function ShipperLayout() {
                                                 onClick={() => {
                                                     setShowNoti(false);
                                                     // ✅ GỌI HÀM ĐÁNH DẤU ĐÃ ĐỌC
-                                                    handleMarkRead(n.id);
+                                                    if (n.notificationId || n.id) {
+                                                        handleMarkRead(n.type, n.id);
+                                                    }
                                                 }}
                                             >
                                                 <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
