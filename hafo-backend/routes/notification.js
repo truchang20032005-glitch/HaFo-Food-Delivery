@@ -76,12 +76,21 @@ router.get('/partner/:userId', async (req, res) => {
         const userId = req.params.userId;
         let list = [];
 
-        // Lấy khiếu nại đã xử lý
-        const reports = await Report.find({ reporterId: userId, status: { $ne: 'pending' }, isReadByPartner: false });
+        // 1. Lấy cảnh báo vi phạm từ hệ thống (AI warnings) - MỚI BỔ SUNG
+        const aiWarnings = await Notification.find({ userId, isRead: false });
+        aiWarnings.forEach(warn => list.push({
+            id: warn._id,
+            notificationId: warn._id,
+            type: 'warning',
+            msg: warn.msg,
+            time: warn.createdAt,
+            link: '#'
+        }));
 
-        // Lấy đơn hàng mới (nếu là Merchant)
+        // 2. Lấy đơn hàng mới & Đánh giá mới cho Nhà hàng
         const restaurant = await Restaurant.findOne({ owner: userId });
         if (restaurant) {
+            // Đơn hàng mới
             const newOrders = await Order.find({ restaurantId: restaurant._id, status: 'new' }).limit(5);
             newOrders.forEach(o => list.push({
                 id: o._id,
@@ -90,14 +99,39 @@ router.get('/partner/:userId', async (req, res) => {
                 time: o.createdAt,
                 link: '/merchant/orders'
             }));
+
+            // Đánh giá mới cho quán - MỚI BỔ SUNG
+            const newReviews = await CustomerReview.find({ restaurantId: restaurant._id }).sort({ createdAt: -1 }).limit(5);
+            newReviews.forEach(rev => list.push({
+                id: rev._id,
+                type: 'review',
+                msg: `Khách hàng vừa đánh giá quán của bạn`,
+                time: rev.createdAt,
+                link: '/merchant/reviews'
+            }));
         }
 
+        // 3. Lấy đánh giá mới cho Shipper - MỚI BỔ SUNG
+        const shipper = await Shipper.findOne({ user: userId });
+        if (shipper) {
+            const shipReviews = await CustomerReview.find({ shipperId: userId }).sort({ createdAt: -1 }).limit(5);
+            shipReviews.forEach(rev => list.push({
+                id: rev._id,
+                type: 'review',
+                msg: `Bạn vừa nhận được một đánh giá mới`,
+                time: rev.createdAt,
+                link: '/shipper/history'
+            }));
+        }
+
+        // 4. Lấy khiếu nại đã xử lý (Giữ nguyên)
+        const reports = await Report.find({ reporterId: userId, status: { $ne: 'pending' }, isReadByPartner: false });
         reports.forEach(r => list.push({
             id: r._id,
             type: 'report_processed',
             msg: `Khiếu nại đơn #${r.orderId.toString().slice(-6).toUpperCase()} đã xử lý`,
             time: r.updatedAt,
-            link: '/shipper/history'
+            link: shipper ? '/shipper/history' : '/merchant/reviews'
         }));
 
         list.sort((a, b) => new Date(b.time) - new Date(a.time));

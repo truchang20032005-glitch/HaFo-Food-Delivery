@@ -157,8 +157,11 @@ router.put('/:id', async (req, res) => {
             const BASE_SHIP_FEE = 15000; // Phí ship cứng shipper nhận được mỗi đơn
 
             // 1. Cộng doanh thu cho Quán (Tổng đơn - toàn bộ tiền tip)
+            const systemCompensation = order.systemDiscount || 0; // Số tiền hệ thống bù lại
+            const restaurantEarn = (order.total - actualTip) + systemCompensation;
+
             await Restaurant.findByIdAndUpdate(order.restaurantId, {
-                $inc: { revenue: (order.total - actualTip) }
+                $inc: { revenue: restaurantEarn }
             });
 
             // 2. Cộng tiền vào ví Shipper: 15k phí cứng + 80% tiền tip
@@ -181,6 +184,41 @@ router.put('/:id', async (req, res) => {
                     updatedPromo.isActive = false;
                     await updatedPromo.save();
                 }
+            }
+
+            const user = await User.findById(order.userId);
+            if (user) {
+                const spending = order.total - (order.tipAmount || 0);
+                user.totalSpending += spending;
+
+                let oldTier = user.membershipTier;
+                if (user.totalSpending >= 15000000) user.membershipTier = 'Diamond';
+                else if (user.totalSpending >= 5000000) user.membershipTier = 'Gold';
+                else if (user.totalSpending >= 1000000) user.membershipTier = 'Silver';
+
+                // Nếu thăng hạng thì tặng mã ngay
+                if (oldTier !== user.membershipTier) {
+                    const rewards = {
+                        'Silver': [{ val: 20000, qty: 2 }],
+                        'Gold': [{ val: 50000, qty: 3 }],
+                        'Diamond': [{ val: 100000, qty: 5 }]
+                    };
+
+                    const gift = rewards[user.membershipTier];
+                    if (gift) {
+                        gift.forEach(g => {
+                            for (let i = 0; i < g.qty; i++) {
+                                user.systemVouchers.push({
+                                    code: `HAFO${user.membershipTier.toUpperCase()}${Math.floor(Math.random() * 1000)}`,
+                                    value: g.val,
+                                    minOrder: g.val * 2,
+                                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // HSD 30 ngày
+                                });
+                            }
+                        });
+                    }
+                }
+                await user.save();
             }
         }
 

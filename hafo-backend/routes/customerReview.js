@@ -83,6 +83,15 @@ router.post('/', async (req, res) => {
             rating, comment, itemReviews, shipperRating, shipperComment
         });
         await newReview.save();
+        const io = req.app.get('socketio');
+        if (io) {
+            // Thông báo cho nhà hàng
+            io.to(restaurantId.toString()).emit('new-notification');
+            // Thông báo cho shipper (nếu có)
+            if (shipperId) {
+                io.to(shipperId.toString()).emit('new-notification');
+            }
+        }
 
         // Cập nhật trạng thái đơn hàng và Rating trung bình (Giữ nguyên logic của má)
         await Order.findByIdAndUpdate(orderId, { isReviewed: true, restaurantRating: rating, shipperRating: shipperRating });

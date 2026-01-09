@@ -64,7 +64,25 @@ const UserSchema = new mongoose.Schema({
     shipper: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipper' },
 
     avatar: { type: String, default: '' },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    totalSpending: { type: Number, default: 0 },
+    membershipTier: {
+        type: String,
+        enum: ['Basic', 'Silver', 'Gold', 'Diamond'],
+        default: 'Basic'
+    },
+    tierResetDate: {
+        type: Date,
+        default: () => new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) // 6 tháng
+    },
+    // Danh sách mã giảm giá hệ thống tặng riêng cho User này
+    systemVouchers: [{
+        code: String,
+        value: Number,
+        minOrder: { type: Number, default: 0 },
+        endDate: Date,
+        isUsed: { type: Boolean, default: false }
+    }]
 });
 
 module.exports = mongoose.model('User', UserSchema);

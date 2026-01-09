@@ -23,6 +23,7 @@ const OrderSchema = new mongoose.Schema({
         default: 'new'
     },
     promoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Promo', default: null },
+    systemDiscount: { type: Number, default: 0 },
 
 
     // ✅ TÁCH RIÊNG 2 LOẠI ĐÁNH GIÁ ĐỂ KHÔNG ĐÈ NHAU
