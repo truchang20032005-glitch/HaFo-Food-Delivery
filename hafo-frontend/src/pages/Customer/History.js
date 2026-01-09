@@ -327,10 +327,69 @@ function History() {
                 </div>
             </div>
 
+
+
+            {/* MODAL CHI TIẾT ĐƠN HÀNG */}
+            {showDetailModal && selectedOrder && (
+                <div className="modal-bg" onClick={() => setShowDetailModal(false)} style={S.modalOverlay}>
+                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={S.modalContainer}>
+
+                        {/* Header: Luôn cố định ở trên */}
+                        <div style={S.modalHeader}>
+                            <h3 style={{ color: '#F97350', margin: 0 }}>
+                                Chi tiết đơn #{selectedOrder._id.slice(-6).toUpperCase()}
+                            </h3>
+                            <button onClick={() => setShowDetailModal(false)} style={S.closeBtn}>✕</button>
+                        </div>
+
+                        {/* ✅ THÊM THẺ BỌC Ở GIỮA: Thẻ này sẽ tự cuộn nếu nội dung quá dài */}
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {/* Thông tin chung */}
+                            <div style={S.infoSection}>
+                                <p><b>Quán:</b> {selectedOrder.restaurantId?.name || "N/A"}</p>
+                                <p><b>Thời gian:</b> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
+                                <p><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</p>
+                            </div>
+
+                            {/* Danh sách món ăn */}
+                            <div style={S.itemListContainer}>
+                                <h4 style={{ marginBottom: '15px', fontSize: '15px' }}>Món đã đặt:</h4>
+                                {/* Bỏ maxHeight cố định của scrollArea để Flexbox tự xử lý */}
+                                <div style={{ paddingRight: '10px' }}>
+                                    {selectedOrder.items.map((item, index) => (
+                                        <div key={index} style={S.foodItem}>
+                                            <img src={item.image || "/images/food.png"} alt="" style={S.foodImg} />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</div>
+                                                <div style={{ fontSize: '12px', color: '#666' }}>{item.note}</div>
+                                            </div>
+                                            <div style={{ fontWeight: 'bold', color: '#F97350' }}>
+                                                {(item.price * item.quantity).toLocaleString()}đ
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer: Luôn cố định ở dưới cùng */}
+                        <div style={S.modalFooter}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px' }}>
+                                <b>TỔNG CỘNG:</b>
+                                <b style={{ color: '#F97350' }}>{selectedOrder.total.toLocaleString()}đ</b>
+                            </div>
+                            <button className="btn primary" onClick={() => setShowDetailModal(false)} style={S.btnPrimary}>
+                                Đóng cửa sổ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL CHI TIẾT ĐÁNH GIÁ */}
             {showReviewModal && selectedReview && (
                 <div style={S.modalOverlay}>
-                    <div className="animate-pop-in" style={S.modalContainer}>
+                    <div style={S.modalContainer} onClick={e => e.stopPropagation()}>
                         <div style={S.modalHeader}>
                             <div>
                                 <h3 style={S.modalTitle}>Chi tiết đánh giá</h3>
@@ -394,63 +453,6 @@ function History() {
                     </div>
                 </div>
             )}
-
-            {/* MODAL CHI TIẾT ĐƠN HÀNG */}
-            {showDetailModal && selectedOrder && (
-                <div className="modal-bg" onClick={() => setShowDetailModal(false)} style={S.modalOverlay}>
-                    <div className="admin-modal" onClick={e => e.stopPropagation()} style={S.modalContainer}>
-
-                        {/* Header: Luôn cố định ở trên */}
-                        <div style={S.modalHeader}>
-                            <h3 style={{ color: '#F97350', margin: 0 }}>
-                                Chi tiết đơn #{selectedOrder._id.slice(-6).toUpperCase()}
-                            </h3>
-                            <button onClick={() => setShowDetailModal(false)} style={S.closeBtn}>✕</button>
-                        </div>
-
-                        {/* ✅ THÊM THẺ BỌC Ở GIỮA: Thẻ này sẽ tự cuộn nếu nội dung quá dài */}
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            {/* Thông tin chung */}
-                            <div style={S.infoSection}>
-                                <p><b>Quán:</b> {selectedOrder.restaurantId?.name || "N/A"}</p>
-                                <p><b>Thời gian:</b> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
-                                <p><b>Địa chỉ:</b> {selectedOrder.customer.split('|')[2]}</p>
-                            </div>
-
-                            {/* Danh sách món ăn */}
-                            <div style={S.itemListContainer}>
-                                <h4 style={{ marginBottom: '15px', fontSize: '15px' }}>Món đã đặt:</h4>
-                                {/* Bỏ maxHeight cố định của scrollArea để Flexbox tự xử lý */}
-                                <div style={{ paddingRight: '10px' }}>
-                                    {selectedOrder.items.map((item, index) => (
-                                        <div key={index} style={S.foodItem}>
-                                            <img src={item.image || "/images/food.png"} alt="" style={S.foodImg} />
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</div>
-                                                <div style={{ fontSize: '12px', color: '#666' }}>{item.note}</div>
-                                            </div>
-                                            <div style={{ fontWeight: 'bold', color: '#F97350' }}>
-                                                {(item.price * item.quantity).toLocaleString()}đ
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer: Luôn cố định ở dưới cùng */}
-                        <div style={S.modalFooter}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px' }}>
-                                <b>TỔNG CỘNG:</b>
-                                <b style={{ color: '#F97350' }}>{selectedOrder.total.toLocaleString()}đ</b>
-                            </div>
-                            <button className="btn primary" onClick={() => setShowDetailModal(false)} style={S.btnPrimary}>
-                                Đóng cửa sổ
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
@@ -462,36 +464,61 @@ const S = {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Nền tối mờ
-        display: 'flex',
-        alignItems: 'center',       // Căn giữa theo chiều dọc
-        justifyContent: 'center',    // Căn giữa theo chiều ngang
-        zIndex: 10000,
-        backdropFilter: 'blur(4px)', // Hiệu ứng làm mờ nền phía sau
-        padding: '20px'              // Khoảng cách an toàn cho Mobile
+        backgroundColor: 'rgba(15, 23, 42, 0.75)', // Nền tối sang trọng
+        display: 'grid',
+        placeItems: 'center',       // Căn giữa cả ngang và dọc 100%
+        zIndex: 99999,
+        backdropFilter: 'blur(8px)', // Làm mờ nền cực đẹp
+        padding: '20px'
     },
 
-    // 2. Container quy định kích thước và thanh cuộn
+    // 2. Container: Xóa bỏ margin và transform cũ để hết méo
     modalContainer: {
         backgroundColor: '#fff',
         width: '100%',
-        maxWidth: '550px',           // Chiều rộng tối đa như yêu cầu
-        borderRadius: '28px',
-        display: 'flex',             // Ép Header - Body - Footer vào cột
+        maxWidth: '550px',
+        borderRadius: '32px',
+        display: 'flex',
         flexDirection: 'column',
-        maxHeight: '90vh',           // Không bao giờ cao quá 90% màn hình
-        overflow: 'hidden',          // Quan trọng: Để Body tự cuộn, Header đứng yên
-        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        maxHeight: '90vh',           // Không quá 90% màn hình
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
         position: 'relative',
-        animation: 'popIn 0.3s ease-out'
+        margin: 'auto'               // Hỗ trợ thêm căn giữa
     },
 
-    // 3. Body cho phép cuộn khi nội dung quá dài (như hình bạn gửi)
+    // 3. Body: Thanh cuộn mượt mà
     modalBody: {
         padding: '0 30px 30px',
-        overflowY: 'auto',           // Hiện thanh cuộn khi đơn hàng nhiều món
-        flex: 1,                     // Chiếm hết phần còn lại của Modal
-        textAlign: 'left'
+        overflowY: 'auto',           // ✅ TỰ HIỆN THANH CUỘN KHI DÀI
+        flex: 1,
+        textAlign: 'left',
+        // Tùy chỉnh thanh cuộn cho đẹp
+        scrollbarWidth: 'thin',
+    },
+
+    // Thẻ hiển thị thời gian
+    timeHighlightBox: {
+        background: '#F8FAFC',
+        padding: '15px',
+        borderRadius: '18px',
+        border: '1px solid #E2E8F0',
+        marginBottom: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+    },
+
+    // Ô hiển thị thời gian
+    timeBox: {
+        background: '#F8FAFC',
+        padding: '15px',
+        borderRadius: '16px',
+        border: '1px solid #E2E8F0',
+        marginBottom: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px'
     },
 
     // Các phần khác giữ nguyên hoặc chỉnh nhẹ
