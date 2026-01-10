@@ -44,7 +44,7 @@ router.get('/available-orders', async (req, res) => {
         if (currentShipperId) {
             const activeCount = await Order.countDocuments({
                 shipperId: currentShipperId,
-                status: { $in: ['prep', 'ready', 'pickup'] }
+                status: { $in: ['new', 'prep', 'ready', 'pickup'] }
             });
             if (activeCount >= 3) {
                 return res.json([]); // Trả về mảng rỗng vì "đã đầy tải"
