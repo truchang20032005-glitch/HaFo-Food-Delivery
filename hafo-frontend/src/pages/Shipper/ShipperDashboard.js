@@ -43,6 +43,25 @@ function ShipperDashboard() {
 
     const [activeOrders, setActiveOrders] = useState([]); // ✅ Lưu danh sách đơn đang giao
     const activeOrdersRef = useRef([]); // Dùng Ref để GPS không bị restart liên tục
+    const [profile, setProfile] = useState(null);
+    useEffect(() => {
+        const fetchShipperProfile = async () => {
+            try {
+                // Dùng API lấy hồ sơ shipper theo userId đã có trong localStorage
+                const res = await api.get(`/shippers/profile/${user.id}`);
+                setProfile(res.data);
+            } catch (err) {
+                console.error("Lỗi lấy hồ sơ shipper:", err);
+            }
+        };
+        if (user.id) fetchShipperProfile();
+    }, [user.id]);
+    // Ngưỡng nợ tối đa (âm 500k)
+    const DEBT_LIMIT = -500000;
+
+    // Biến kiểm tra xem shipper có đang nợ quá nhiều không
+    const isDebtTooHigh = profile?.income <= DEBT_LIMIT;
+
     useEffect(() => {
         activeOrdersRef.current = activeOrders;
     }, [activeOrders]);
@@ -400,6 +419,7 @@ function ShipperDashboard() {
                                             </div>
 
                                             <button
+                                                disabled={isDebtTooHigh}
                                                 onClick={() => handleAccept(order._id)}
                                                 style={{
                                                     background: 'linear-gradient(135deg, #F97350 0%, #FF9F43 100%)',
@@ -417,7 +437,7 @@ function ShipperDashboard() {
                                                 onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
                                                 onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
                                             >
-                                                NHẬN ĐƠN
+                                                {isDebtTooHigh ? 'VÍ NỢ CAO' : 'NHẬN ĐƠN'}
                                             </button>
                                         </div>
                                     </div>

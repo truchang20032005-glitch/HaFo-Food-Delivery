@@ -454,7 +454,7 @@ function Dashboard() {
                                 <div key={index} style={{ marginBottom: '20px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px' }}>
                                         <span style={{ background: '#E0F2FE', color: '#0369a1', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold' }}>{promo.code}</span>
-                                        <span>Đã dùng: <b>{promo.usedCount || 0}</b> / {promo.limit}</span>
+                                        <span>Còn lại: {promo.limit}</span>
                                     </div>
                                     <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '10px', overflow: 'hidden' }}>
                                         <div style={{

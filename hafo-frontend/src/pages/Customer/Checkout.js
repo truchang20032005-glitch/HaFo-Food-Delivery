@@ -58,12 +58,22 @@ function Checkout() {
 
     const [selectedSystemVoucher, setSelectedSystemVoucher] = useState(null);
 
+    // 1. Lọc voucher từ Nhà hàng (Voucher của quán)
+    const validMerchantVouchers = vouchers.filter(promo => {
+        const isExpired = promo.endDate && new Date(promo.endDate) < new Date();
+        return promo.isActive && promo.limit > 0 && !isExpired;
+    });
+
+    // 2. Lọc voucher Hệ thống (Hạng thành viên) - Má đã có biến này rồi nhưng nên dùng đồng bộ
+    const validSystemVouchers = user?.systemVouchers?.filter(v => {
+        const isExpired = v.endDate && new Date(v.endDate) < new Date();
+        return !v.isUsed && !isExpired;
+    }) || [];
+
     const formatTipInput = (val) => {
         const number = val.replace(/\D/g, ''); // Chỉ lấy số
         return number ? parseInt(number).toLocaleString('vi-VN') : '';
     };
-
-    const APP_FEE = 2000;
 
     // 1. Thêm hàm xử lý lấy vị trí hiện tại
     const handleGetCurrentLocation = () => {
@@ -133,7 +143,7 @@ function Checkout() {
         return merchantDiscount + systemDiscount;
     }, [discountAmount, selectedSystemVoucher]);
 
-    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total + APP_FEE - totalDiscount + tipAmount);
+    const FINAL_TOTAL = Math.max(0, totalAmount + shippingInfo.total - totalDiscount + tipAmount);
 
     const handleSelectVoucher = (voucher) => {
         if (selectedVoucher?._id === voucher._id) {
@@ -261,10 +271,12 @@ function Checkout() {
                     currentDiscount = discountAmount;
                 }
 
-                const groupFinalTotal = subTotal + currentResShipping + APP_FEE - currentDiscount;
+                const groupFinalTotal = subTotal + currentResShipping - currentDiscount;
                 const systemDiscountPerOrder = selectedSystemVoucher
                     ? (selectedSystemVoucher.value / Object.keys(groups).length)
                     : 0;
+
+                const tipPerOrder = tipAmount / Object.keys(groups).length;
 
                 const orderData = {
                     userId: user.id,
@@ -286,10 +298,13 @@ function Checkout() {
                         // Giữ lại options text nếu má muốn hiện trên Admin/Shipper
                         options: `${item.selectedSize}${item.selectedToppings.length > 0 ? ', ' + item.selectedToppings.map(t => t.name).join('+') : ''}`
                     })),
-                    total: groupFinalTotal - systemDiscountPerOrder + (tipAmount / Object.keys(groups).length),
+                    promoId: (selectedVoucher && (selectedVoucher.restaurantId === resId || selectedVoucher.restaurant === resId))
+                        ? selectedVoucher._id : null,
+                    shippingFee: currentResShipping,
                     systemVoucherId: selectedSystemVoucher?._id,
                     systemDiscount: systemDiscountPerOrder,
-                    tipAmount: tipAmount, // ✅ Gửi tiền tip thực tế
+                    tipAmount: tipPerOrder,
+                    total: groupFinalTotal - systemDiscountPerOrder + tipPerOrder,
                     note: formData.note + (currentDiscount > 0 ? ` [Voucher: ${selectedVoucher.code}]` : ""),
                     lat: formData.lat, lng: formData.lng
                 };
@@ -488,8 +503,10 @@ function Checkout() {
                             )}
                         </div>
 
-                        {vouchers.length === 0 ? (
-                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', background: '#f9f9f9', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>Quán hiện không có mã giảm giá.</div>
+                        {validMerchantVouchers.length === 0 ? (
+                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', background: '#f9f9f9', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                                Hiện không có mã giảm giá khả dụng.
+                            </div>
                         ) : (
                             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
                                 {vouchers.map(promo => {
@@ -538,18 +555,17 @@ function Checkout() {
                         </div>
 
                         {/* Lọc các mã chưa dùng của user */}
-                        {!user?.systemVouchers?.filter(v => !v.isUsed).length ? (
-                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', padding: '5px 10px' }}>Bạn chưa có mã ưu đãi hệ thống nào.</div>
+                        {validSystemVouchers.length === 0 ? (
+                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', padding: '5px 10px' }}>
+                                Bạn không có mã ưu đãi hệ thống nào còn hiệu lực.
+                            </div>
                         ) : (
                             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
-                                {user.systemVouchers.filter(v => !v.isUsed).map(v => {
+                                {validSystemVouchers.map(v => {
                                     const isSelected = selectedSystemVoucher?._id === v._id;
                                     return (
                                         <div key={v._id}
-                                            onClick={() => {
-                                                // Chỉ cho phép chọn 1 mã: Bấm cái khác thì cái cũ mất, bấm lại chính nó thì bỏ chọn
-                                                setSelectedSystemVoucher(isSelected ? null : v);
-                                            }}
+                                            onClick={() => setSelectedSystemVoucher(isSelected ? null : v)}
                                             style={{
                                                 border: isSelected ? '1.5px solid #16A34A' : '1px dashed #16A34A',
                                                 background: isSelected ? '#F0FDF4' : '#F7FEE7',
@@ -558,12 +574,10 @@ function Checkout() {
                                             <div style={{ fontWeight: 'bold', color: '#16A34A', fontSize: '13px' }}>MÃ HỆ THỐNG</div>
                                             <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: '800' }}>Giảm {v.value.toLocaleString()}đ</div>
                                             <div style={{ fontSize: '10px', color: '#666' }}>HSD: {new Date(v.endDate).toLocaleDateString('vi-VN')}</div>
-                                            {/* Vòng tròn đục lỗ giả vé (màu xanh) */}
+                                            {/* Vòng tròn đục lỗ giữ nguyên */}
                                             <div style={{ position: 'absolute', left: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderRight: '1px solid #16A34A' }}></div>
                                             <div style={{ position: 'absolute', right: -6, top: '50%', marginTop: -6, width: 12, height: 12, background: '#fff', borderRadius: '50%', borderLeft: '1px solid #16A34A' }}></div>
-                                            {isSelected && (
-                                                <div style={{ position: 'absolute', top: -5, right: -5, background: '#16A34A', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>✓</div>
-                                            )}
+                                            {isSelected && <div style={{ position: 'absolute', top: -5, right: -5, background: '#16A34A', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>✓</div>}
                                         </div>
                                     );
                                 })}

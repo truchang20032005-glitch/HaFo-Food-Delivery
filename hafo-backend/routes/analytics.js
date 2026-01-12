@@ -41,7 +41,6 @@ router.get('/admin/summary', async (req, res) => {
 
 // 2. BIỂU ĐỒ DOANH THU (Giữ nguyên code cũ của bạn)
 router.get('/admin/chart', async (req, res) => {
-    // ... (Code cũ giữ nguyên)
     try {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);

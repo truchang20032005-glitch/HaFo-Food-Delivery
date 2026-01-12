@@ -24,12 +24,14 @@ const OrderSchema = new mongoose.Schema({
     },
     promoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Promo', default: null },
     systemDiscount: { type: Number, default: 0 },
+    systemVoucherId: { type: mongoose.Schema.Types.ObjectId, default: null },
 
 
     // ✅ TÁCH RIÊNG 2 LOẠI ĐÁNH GIÁ ĐỂ KHÔNG ĐÈ NHAU
     restaurantRating: { type: Number, default: 0 }, // Sao của quán
     shipperRating: { type: Number, default: 0 },    // Sao của shipper
     tipAmount: { type: Number, default: 0 },
+    shippingFee: { type: Number, default: 0 },
 
     review: { type: String, default: '' },
     isReviewed: { type: Boolean, default: false },
