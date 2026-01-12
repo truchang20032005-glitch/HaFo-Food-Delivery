@@ -5,7 +5,17 @@ const Promo = require('../models/Promo');
 // 1. LẤY MÃ CỦA QUÁN
 router.get('/:restaurantId', async (req, res) => {
     try {
-        const promos = await Promo.find({ restaurantId: req.params.restaurantId });
+        const now = new Date();
+        const promos = await Promo.find({
+            restaurantId: req.params.restaurantId,
+            isActive: true, // Chỉ lấy mã đang bật
+            limit: { $gt: 0 }, // Chỉ lấy mã còn lượt dùng
+            // ✅ CHỈ LẤY MÃ NẰM TRONG KHOẢNG THỜI GIAN HỢP LỆ
+            $or: [
+                { endDate: { $exists: false } }, // Nếu không có ngày kết thúc thì lấy luôn
+                { endDate: { $gte: now } }       // Hoặc ngày kết thúc phải lớn hơn hoặc bằng hiện tại
+            ]
+        });
         res.json(promos);
     } catch (err) {
         res.status(500).json({ error: err.message });

@@ -119,6 +119,21 @@ function Orders() {
 
     if (!myShop) return <div style={{ padding: 40, textAlign: 'center' }}>Đang tải dữ liệu...</div>;
 
+    const calculateOrderFinances = (order) => {
+        if (!order) return { foodSub: 0, revenue: 0, merchantDisc: 0 };
+
+        // 1. Tổng tiền món (đã gồm size/topping nhưng chưa trừ voucher)
+        const foodSub = order.items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+
+        // 2. Doanh thu thực quán nhận (Đã gồm tiền Admin bù voucher hệ thống)
+        const revenue = (order.total + (order.systemDiscount || 0)) - (order.shippingFee || 0) - (order.tipAmount || 0);
+
+        // 3. Tiền giảm giá mà Quán phải chịu (Voucher của quán)
+        const merchantDisc = foodSub - revenue;
+
+        return { foodSub, revenue, merchantDisc };
+    };
+
     return (
         <section className="panel">
             <div className="head">
@@ -159,7 +174,7 @@ function Orders() {
                                         <div style={{ fontWeight: '700' }}>{o.customer.split('|')[0]}</div>
                                         <div style={{ fontSize: '12px', color: '#64748B' }}>{o.customer.split('|')[1]}</div>
                                     </td>
-                                    <td><b style={{ fontSize: '15px' }}>{fmtMoney(o.total - (o.tipAmount || 0))}</b></td>
+                                    <td><b style={{ fontSize: '15px' }}>{fmtMoney(o.total + (o.systemDiscount || 0) - (o.tipAmount || 0) - (o.shippingFee || 0))}</b></td>
                                     <td style={{ textAlign: 'center' }}><span style={S.badge(o.status)}>{o.status.toUpperCase()}</span></td>
                                     <td style={{ textAlign: 'right', paddingRight: '20px' }} onClick={e => e.stopPropagation()}>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -200,148 +215,176 @@ function Orders() {
             </div>
 
             {/* MODAL CHI TIẾT ĐƠN HÀNG - PHIÊN BẢN CẢI TIẾN */}
-            {selectedOrder && (
-                <div style={S.modalOverlay} onClick={() => setSelectedOrder(null)}>
-                    <div style={S.modalSheet} onClick={e => e.stopPropagation()}>
-                        {/* Header của Modal */}
-                        <div style={{ padding: '24px 30px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
-                            <div>
-                                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1E293B' }}>Đơn hàng #{selectedOrder._id.slice(-6).toUpperCase()}</h2>
-                                <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>Đặt vào: {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</div>
-                            </div>
-                            <button onClick={() => setSelectedOrder(null)} style={{ border: 'none', background: '#F1F5F9', width: '40px', height: '40px', borderRadius: '50%', fontSize: '20px', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-                        </div>
-
-                        {/* Nội dung chi tiết cuộn được */}
-                        <div style={{ padding: '30px', maxHeight: '65vh', overflowY: 'auto' }}>
-                            {/* Thông tin khách hàng */}
-                            <div style={S.sectionTitle}>THÔNG TIN GIAO HÀNG</div>
-                            <div style={S.infoBox}>
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                                    <div style={{ background: '#FFF1ED', color: '#F97350', width: '36px', height: '36px', borderRadius: '10px', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                                        <i className="fa-solid fa-location-dot"></i>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: '800', fontSize: '16px', color: '#1E293B' }}>{selectedOrder.customer.split('|')[0]}</div>
-                                        <div style={{ fontSize: '14px', color: '#475569', marginTop: '4px', lineHeight: '1.4' }}>
-                                            SĐT: <b>{selectedOrder.customer.split('|')[1]}</b><br />
-                                            Địa chỉ: {selectedOrder.customer.split('|')[2]}
-                                        </div>
-                                    </div>
+            {selectedOrder && (() => {
+                const { foodSub, revenue, merchantDisc } = calculateOrderFinances(selectedOrder);
+                return (
+                    <div style={S.modalOverlay} onClick={() => setSelectedOrder(null)}>
+                        <div style={S.modalSheet} onClick={e => e.stopPropagation()}>
+                            {/* Header của Modal */}
+                            <div style={{ padding: '24px 30px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1E293B' }}>Đơn hàng #{selectedOrder._id.slice(-6).toUpperCase()}</h2>
+                                    <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>Đặt vào: {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</div>
                                 </div>
+                                <button onClick={() => setSelectedOrder(null)} style={{ border: 'none', background: '#F1F5F9', width: '40px', height: '40px', borderRadius: '50%', fontSize: '20px', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                             </div>
 
-                            {/* Danh sách món ăn có hình ảnh */}
-                            <div style={S.sectionTitle}>DANH SÁCH MÓN ĂN</div>
-                            <div style={{ marginBottom: '25px' }}>
-                                {Array.isArray(selectedOrder.items) ? selectedOrder.items.map((item, idx) => (
-                                    <div key={idx} style={S.itemRow}>
-                                        {/* Ảnh món ăn */}
-                                        <img
-                                            src={item.image || 'https://via.placeholder.com/60?text=Food'}
-                                            alt={item.name}
-                                            style={{ width: '65px', height: '65px', borderRadius: '14px', objectFit: 'cover', border: '1px solid #F1F5F9' }}
-                                        />
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <div>
-                                                    <div style={{ fontWeight: '800', fontSize: '15px', color: '#1E293B' }}>{item.quantity}x {item.name}</div>
-                                                    {item.options && (
-                                                        <div style={{ fontSize: '12px', color: '#F97350', background: '#FFF1ED', padding: '2px 8px', borderRadius: '6px', display: 'inline-block', marginTop: '4px', fontWeight: '600' }}>
-                                                            {item.options}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div style={{ fontWeight: '700', fontSize: '15px', color: '#1E293B' }}>{fmtMoney(item.price * item.quantity)}</div>
+                            {/* Nội dung chi tiết cuộn được */}
+                            <div style={{ padding: '30px', maxHeight: '65vh', overflowY: 'auto' }}>
+                                {/* Thông tin khách hàng */}
+                                <div style={S.sectionTitle}>THÔNG TIN GIAO HÀNG</div>
+                                <div style={S.infoBox}>
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                        <div style={{ background: '#FFF1ED', color: '#F97350', width: '36px', height: '36px', borderRadius: '10px', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                                            <i className="fa-solid fa-location-dot"></i>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: '800', fontSize: '16px', color: '#1E293B' }}>{selectedOrder.customer.split('|')[0]}</div>
+                                            <div style={{ fontSize: '14px', color: '#475569', marginTop: '4px', lineHeight: '1.4' }}>
+                                                SĐT: <b>{selectedOrder.customer.split('|')[1]}</b><br />
+                                                Địa chỉ: {selectedOrder.customer.split('|')[2]}
                                             </div>
                                         </div>
                                     </div>
-                                )) : <div style={{ padding: '15px', background: '#FFF1ED', borderRadius: '12px', color: '#EA580C' }}>{selectedOrder.items}</div>}
+                                </div>
+
+                                {/* Danh sách món ăn có hình ảnh */}
+                                <div style={S.sectionTitle}>DANH SÁCH MÓN ĂN</div>
+                                <div style={{ marginBottom: '25px' }}>
+                                    {Array.isArray(selectedOrder.items) ? selectedOrder.items.map((item, idx) => (
+                                        <div key={idx} style={S.itemRow}>
+                                            {/* Ảnh món ăn */}
+                                            <img
+                                                src={item.image || 'https://via.placeholder.com/60?text=Food'}
+                                                alt={item.name}
+                                                style={{ width: '65px', height: '65px', borderRadius: '14px', objectFit: 'cover', border: '1px solid #F1F5F9' }}
+                                            />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                    <div>
+                                                        <div style={{ fontWeight: '800', fontSize: '15px', color: '#1E293B' }}>{item.quantity}x {item.name}</div>
+                                                        {item.options && (
+                                                            <div style={{ fontSize: '12px', color: '#F97350', background: '#FFF1ED', padding: '2px 8px', borderRadius: '6px', display: 'inline-block', marginTop: '4px', fontWeight: '600' }}>
+                                                                {item.options}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ fontWeight: '700', fontSize: '15px', color: '#1E293B' }}>{fmtMoney(item.price * item.quantity)}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )) : <div style={{ padding: '15px', background: '#FFF1ED', borderRadius: '12px', color: '#EA580C' }}>{selectedOrder.items}</div>}
+                                </div>
+
+                                {/* Tổng kết tiền */}
+                                <div style={{ background: '#F8FAFC', padding: '20px', borderRadius: '24px', border: '1px solid #E2E8F0' }}>
+                                    {/* Dòng Tạm tính (Tiền món ăn gốc) */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#64748B' }}>
+                                        <span>Tạm tính (Tiền món)</span>
+                                        <span style={{ fontWeight: '600' }}>{fmtMoney(foodSub)}</span>
+                                    </div>
+
+                                    {/* Hiển thị dòng Giảm giá nếu có dùng Voucher của quán */}
+                                    {merchantDisc > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#EF4444' }}>
+                                            <span>Voucher nhà hàng</span>
+                                            <span style={{ fontWeight: '600' }}>-{fmtMoney(merchantDisc)}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Hiển thị dòng Hệ thống bù nếu khách dùng mã Hạng thành viên */}
+                                    {selectedOrder.systemDiscount > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#22C55E' }}>
+                                            <span>Hệ thống trợ giá (Voucher hệ thống)</span>
+                                            <span style={{ fontWeight: '600' }}>+{fmtMoney(selectedOrder.systemDiscount)}</span>
+                                        </div>
+                                    )}
+
+                                    <div style={{ borderTop: '2px dashed #CBD5E1', margin: '15px 0' }}></div>
+
+                                    {/* Tổng cộng thực tế Nhà hàng được cộng vào ví */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <span style={{ fontWeight: '800', fontSize: '16px', color: '#1E293B', display: 'block' }}>DOANH THU THỰC</span>
+                                            <small style={{ fontSize: '10px', color: '#94A3B8' }}>(Đã trừ Ship, Tip và Voucher Quán)</small>
+                                        </div>
+                                        <span style={{ fontWeight: '900', fontSize: '26px', color: '#F97350' }}>
+                                            {fmtMoney(revenue)}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Tổng kết tiền */}
-                            <div style={{ background: '#F8FAFC', padding: '20px', borderRadius: '20px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#64748B' }}>
-                                    <span>Tạm tính</span>
-                                    <span>{fmtMoney(selectedOrder.total)}</span>
-                                </div>
-                                <div style={{ borderTop: '5px solid #F1F5F9', margin: '20px 0' }}></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: '800', fontSize: '16px', color: '#1E293B' }}>TỔNG CỘNG</span>
-                                    <span style={{ fontWeight: '900', fontSize: '24px', color: '#F97350' }}>{fmtMoney(selectedOrder.total)}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Nút hành động cuối Modal */}
-                        <div style={{
-                            padding: '24px 30px',
-                            borderTop: '1px solid #F1F5F9',
-                            background: '#fff',
-                            display: 'flex',
-                            gap: '15px',
-                            justifyContent: 'center' // Căn toàn bộ cụm nút vào giữa modal
-                        }}>
-                            <button
-                                className="btn soft"
-                                style={{
-                                    width: '140px',          // Rút ngắn nút Đóng
-                                    padding: '14px',
-                                    borderRadius: '14px',
-                                    display: 'flex',         // Dùng flex để ép chữ vào giữa
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    textAlign: 'center'
-                                }}
-                                onClick={() => setSelectedOrder(null)}
-                            >
-                                Đóng lại
-                            </button>
-
-                            {selectedOrder.status === 'new' && (
+                            {/* Nút hành động cuối Modal */}
+                            <div style={{
+                                padding: '24px 30px',
+                                borderTop: '1px solid #F1F5F9',
+                                background: '#fff',
+                                display: 'flex',
+                                gap: '15px',
+                                justifyContent: 'center' // Căn toàn bộ cụm nút vào giữa modal
+                            }}>
                                 <button
-                                    className="btn primary"
+                                    className="btn soft"
                                     style={{
-                                        width: '180px',      // Rút ngắn nút Xác nhận
+                                        width: '140px',          // Rút ngắn nút Đóng
                                         padding: '14px',
                                         borderRadius: '14px',
-                                        display: 'flex',     // Ép chữ vào giữa tuyệt đối
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        textAlign: 'center',
-                                        fontWeight: '800'
-                                    }}
-                                    onClick={() => handleStatusChange(selectedOrder._id, 'prep')}
-                                >
-                                    Xác nhận ngay
-                                </button>
-                            )}
-
-                            {selectedOrder.status === 'prep' && (
-                                <button
-                                    className="btn"
-                                    style={{
-                                        width: '180px',
-                                        padding: '14px',
-                                        borderRadius: '14px',
-                                        background: '#22C55E',
-                                        color: '#fff',
-                                        border: 'none',
-                                        fontWeight: '800',
-                                        display: 'flex',     // Ép chữ vào giữa
+                                        display: 'flex',         // Dùng flex để ép chữ vào giữa
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                         textAlign: 'center'
                                     }}
-                                    onClick={() => handleStatusChange(selectedOrder._id, 'ready')}
+                                    onClick={() => setSelectedOrder(null)}
                                 >
-                                    Xong món
+                                    Đóng lại
                                 </button>
-                            )}
+
+                                {selectedOrder.status === 'new' && (
+                                    <button
+                                        className="btn primary"
+                                        style={{
+                                            width: '180px',      // Rút ngắn nút Xác nhận
+                                            padding: '14px',
+                                            borderRadius: '14px',
+                                            display: 'flex',     // Ép chữ vào giữa tuyệt đối
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            textAlign: 'center',
+                                            fontWeight: '800'
+                                        }}
+                                        onClick={() => handleStatusChange(selectedOrder._id, 'prep')}
+                                    >
+                                        Xác nhận ngay
+                                    </button>
+                                )}
+
+                                {selectedOrder.status === 'prep' && (
+                                    <button
+                                        className="btn"
+                                        style={{
+                                            width: '180px',
+                                            padding: '14px',
+                                            borderRadius: '14px',
+                                            background: '#22C55E',
+                                            color: '#fff',
+                                            border: 'none',
+                                            fontWeight: '800',
+                                            display: 'flex',     // Ép chữ vào giữa
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            textAlign: 'center'
+                                        }}
+                                        onClick={() => handleStatusChange(selectedOrder._id, 'ready')}
+                                    >
+                                        Xong món
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </section>
     );
 }

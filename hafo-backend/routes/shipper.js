@@ -185,4 +185,24 @@ router.get('/notifications/:userId', async (req, res) => {
     }
 });
 
+router.post('/top-up', async (req, res) => {
+    try {
+        const { userId, amount } = req.body;
+
+        // Cập nhật trường income trong bảng Shipper
+        const shipper = await Shipper.findOneAndUpdate(
+            { user: userId },
+            { $inc: { income: Number(amount) } }, // Cộng dồn số tiền nạp
+            { new: true }
+        );
+
+        res.json({
+            message: "Nạp tiền vào ví thành công!",
+            newBalance: shipper.income
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 module.exports = router;

@@ -13,6 +13,33 @@ function ShipperWallet() {
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
 
+    const [showTopUp, setShowTopUp] = useState(false);
+    const [topUpAmount, setTopUpAmount] = useState('');
+
+    const [hoverWithdraw, setHoverWithdraw] = useState(false);
+    const [hoverTopUp, setHoverTopUp] = useState(false);
+
+    const handleTopUpSubmit = async () => {
+        if (!topUpAmount || Number(topUpAmount) < 10000) {
+            return alertWarning("Số tiền nạp tối thiểu là 10.000đ");
+        }
+
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            await api.post('/shippers/top-up', {
+                userId: user.id || user._id,
+                amount: topUpAmount
+            });
+
+            await alertSuccess("Nạp tiền thành công", "Số dư ví của bạn đã được cập nhật.");
+            setShowTopUp(false);
+            setTopUpAmount('');
+            fetchWalletData(user.id || user._id); // Tải lại dữ liệu ví
+        } catch (err) {
+            alertError("Lỗi nạp tiền", err.message);
+        }
+    };
+
     const realBalance = useMemo(() => {
         return transactions.reduce((sum, t) => {
             if (t.type === 'in') return sum + t.amount;
@@ -166,29 +193,79 @@ function ShipperWallet() {
                     <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>Doanh thu từ các đơn đã giao</div>
                     <div style={{
                         display: 'flex',
-                        justifyContent: 'center', // Căn giữa theo chiều ngang
+                        gap: '15px',
+                        justifyContent: 'center',
                         marginTop: '25px',
-                        paddingBottom: '10px'
+                        padding: '0 5px 15px'
                     }}>
+                        {/* --- NÚT RÚT TIỀN --- */}
                         <button
                             className="btn primary"
+                            onMouseEnter={() => setHoverWithdraw(true)}
+                            onMouseLeave={() => setHoverWithdraw(false)}
                             onClick={() => setShowWithdrawModal(true)}
                             disabled={realBalance < 50000}
                             style={{
-                                padding: '12px 40px', // Tăng độ dài nút cho cân đối
-                                fontSize: '15px',
+                                flex: 1,
+                                padding: '14px 0',
+                                fontSize: '14px',
                                 fontWeight: '800',
-                                borderRadius: '12px',
-                                boxShadow: '0 4px 15px rgba(249, 115, 80, 0.2)', // Đổ bóng cam cho nổi bật
-                                cursor: 'pointer',
+                                borderRadius: '16px',
                                 border: 'none',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '10px'
+                                justifyContent: 'center',
+                                gap: '8px',
+                                cursor: realBalance < 50000 ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Hiệu ứng mượt mà
+                                // Hiệu ứng Hover: Nhích lên và đậm màu hơn
+                                transform: hoverWithdraw && realBalance >= 50000 ? 'translateY(-3px)' : 'translateY(0)',
+                                boxShadow: hoverWithdraw && realBalance >= 50000
+                                    ? '0 8px 20px rgba(249, 115, 80, 0.3)'
+                                    : '0 4px 12px rgba(249, 115, 80, 0.1)',
+                                opacity: realBalance < 50000 ? 0.5 : 1
                             }}
                         >
                             <i className="fa-solid fa-money-bill-transfer"></i>
-                            Rút tiền về ngân hàng
+                            Rút tiền
+                        </button>
+
+                        {/* --- NÚT NẠP TIỀN: Nâng cấp Hover cực xịn --- */}
+                        <button
+                            className="btn"
+                            onMouseEnter={() => setHoverTopUp(true)}
+                            onMouseLeave={() => setHoverTopUp(false)}
+                            onClick={() => setShowTopUp(true)}
+                            style={{
+                                flex: 1,
+                                padding: '14px 0',
+                                fontSize: '14px',
+                                fontWeight: '800',
+                                borderRadius: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+
+                                // Logic màu sắc động khi Hover
+                                background: realBalance < 0
+                                    ? (hoverTopUp ? '#16A34A' : '#22C55E') // Xanh đậm hơn khi hover lúc ví âm
+                                    : (hoverTopUp ? '#F0FDF4' : '#fff'),   // Xanh cực nhạt khi hover lúc ví dương
+
+                                color: realBalance < 0 ? '#fff' : '#22C55E',
+                                border: '2px solid #22C55E',
+
+                                // Hiệu ứng vật lý khi Hover
+                                transform: hoverTopUp ? 'translateY(-3px)' : 'translateY(0)',
+                                boxShadow: hoverTopUp
+                                    ? '0 10px 25px rgba(34, 197, 94, 0.3)'
+                                    : (realBalance < 0 ? '0 4px 15px rgba(34, 197, 94, 0.2)' : 'none')
+                            }}
+                        >
+                            <i className={`fa-solid ${realBalance < 0 ? 'fa-bolt-lightning' : 'fa-plus-circle'}`}></i>
+                            {realBalance < 0 ? "XÓA NỢ NGAY" : "Nạp thêm"}
                         </button>
                     </div>
                 </div>
@@ -413,6 +490,97 @@ function ShipperWallet() {
                     </div>
                 </div>
             )}
+
+            {showTopUp && (
+                <div style={S.overlay} onClick={() => setShowTopUp(false)}>
+                    <div style={S.sheet} onClick={e => e.stopPropagation()}>
+
+                        {/* ✅ NÚT ĐÓNG CẢI TIẾN */}
+                        <button
+                            onClick={() => setShowTopUp(false)}
+                            style={S.closeBtnCircle}
+                            onMouseEnter={(e) => { e.target.style.background = '#E2E8F0'; e.target.style.color = '#1E293B'; }}
+                            onMouseLeave={(e) => { e.target.style.background = '#F1F5F9'; e.target.style.color = '#64748B'; }}
+                        >
+                            <i className="fa-solid fa-xmark"></i>
+                        </button>
+
+                        {/* Header Modal */}
+                        <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                            <div style={{
+                                width: '60px', height: '60px', background: '#F0FDF4',
+                                borderRadius: '20px', display: 'grid', placeItems: 'center',
+                                margin: '0 auto 15px'
+                            }}>
+                                <i className="fa-solid fa-building-columns" style={{ color: '#22C55E', fontSize: '24px' }}></i>
+                            </div>
+                            <h2 style={{ margin: 0, color: '#1E293B', fontSize: '22px', fontWeight: '900' }}>
+                                {realBalance < 0 ? "Thanh toán nợ ví" : "Nạp tiền vào ví"}
+                            </h2>
+                            <p style={{ fontSize: '14px', color: '#64748B', marginTop: '8px', padding: '0 10px' }}>
+                                {realBalance < 0
+                                    ? `Số dư hiện tại đang âm ${toVND(Math.abs(realBalance))}. Nạp tiền để xóa nợ nhé!`
+                                    : "Nạp thêm tiền để chuẩn bị cho các đơn hàng thu hộ (COD) sắp tới."}
+                            </p>
+                        </div>
+
+                        {/* Grid chọn nhanh mệnh giá */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                            {[50000, 100000, 200000, 500000, 1000000, 2000000].map(amt => (
+                                <button
+                                    key={amt}
+                                    onClick={() => setTopUpAmount(amt.toString())}
+                                    style={S.amountBtn(topUpAmount === amt.toString())}
+                                >
+                                    {amt / 1000}K
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Ô nhập số tiền tùy chỉnh */}
+                        <div style={{ position: 'relative', marginBottom: '30px' }}>
+                            <label style={{ ...S.label, fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Hoặc nhập số tiền khác
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    style={{
+                                        ...S.input,
+                                        borderColor: '#22C55E',
+                                        color: '#16A34A',
+                                        fontSize: '26px',
+                                        fontWeight: '900',
+                                        paddingLeft: '20px',
+                                        background: '#F8FAFC'
+                                    }}
+                                    type="text"
+                                    placeholder="0"
+                                    value={topUpAmount ? Number(topUpAmount).toLocaleString('vi-VN') : ''}
+                                    onChange={e => setTopUpAmount(e.target.value.replace(/\D/g, ''))}
+                                />
+                                <span style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', fontWeight: '900', color: '#16A34A', fontSize: '18px' }}>đ</span>
+                            </div>
+                        </div>
+
+                        {/* Nút hành động */}
+                        <button
+                            className="btn primary"
+                            style={{
+                                width: '100%', padding: '18px', borderRadius: '18px',
+                                background: '#22C55E', color: '#fff', border: 'none',
+                                fontWeight: '800', fontSize: '16px', cursor: 'pointer',
+                                boxShadow: '0 10px 20px rgba(34, 197, 94, 0.25)',
+                                transition: '0.3s'
+                            }}
+                            onClick={handleTopUpSubmit}
+                            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                        >
+                            Xác nhận nạp ngay
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -448,7 +616,7 @@ const S = {
         background: '#fff',
         width: '100%',
         maxWidth: '450px',
-        borderRadius: '28px',
+        borderRadius: '32px',
         padding: '30px',
         boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
         position: 'relative',
@@ -477,7 +645,37 @@ const S = {
         transition: '0.2s',
         boxSizing: 'border-box',
         textAlign: 'center' // Số tiền hiện chính giữa ô nhập cho đẹp
-    }
+    },
+    closeBtnCircle: {
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        width: '36px',
+        height: '36px',
+        borderRadius: '50%',
+        border: 'none',
+        background: '#F1F5F9', // Màu xám nhạt tinh tế
+        color: '#64748B',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: '0.2s',
+        fontSize: '16px'
+    },
+
+    amountBtn: (active) => ({
+        padding: '14px 5px',
+        borderRadius: '16px', // Bo góc nhiều hơn
+        border: active ? '2px solid #22C55E' : '1px solid #E2E8F0',
+        background: active ? '#F0FDF4' : '#fff',
+        color: active ? '#16A34A' : '#475569',
+        fontWeight: '800',
+        fontSize: '14px',
+        cursor: 'pointer',
+        transition: '0.2s',
+        boxShadow: active ? '0 4px 12px rgba(34, 197, 94, 0.15)' : 'none'
+    })
 };
 
 const labelStyle = { color: '#666', fontSize: '13px', width: '120px', display: 'inline-block' };

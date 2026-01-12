@@ -92,7 +92,11 @@ router.get('/:id', async (req, res) => {
 
 // --- 3. TẠO ĐƠN HÀNG MỚI (CẬP NHẬT) ---
 router.post('/', async (req, res) => {
-    const { customer, items, total, userId, restaurantId, lat, lng, note, tipAmount } = req.body;
+    const {
+        customer, items, total, userId, restaurantId,
+        lat, lng, note, tipAmount, promoId,
+        systemDiscount, systemVoucherId
+    } = req.body;
 
     const user = await User.findById(req.body.userId);
     if (user && user.status === 'locked') {
@@ -109,8 +113,18 @@ router.post('/', async (req, res) => {
             lat,
             lng,
             note,
-            tipAmount: tipAmount || 0
+            tipAmount: tipAmount || 0,
+            promoId: promoId || null,
+            systemDiscount: systemDiscount || 0,
+            systemVoucherId: systemVoucherId || null
         });
+
+        if (promoId) {
+            const checkPromo = await Promo.findById(promoId);
+            if (!checkPromo || !checkPromo.isActive || checkPromo.limit <= 0 || (checkPromo.endDate && new Date(checkPromo.endDate) < new Date())) {
+                return res.status(400).json({ message: "Mã giảm giá đã hết hạn hoặc hết lượt sử dụng!" });
+            }
+        }
 
         const savedOrder = await newOrder.save();
 
@@ -136,7 +150,7 @@ router.post('/', async (req, res) => {
 // --- 4. CẬP NHẬT TRẠNG THÁI ĐƠN ---
 router.put('/:id', async (req, res) => {
     try {
-        const { status, shipperId, restaurantRating, shipperRating, review, isReviewed, tipAmount } = req.body;
+        const { status, shipperId, restaurantRating, shipperRating, review, isReviewed, tipAmount, } = req.body;
 
         const order = await Order.findById(req.params.id);
         if (!order) {
@@ -154,22 +168,31 @@ router.put('/:id', async (req, res) => {
         if (status === 'done' && order.status !== 'done') {
             const tipFromReq = req.body.tipAmount !== undefined ? Number(req.body.tipAmount) : undefined;
             const actualTip = tipFromReq ?? (order.tipAmount || 0);
-            const BASE_SHIP_FEE = 15000; // Phí ship cứng shipper nhận được mỗi đơn
 
-            // 1. Cộng doanh thu cho Quán (Tổng đơn - toàn bộ tiền tip)
-            const systemCompensation = order.systemDiscount || 0; // Số tiền hệ thống bù lại
-            const restaurantEarn = (order.total - actualTip) + systemCompensation;
+            // A. TÍNH DOANH THU NHÀ HÀNG (Tiền món - Voucher quán)
+            const foodSubtotal = order.items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+            // Lưu ý: order.total đã trừ voucher rồi, nên foodSubtotal ở đây là con số sạch
 
             await Restaurant.findByIdAndUpdate(order.restaurantId, {
-                $inc: { revenue: restaurantEarn }
+                $inc: { revenue: foodSubtotal }
             });
 
-            // 2. Cộng tiền vào ví Shipper: 15k phí cứng + 80% tiền tip
+            // B. TÍNH TIỀN CHO SHIPPER (Lương cứng + 80% Tip)
             if (order.shipperId) {
-                const totalShipperEarn = BASE_SHIP_FEE + (actualTip * 0.8);
+                const shipperEarn = 15000 + (actualTip * 0.8);
+
+                // Kiểm tra phương thức thanh toán: "Name | Phone | Addr | CASH"
+                const paymentMethod = order.customer.split('|')[3]?.trim();
+                let balanceChange = shipperEarn;
+
+                if (paymentMethod === 'CASH') {
+                    // CƠ CHẾ VÍ ÂM: Tiền công - Tiền mặt đã thu hộ
+                    balanceChange = shipperEarn - order.total;
+                }
+
                 await Shipper.findOneAndUpdate(
                     { user: order.shipperId },
-                    { $inc: { income: totalShipperEarn } }
+                    { $inc: { income: balanceChange } }
                 );
             }
 
@@ -190,6 +213,13 @@ router.put('/:id', async (req, res) => {
             if (user) {
                 const spending = order.total - (order.tipAmount || 0);
                 user.totalSpending += spending;
+
+                if (order.systemVoucherId) {
+                    const voucher = user.systemVouchers.id(order.systemVoucherId);
+                    if (voucher) {
+                        voucher.isUsed = true; // ✅ Đánh dấu đã dùng
+                    }
+                }
 
                 let oldTier = user.membershipTier;
                 if (user.totalSpending >= 15000000) user.membershipTier = 'Diamond';
