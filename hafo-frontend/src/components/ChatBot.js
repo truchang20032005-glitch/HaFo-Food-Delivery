@@ -81,8 +81,12 @@ function ChatBot() {
                 text: res.data.reply,
                 foods: res.data.foods || []
             }]);
-        } catch (error) {
-            setMessages(prev => [...prev, { sender: 'bot', text: 'Kết nối không ổn định, vui lòng thử lại sau!' }]);
+        } catch (err) {
+            console.error("LỖI CHATBOT:", err); // In ra console để má dễ debug
+            // Ưu tiên lấy câu trả lời lỗi từ server gửi về
+            const serverReply = err.response?.data?.reply || 'Kết nối không ổn định, vui lòng thử lại sau!';
+            const errorMsg = { sender: 'bot', text: serverReply };
+            setMessages(prev => [...prev.slice(0, -1), errorMsg]);
         } finally {
             setIsLoading(false);
         }
@@ -105,7 +109,7 @@ function ChatBot() {
         if (!resId) {
             // Nếu vẫn không có, ta thử lấy từ các trường dự phòng
             console.error("Dữ liệu món ăn bị thiếu quán:", food);
-            return alertError("Món này chưa có thông tin quán, má chọn món khác nha!");
+            return alertError("Món này chưa có thông tin quán, bạn chọn món khác nha!");
         }
 
         // 3. ĐÓNG GÓI ITEM

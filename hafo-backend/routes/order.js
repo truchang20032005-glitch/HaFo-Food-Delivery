@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
 // API lấy đơn cho Shipper
 router.get('/available-orders', async (req, res) => {
     try {
-        const { lat, lng, radius = 5000, currentShipperId } = req.query;
+        const { lat, lng, radius = 10000, currentShipperId } = req.query;
 
         // ✅ KIỂM TRA: Nếu shipper này đang có > 3 đơn chưa hoàn thành, không cho hiện đơn mới nữa
         if (currentShipperId) {
